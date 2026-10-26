@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 // Self-hosted fonts (bundled from npm, no request to Google at runtime).
 import "@fontsource/instrument-serif/latin-400.css";
 import "@fontsource/instrument-serif/latin-400-italic.css";
-import "@fontsource-variable/inter/index.css";
+import "@fontsource-variable/schibsted-grotesk/index.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";

@@ -15,7 +15,7 @@ interface Asset {
   approval_status: string; watermarked: boolean; remakes_used: number; delivered_at: string; pushed_to_shopify_at: string | null;
   quality_checks: Check_[]; refund_requests: { status: string }[] | { status: string } | null;
 }
-interface Item { id: string; idx: number; status: string; attempts: number; last_error: string | null; decision: string | null; delivered_asset_id: string | null; style: string | null }
+interface Item { id: string; idx: number; status: string; attempts: number; last_error: string | null; decision: string | null; delivered_asset_id: string | null; style: string | null; params?: { ideaTitle?: string } | null }
 interface JobData {
   job: {
     id: string; status: string; statusLabel: string; statusTone: string; mode: string; style: string; output: string; requested_count: number; is_trial: boolean;
@@ -28,7 +28,7 @@ const STAGE: Record<string, string[]> = {
   queued: ["In the queue"],
   preparing: ["Studying your product", "Directing the shot"],
   generating: ["Building the set", "Lighting the scene", "Placing your product"],
-  checking: ["Restoring your real label", "Checking every letter"],
+  checking: ["Restoring your label detail", "Checking every letter"],
 };
 const REASONS: [string, string][] = [
   ["logo_changed", "The logo changed"], ["text_changed", "Label text changed or is wrong"], ["wrong_product", "It's a different product"],
@@ -39,7 +39,7 @@ const EDIT_IDEAS = ["Warmer, golden light", "Darker, moodier background", "Add f
 
 const styleName = (id?: string | null) => (id && STYLES[id as StyleId]?.name) || "Custom";
 
-export function JobView({ jobId, surface = "web", freeRemakes = 1 }: { jobId: string; surface?: "web" | "shopify"; freeRemakes?: number }) {
+export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = false }: { jobId: string; surface?: "web" | "shopify"; freeRemakes?: number; embedded?: boolean }) {
   const router = useRouter();
   const [data, setData] = useState<JobData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,22 +80,21 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1 }: { jobId: st
   const output = OUTPUTS[job.output as OutputId];
   const ratio = output ? `${output.width}/${output.height}` : "1";
   const order = delivered.map((i) => i.delivered_asset_id!) as string[];
-  const scenes = [...new Set(items.map((i) => i.style ?? job.style))];
   const pct = Math.round(((delivered.length + failed) / Math.max(1, items.length)) * 100);
   const ref = references[0]?.url ?? null;
 
   return (
     <div>
       <header className="mb-6">
-        <button type="button" onClick={() => router.push(surface === "shopify" ? "/shopify" : "/app")} className="mb-3 inline-flex items-center gap-1 text-sm text-mute hover:text-ink">
-          <ArrowLeft size={15} /> {surface === "shopify" ? "Products" : "Home"}
-        </button>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        {!embedded && <button type="button" onClick={() => router.push(surface === "shopify" ? "/shopify" : "/app")} className="mb-3 inline-flex items-center gap-1 text-sm text-mute hover:text-ink">
+          <ArrowLeft size={15} /> {surface === "shopify" ? "Products" : "Studio"}
+        </button>}
+        <div className={clsx("flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", embedded && "hidden")}>
           <div className="min-w-0">
             <h1 className="display truncate text-3xl sm:text-4xl">{job.products.name}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-              {job.settings?.edit ? <span className="rounded-full bg-ai/10 px-2.5 py-1 font-medium text-ai">Edit: “{job.settings.edit.instruction}”</span>
-                : scenes.map((s) => <span key={s} className="rounded-full bg-paper-2 px-2.5 py-1 font-medium">{styleName(s)}</span>)}
+              {job.settings?.edit ? <span className="rounded-full bg-accent/10 px-2.5 py-1 font-medium text-accent">Edit: “{job.settings.edit.instruction}”</span>
+                : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))].map((s) => <span key={s} className="rounded-full bg-paper-2 px-2.5 py-1 font-medium">{s}</span>)}
               <span className="rounded-full bg-paper-2 px-2.5 py-1">{output?.name} {output?.ratio}</span>
               {job.mode === "preserve" && <span className="inline-flex items-center gap-1 rounded-full bg-good/10 px-2.5 py-1 font-medium text-good"><ShieldCheck size={12} /> Exact product</span>}
             </div>
@@ -107,14 +106,14 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1 }: { jobId: st
         </div>
         {active.length > 0 && (
           <div className="mt-5">
-            <div className="h-1.5 overflow-hidden rounded-full bg-paper-2"><div className="h-full rounded-full bg-gradient-to-r from-ai via-[#ff5a8a] to-accent transition-all duration-700" style={{ width: `${Math.max(6, pct)}%` }} /></div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-paper-2"><div className="h-full rounded-full bg-gradient-to-r from-[#ffc27a] via-accent to-[#ff4f7b] transition-all duration-700" style={{ width: `${Math.max(6, pct)}%` }} /></div>
             <div className="mt-2 text-xs text-mute">{delivered.length} of {items.length} ready · about 30 to 60 seconds per image · you can leave this page</div>
           </div>
         )}
         {job.is_trial && delivered.length > 0 && (
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-ink px-4 py-3 text-sm text-white">
-            <span>Trial images carry a watermark. Buy credits for full-size, clean images.</span>
-            <a href={`${base}/${surface === "shopify" ? "credits" : "wallet"}`} className="shrink-0 rounded-full bg-white px-3 py-1.5 font-medium text-ink">Get credits</a>
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-3 text-sm">
+            <span className="text-ink-2">Trial images carry a watermark. Buy credits for full-size, clean images.</span>
+            <a href={`${base}/${surface === "shopify" ? "credits" : "wallet"}`} className="cta-strobe shrink-0 rounded-full px-4 py-1.5 font-semibold">Get credits</a>
           </div>
         )}
       </header>
@@ -131,7 +130,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1 }: { jobId: st
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={a.thumbUrl} alt={`${job.products.name} ${i + 1}`} className="size-full object-cover animate-develop transition-transform duration-500 group-hover:scale-[1.03]" />
                     <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/55 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                      {styleName(it.style ?? job.style)}<Maximize2 size={14} />
+                      {it.params?.ideaTitle ?? styleName(it.style ?? job.style)}<Maximize2 size={14} />
                     </span>
                   </button>
                 ) : it.status === "failed" ? (
@@ -150,7 +149,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1 }: { jobId: st
                     <div className="scanline absolute inset-0" />
                     <div className="absolute inset-x-3 bottom-3">
                       <div className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium shadow-sm">
-                        <Spinner className="size-3 text-ai" /> {stages[tick % stages.length]}
+                        <Spinner className="size-3 text-accent" /> {stages[tick % stages.length]}
                       </div>
                       {it.attempts > 1 && <div className="mt-1.5 text-[11px] text-ink-2">Trying again for a better result</div>}
                     </div>
@@ -186,7 +185,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1 }: { jobId: st
           onNavigate={setOpen}
           reference={ref}
           productName={job.products.name}
-          sceneName={styleName(items.find((i) => i.delivered_asset_id === open)?.style ?? job.style)}
+          sceneName={(() => { const it = items.find((i) => i.delivered_asset_id === open); return it?.params?.ideaTitle ?? styleName(it?.style ?? job.style); })()}
           currentOutput={job.output as OutputId}
           surface={surface}
           freeRemakes={freeRemakes}
@@ -321,7 +320,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
           <Button className="flex-1" disabled={!!busy} onClick={() => run("dl", async () => saveBlob(await api<Blob>(`/api/assets/${asset.id}/download?format=${format}`), `${fileBase}.${format}`))}>
             {busy === "dl" ? <Spinner /> : <Download size={16} />} Download
           </Button>
-          <select value={format} onChange={(e) => setFormat(e.target.value as typeof format)} aria-label="Format" className="rounded-full border border-line bg-white px-3 text-sm font-medium outline-none">
+          <select value={format} onChange={(e) => setFormat(e.target.value as typeof format)} aria-label="Format" className="rounded-full border border-line bg-card px-3 text-sm font-medium outline-none">
             <option value="jpg">JPG</option><option value="png">PNG</option><option value="webp">WebP</option>
           </select>
         </div>
@@ -332,10 +331,10 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         )}
 
         <div className="mt-5 rounded-2xl border border-line p-3">
-          <div className="flex items-center gap-1.5 text-sm font-semibold"><Wand2 size={15} className="text-ai" /> Edit with words</div>
+          <div className="flex items-center gap-1.5 text-sm font-semibold"><Wand2 size={15} className="text-accent" /> Edit with words</div>
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={2} maxLength={500}
             placeholder="Tell us what to change. Your product stays exact."
-            className="mt-2 w-full resize-none rounded-xl bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ai/30" />
+            className="mt-2 w-full resize-none rounded-xl bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30" />
           <div className="no-scrollbar mt-1 flex gap-1.5 overflow-x-auto">
             {EDIT_IDEAS.map((idea) => (
               <button key={idea} type="button" onClick={() => setInstruction(idea)} className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-[11px] font-medium text-ink-2 hover:bg-line">{idea}</button>

@@ -13,17 +13,17 @@
   --color-ink-2: #3c3c44;
   --color-mute: #74747d;
   --color-line: #e5e5e2;
-  --color-accent: #ff5a1f;
-  --color-accent-ink: #d9430c;
-  --color-ai: #7c5cff;
+  --color-accent: #ff6a2b;
+  --color-accent-ink: #e24f12;
+  --color-ai: #ff8a4c;
   --color-good: #1f8a52;
   --color-warn: #b26a00;
   --color-bad: #d12c1f;
   --color-busy: #2f6fd1;
 
-  --font-display: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Schibsted Grotesk Variable", ui-sans-serif, sans-serif;
   --font-serif: "Instrument Serif", "Times New Roman", serif;
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --radius-card: 20px;
@@ -84,11 +84,11 @@ body {
   .serif { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
   .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--color-mute); }
   .frame-no { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; color: var(--color-mute); }
-  .ai-text { background: linear-gradient(90deg, #7c5cff, #ff5a8a 55%, #ff8a3d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ai-text { background: linear-gradient(90deg, #ffc27a, #ff6a2b 50%, #ff4f7b); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .ai-ring { position: relative; }
   .ai-ring::before {
     content: ""; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; pointer-events: none;
-    background: linear-gradient(120deg, #7c5cff, #ff5a8a, #ff8a3d, #7c5cff); background-size: 300% 100%;
+    background: linear-gradient(120deg, #ffc27a, #ff6a2b, #ff4f7b, #ffc27a); background-size: 300% 100%;
     animation: shimmer 3s linear infinite;
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
   }
@@ -114,7 +114,7 @@ body {
 
   .scanline::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(to bottom, transparent, rgb(124 92 255 / 0.18) 46%, rgb(124 92 255 / 0.55) 50%, transparent 54%);
+    background: linear-gradient(to bottom, transparent, rgb(255 106 43 / 0.14) 46%, rgb(255 140 80 / 0.5) 50%, transparent 54%);
     animation: var(--animate-scan);
   }
 
@@ -132,3 +132,56 @@ body {
   .no-print { display: none !important; }
   body { background: white; }
 }
+
+/*
+ * Darkroom: the signed-in studio. A warm black set where the product photos are the brightest
+ * thing on screen. Same token names, so every component adapts; "bg-ink text-paper" stays the inverse pair.
+ */
+.darkroom {
+  --color-paper: #0d0c0b;
+  --color-paper-2: #1b1917;
+  --color-card: #151311;
+  --color-ink: #f3eee6;
+  --color-ink-2: #cbc4b8;
+  --color-mute: #8e877c;
+  --color-line: rgb(243 238 230 / 0.09);
+  --color-good: #5fd08b;
+  --color-warn: #ffb547;
+  --color-bad: #ff6b5e;
+  --color-busy: #7fb2ff;
+  --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -24px rgb(0 0 0 / 0.8);
+  --shadow-pop: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 30px 80px -30px rgb(0 0 0 / 0.9);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  color-scheme: dark;
+}
+.darkroom .glass { background: rgb(21 19 17 / 0.72); }
+.darkroom .skeleton { background: linear-gradient(90deg, rgb(255 255 255 / 0.03) 25%, rgb(255 255 255 / 0.08) 50%, rgb(255 255 255 / 0.03) 75%); background-size: 200% 100%; }
+.darkroom ::selection { background: var(--color-accent); color: #fff; }
+
+/* Studio set: a soft key light falling on a dark sweep */
+.set-light {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 38%, rgb(255 236 214 / 0.10), transparent 70%),
+    radial-gradient(ellipse 90% 40% at 50% 100%, rgb(255 255 255 / 0.04), transparent 70%),
+    linear-gradient(180deg, #171512 0%, #100f0d 100%);
+}
+.grain::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay; border-radius: inherit;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.serif-i { font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+.tracked { letter-spacing: 0.18em; text-transform: uppercase; font-size: 11px; font-weight: 600; }
+.cta-strobe {
+  background: linear-gradient(180deg, #ff7a3d, #ff5a1a);
+  color: #fff;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.35) inset, 0 10px 30px -10px rgb(255 106 43 / 0.7);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s;
+}
+.cta-strobe:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgb(255 255 255 / 0.35) inset, 0 16px 40px -12px rgb(255 106 43 / 0.85); }
+.cta-strobe:active { transform: translateY(0) scale(0.98); }
+.cta-strobe:disabled { filter: grayscale(0.8) brightness(0.6); box-shadow: none; transform: none; }
+@keyframes reveal-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.reveal { animation: reveal-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.wipe-in { animation: wipe 1.2s cubic-bezier(0.65, 0, 0.35, 1) both; }

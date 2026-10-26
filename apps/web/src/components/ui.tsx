@@ -4,8 +4,8 @@ import type { ComponentProps, ReactNode } from "react";
 
 type Variant = "primary" | "accent" | "ghost" | "outline" | "danger";
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-ink text-white hover:bg-ink-2 shadow-[0_1px_2px_rgb(0_0_0/0.1)]",
-  accent: "bg-accent text-white hover:bg-accent-ink",
+  primary: "bg-ink text-paper hover:opacity-90 shadow-[0_1px_2px_rgb(0_0_0/0.1)]",
+  accent: "cta-strobe",
   ghost: "text-ink hover:bg-paper-2",
   outline: "border border-line bg-card text-ink hover:border-ink/50",
   danger: "border border-bad/40 text-bad hover:bg-bad hover:text-white",
@@ -55,7 +55,7 @@ export function Field({ label, hint, error, children, className }: { label: stri
 }
 
 export const inputClass =
-  "w-full h-11 rounded-xl border border-line bg-white px-3.5 text-[15px] text-ink placeholder:text-mute/70 focus:border-ink/60 focus:outline-none focus:ring-4 focus:ring-ink/5 transition";
+  "w-full h-11 rounded-xl border border-line bg-card px-3.5 text-[15px] text-ink placeholder:text-mute/70 focus:border-ink/60 focus:outline-none focus:ring-4 focus:ring-ink/5 transition";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={clsx(inputClass, props.className)} />;

@@ -232,7 +232,7 @@ export async function jobView(orgId: string, jobId: string) {
     .maybeSingle();
   if (!job) return null;
   const [{ data: items }, { data: assets }, { data: refs }] = await Promise.all([
-    db.from("generation_items").select("id, idx, status, attempts, last_error, decision, delivered_asset_id, settled, style, updated_at").eq("job_id", jobId).order("idx"),
+    db.from("generation_items").select("id, idx, status, attempts, last_error, decision, delivered_asset_id, settled, style, updated_at, params").eq("job_id", jobId).order("idx"),
     db.from("generated_assets").select("id, item_id, storage_key, thumb_key, width, height, quality_status, approval_status, watermarked, remakes_used, delivered_at, pushed_to_shopify_at, quality_checks(check_type, score, decision, details), refund_requests(status)").eq("job_id", jobId).neq("quality_status", "fail"),
     db.from("product_assets").select("id, storage_key, view_type").eq("product_id", job.product_id).order("created_at"),
   ]);
