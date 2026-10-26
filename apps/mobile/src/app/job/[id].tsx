@@ -47,7 +47,7 @@ export default function Job() {
 
   if (!data) return <View style={[s.screen, { alignItems: "center", justifyContent: "center" }]}>{error ? <Text style={s.body}>{error}</Text> : <ActivityIndicator color={C.accent} />}</View>;
 
-  const byItem = new Map(data.assets.map((a) => [a.item_id, a]));
+  const byItem = new Map(data.assets.map((a) => [a.id, a]));
   const ready = data.items.filter((i) => i.status === "delivered").length;
   const active = data.items.some((i) => !["delivered", "failed", "cancelled"].includes(i.status));
   const col = (width - 20 * 2 - 10) / 2;

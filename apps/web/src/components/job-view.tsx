@@ -54,7 +54,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1 }: { jobId: st
   if (!data) return <div className="grid min-h-[40vh] place-items-center text-mute">{error ?? <Spinner className="size-6" />}</div>;
 
   const { job, items, assets, references } = data;
-  const byItem = new Map(assets.map((a) => [a.item_id, a]));
+  const byItem = new Map(assets.map((a) => [a.id, a]));
   const ready = items.filter((i) => i.status === "delivered").length;
   const failed = items.filter((i) => i.status === "failed").length;
   const active = items.filter((i) => !["delivered", "failed", "cancelled"].includes(i.status));

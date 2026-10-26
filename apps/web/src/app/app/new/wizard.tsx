@@ -51,7 +51,11 @@ export function Wizard({ locale, balance, isTrial, creativeEnabled, maxImages, b
       next.push({ file: f, url: URL.createObjectURL(f), view: VIEWS[next.length]?.id ?? "angle" });
     }
     setPhotos(next);
-    if (!name && next[0]) setName(next[0].file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").replace(/\b(img|dsc|photo|image)\s*\d+/i, "").trim());
+    if (!name && next[0]) {
+      const guess = next[0].file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").replace(/\b(img|dsc|photo|image|whatsapp image)\s*[\d\s.at]*/i, "").trim();
+      // Skip names that are just camera or chat-app ids (long runs of hex or digits).
+      if (guess.length >= 2 && !/[0-9a-f]{6,}|\d{5,}/i.test(guess)) setName(guess);
+    }
   }
 
   async function submit() {
