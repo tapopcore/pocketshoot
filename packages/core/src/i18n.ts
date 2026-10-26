@@ -1,0 +1,93 @@
+export type Locale = "en" | "hi";
+export const LOCALES: Locale[] = ["en", "hi"];
+
+const en = {
+  "nav.dashboard": "Dashboard",
+  "nav.new": "New photoshoot",
+  "nav.products": "Products",
+  "nav.projects": "Projects",
+  "nav.library": "Image library",
+  "nav.batch": "Batch jobs",
+  "nav.brand": "Brand kits",
+  "nav.wallet": "Credits",
+  "nav.billing": "Invoices",
+  "nav.team": "Team",
+  "nav.settings": "Settings",
+  "nav.support": "Help",
+  "wizard.step1": "Upload photos",
+  "wizard.step2": "About the product",
+  "wizard.step3": "Style and size",
+  "wizard.step4": "Review credits",
+  "wizard.step5": "Create",
+  "wizard.uploadHint": "Add 1 to 3 photos: front, angle and back. Bright, even light and a plain background give the best results.",
+  "wizard.name": "Product name",
+  "wizard.category": "Category",
+  "wizard.locks": "What must not change",
+  "wizard.mode.preserve": "Keep my product exact",
+  "wizard.mode.preserveHint": "Your real product pixels are kept and a new scene is built around them. Best for labels and logos.",
+  "wizard.mode.creative": "Creative",
+  "wizard.mode.creativeHint": "More freedom with angles and arrangement. The product may change slightly, so check every image.",
+  "wizard.count": "Number of images",
+  "wizard.cost": "This will use {n} credits. You have {b} available.",
+  "wizard.submit": "Create images",
+  "wallet.available": "Available",
+  "wallet.reserved": "In progress",
+  "wallet.used": "Used",
+  "wallet.buy": "Buy credits",
+  "result.approve": "Approve",
+  "result.download": "Download",
+  "result.remake": "Remake",
+  "result.report": "Report a problem",
+  "result.freeRemake": "Free remake",
+  "common.credits": "credits",
+};
+
+const hi: Partial<typeof en> = {
+  "nav.dashboard": "डैशबोर्ड",
+  "nav.new": "नया फ़ोटोशूट",
+  "nav.products": "प्रोडक्ट",
+  "nav.projects": "प्रोजेक्ट",
+  "nav.library": "इमेज लाइब्रेरी",
+  "nav.batch": "बैच जॉब",
+  "nav.brand": "ब्रांड किट",
+  "nav.wallet": "क्रेडिट",
+  "nav.billing": "इनवॉइस",
+  "nav.team": "टीम",
+  "nav.settings": "सेटिंग्स",
+  "nav.support": "मदद",
+  "wizard.step1": "फ़ोटो अपलोड करें",
+  "wizard.step2": "प्रोडक्ट के बारे में",
+  "wizard.step3": "स्टाइल और साइज़",
+  "wizard.step4": "क्रेडिट देखें",
+  "wizard.step5": "बनाएँ",
+  "wizard.uploadHint": "1 से 3 फ़ोटो डालें: सामने, तिरछा और पीछे से। अच्छी रोशनी और सादा बैकग्राउंड सबसे अच्छा रहता है।",
+  "wizard.name": "प्रोडक्ट का नाम",
+  "wizard.category": "कैटेगरी",
+  "wizard.locks": "क्या नहीं बदलना चाहिए",
+  "wizard.mode.preserve": "प्रोडक्ट बिल्कुल वैसा ही रखें",
+  "wizard.mode.preserveHint": "आपके असली प्रोडक्ट को वैसा ही रखकर उसके चारों ओर नया सीन बनाया जाता है। लेबल और लोगो के लिए सबसे अच्छा।",
+  "wizard.mode.creative": "क्रिएटिव",
+  "wizard.mode.creativeHint": "एंगल और सजावट में ज़्यादा आज़ादी। प्रोडक्ट थोड़ा बदल सकता है, हर इमेज ध्यान से देखें।",
+  "wizard.count": "कितनी इमेज",
+  "wizard.cost": "इसमें {n} क्रेडिट लगेंगे। आपके पास {b} हैं।",
+  "wizard.submit": "इमेज बनाएँ",
+  "wallet.available": "उपलब्ध",
+  "wallet.reserved": "चल रहा है",
+  "wallet.used": "इस्तेमाल हुए",
+  "wallet.buy": "क्रेडिट ख़रीदें",
+  "result.approve": "मंज़ूर करें",
+  "result.download": "डाउनलोड",
+  "result.remake": "फिर से बनाएँ",
+  "result.report": "समस्या बताएँ",
+  "result.freeRemake": "मुफ़्त रीमेक",
+  "common.credits": "क्रेडिट",
+};
+
+export type MessageKey = keyof typeof en;
+const dicts: Record<Locale, Partial<Record<MessageKey, string>>> = { en, hi };
+
+export function t(locale: Locale, key: MessageKey, vars?: Record<string, string | number>): string {
+  let s = dicts[locale]?.[key] ?? en[key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+  return s;
+}

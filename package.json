@@ -1,0 +1,10 @@
+{
+  "name": "packshot",
+  "private": true,
+  "workspaces": ["apps/web", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "test": "npm run test -w packages/core && npm run test -w apps/web"
+  }
+}

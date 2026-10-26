@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/*
+ * PackShot design language: a photographer's contact sheet.
+ * Warm paper, black ink, one cyclorama-orange accent, mono frame numbers
+ * and crop marks. Product photos are always the loudest thing on screen.
+ */
+@theme {
+  --color-paper: #f4f1ea;
+  --color-paper-2: #ebe6db;
+  --color-card: #fbfaf6;
+  --color-ink: #141310;
+  --color-ink-2: #3b3934;
+  --color-mute: #77736a;
+  --color-line: #d9d3c5;
+  --color-accent: #e2531b;
+  --color-accent-ink: #b33c0d;
+  --color-good: #2f6b45;
+  --color-warn: #a86a00;
+  --color-bad: #b42318;
+  --color-busy: #2c5d8a;
+
+  --font-display: "Instrument Serif", "Times New Roman", serif;
+  --font-sans: "Bricolage Grotesque Variable", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-card: 14px;
+  --shadow-lift: 0 1px 0 rgb(20 19 16 / 0.04), 0 8px 24px -12px rgb(20 19 16 / 0.18);
+
+  --animate-rise: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-develop: develop 1.4s ease-out both;
+  --animate-scan: scan 1.8s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes develop {
+  from { filter: grayscale(1) contrast(0.6) brightness(1.3); opacity: 0.2; }
+  to { filter: none; opacity: 1; }
+}
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "ss02";
+}
+
+/* Paper grain */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08 0 0 0 0 0.07 0 0 0 0 0.06 0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+body > * { position: relative; z-index: 1; }
+
+::selection { background: var(--color-accent); color: white; }
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@layer components {
+  .display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; line-height: 0.95; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-mute); }
+  .frame-no { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--color-mute); }
+
+  /* Crop marks around a framed element */
+  .cropmarks { position: relative; }
+  .cropmarks::before, .cropmarks::after {
+    content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none;
+    border-color: var(--color-ink); opacity: 0.5;
+  }
+  .cropmarks::before { top: -7px; left: -7px; border-top: 1px solid; border-left: 1px solid; }
+  .cropmarks::after { bottom: -7px; right: -7px; border-bottom: 1px solid; border-right: 1px solid; }
+
+  .checker {
+    background-color: #fff;
+    background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+
+  .scanline::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to bottom, transparent, rgb(226 83 27 / 0.22) 48%, rgb(226 83 27 / 0.5) 50%, transparent 52%);
+    animation: var(--animate-scan);
+  }
+
+  .prose-legal h2 { font-family: var(--font-display); font-size: 1.75rem; margin: 2rem 0 0.5rem; }
+  .prose-legal p, .prose-legal li { color: var(--color-ink-2); line-height: 1.7; margin: 0.5rem 0; }
+  .prose-legal ul { list-style: disc; padding-left: 1.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+@media print {
+  body::before { display: none; }
+  .no-print { display: none !important; }
+  body { background: white; }
+}

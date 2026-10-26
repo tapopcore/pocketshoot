@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.env
+.env.local
+.env*.local
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+dist/
+*.tsbuildinfo
+.vercel
+.DS_Store
