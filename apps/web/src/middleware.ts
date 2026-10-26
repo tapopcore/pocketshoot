@@ -4,6 +4,15 @@ import { createServerClient } from "@supabase/ssr";
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // If Supabase falls back to the Site URL, the sign-in link lands on "/?code=...". Finish sign-in properly.
+  if (pathname === "/" && req.nextUrl.searchParams.has("code")) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    if (!url.searchParams.has("next")) url.searchParams.set("next", "/app");
+    return NextResponse.redirect(url);
+  }
+  if (pathname === "/") return NextResponse.next();
+
   // Shopify admin embeds /shopify; allow framing only by that shop and the Shopify admin.
   if (pathname.startsWith("/shopify")) {
     const res = NextResponse.next();
@@ -36,5 +45,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/admin/:path*", "/shopify/:path*", "/sign-in"],
+  matcher: ["/", "/app/:path*", "/admin/:path*", "/shopify/:path*", "/sign-in"],
 };
