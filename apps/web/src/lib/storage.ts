@@ -1,7 +1,11 @@
 import "server-only";
 import { admin } from "./supabase";
 
-export type Bucket = "uploads" | "originals" | "outputs" | "brand";
+export type Bucket = "uploads" | "originals" | "outputs" | "brand" | "public";
+
+export function publicUrl(key: string) {
+  return admin().storage.from("public").getPublicUrl(key).data.publicUrl;
+}
 
 export async function putObject(bucket: Bucket, key: string, data: Buffer, contentType: string) {
   const { error } = await admin().storage.from(bucket).upload(key, data, { contentType, upsert: true, cacheControl: "3600" });

@@ -6,7 +6,7 @@ import { SCENE_GROUPS, STYLES, type SceneGroup, type StyleId } from "@packshot/c
 
 type Tab = "for_you" | SceneGroup;
 
-export function SceneCard({ id, selected, order, onClick, size = "md" }: { id: StyleId; selected: boolean; order?: number; onClick: () => void; size?: "sm" | "md" }) {
+export function SceneCard({ id, selected, order, onClick, size = "md", preview }: { id: StyleId; selected: boolean; order?: number; onClick: () => void; size?: "sm" | "md"; preview?: string }) {
   const s = STYLES[id];
   return (
     <button
@@ -19,8 +19,10 @@ export function SceneCard({ id, selected, order, onClick, size = "md" }: { id: S
       )}
     >
       <div className={clsx("relative w-full", size === "sm" ? "aspect-square" : "aspect-[4/5]")} style={{ background: s.art }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {preview && <img src={preview} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105" />}
         {/* A soft product silhouette so the card reads as a scene, not a swatch */}
-        <div className="absolute inset-x-0 bottom-[16%] mx-auto h-[38%] w-[22%] rounded-[40%_40%_14%_14%/30%_30%_10%_10%] bg-white/55 shadow-[0_18px_22px_-14px_rgba(0,0,0,0.45)] backdrop-blur-[2px] transition-transform duration-300 group-hover:scale-105" />
+        {!preview && <div className="absolute inset-x-0 bottom-[16%] mx-auto h-[38%] w-[22%] rounded-[40%_40%_14%_14%/30%_30%_10%_10%] bg-white/55 shadow-[0_18px_22px_-14px_rgba(0,0,0,0.45)] backdrop-blur-[2px] transition-transform duration-300 group-hover:scale-105" />}
         {id === "custom" && <Wand2 className="absolute left-1/2 top-[38%] -translate-x-1/2 text-white/90" size={28} />}
         {selected && (
           <span className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-ink text-[11px] font-semibold text-white animate-pop">
@@ -36,7 +38,7 @@ export function SceneCard({ id, selected, order, onClick, size = "md" }: { id: S
   );
 }
 
-export function ScenePicker({ selected, onChange, suggested, max = 4 }: { selected: StyleId[]; onChange: (ids: StyleId[]) => void; suggested: StyleId[]; max?: number }) {
+export function ScenePicker({ selected, onChange, suggested, max = 4, previews = {} }: { selected: StyleId[]; onChange: (ids: StyleId[]) => void; suggested: StyleId[]; max?: number; previews?: Record<string, string> }) {
   const [tab, setTab] = useState<Tab>(suggested.length ? "for_you" : "studio");
   const all = useMemo(() => Object.values(STYLES), []);
   const list: StyleId[] = useMemo(() => {
@@ -63,7 +65,7 @@ export function ScenePicker({ selected, onChange, suggested, max = 4 }: { select
         ))}
       </div>
       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-        {list.map((id) => <SceneCard key={id} id={id} selected={selected.includes(id)} order={selected.length > 1 ? selected.indexOf(id) + 1 || undefined : undefined} onClick={() => toggle(id)} />)}
+        {list.map((id) => <SceneCard key={id} id={id} selected={selected.includes(id)} order={selected.length > 1 ? selected.indexOf(id) + 1 || undefined : undefined} onClick={() => toggle(id)} preview={previews[id]} />)}
       </div>
     </div>
   );

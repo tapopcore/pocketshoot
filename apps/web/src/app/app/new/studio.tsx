@@ -17,9 +17,9 @@ interface Prepared { product: { id: string; name: string; category: CategoryId }
 type Phase = "empty" | "working" | "ready";
 const STEPS = ["Uploading your photo", "Removing the background", "Reading the label", "Planning scenes for your product"];
 
-export function Studio({ locale, balance, isTrial, creativeEnabled, maxImages, brandKits, existing, recentProducts }: {
+export function Studio({ locale, balance, isTrial, creativeEnabled, maxImages, brandKits, existing, recentProducts, previews = {} }: {
   locale: Locale; balance: number; isTrial: boolean; creativeEnabled: boolean; maxImages: number;
-  brandKits: { id: string; name: string; palette: string[] }[]; existing: StudioProduct | null; recentProducts: StudioProduct[];
+  brandKits: { id: string; name: string; palette: string[] }[]; existing: StudioProduct | null; recentProducts: StudioProduct[]; previews?: Record<string, string>;
 }) {
   void locale;
   const router = useRouter();
@@ -274,7 +274,7 @@ export function Studio({ locale, balance, isTrial, creativeEnabled, maxImages, b
           <p className="mt-1.5 text-mute">{phase === "ready" ? "Choose up to 4. Each scene is art-directed for this product." : "Upload a photo to get scene ideas made for your product."}</p>
 
           <div className="mt-5">
-            <ScenePicker selected={scenes} onChange={setScenes} suggested={(prep?.suggestedScenes ?? scenesFor(category).slice(0, 7).map((s) => s.id)) as StyleId[]} />
+            <ScenePicker previews={previews} selected={scenes} onChange={setScenes} suggested={(prep?.suggestedScenes ?? scenesFor(category).slice(0, 7).map((s) => s.id)) as StyleId[]} />
           </div>
 
           {scenes.includes("custom") && (

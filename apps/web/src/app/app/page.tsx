@@ -5,6 +5,7 @@ import { recentJobs } from "@/lib/views";
 import { admin } from "@/lib/supabase";
 import { Notice } from "@/components/ui";
 import { QuickStart, SceneStrip } from "@/components/quick-start";
+import { getScenePreviews } from "@/lib/scene-previews";
 import { JobCard } from "@/components/job-card";
 
 export const metadata = { title: "Dashboard" };
@@ -63,7 +64,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <h2 className="display text-2xl">Scenes to try</h2>
           <span className="text-sm text-mute">{approved ?? 0} images made · {wallet.available} credits left</span>
         </div>
-        <SceneStrip />
+        <SceneStrip previews={await getScenePreviews()} />
       </section>
     </div>
   );

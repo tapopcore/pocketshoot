@@ -47,6 +47,7 @@ export interface ImageProvider {
 }
 
 export function classifyHttpError(status: number | undefined, message: string): ProviderError {
+  if (/insufficient_quota|no credits remaining|billing|exceeded your current quota/i.test(message)) return new ProviderError(message, "provider_billing", false);
   if (status === 429) return new ProviderError(message, "rate_limited", true);
   if (status && status >= 500) return new ProviderError(message, "provider_unavailable", true);
   if (status === 408 || /timeout|timed out|ETIMEDOUT|ECONNRESET|aborted/i.test(message)) return new ProviderError(message, "timeout", true);

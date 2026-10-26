@@ -40,6 +40,8 @@ export interface JobOptions {
   freeRemake?: boolean;
   /** Edit an existing image with a text instruction. */
   edit?: { assetId: string; instruction: string };
+  /** Platform-internal jobs (scene previews): no credits, no watermark, no limits. */
+  internal?: boolean;
 }
 
 export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: JobOptions = {}) {
@@ -48,8 +50,8 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   const settings = await getSettings();
   const policy = settings.credit_policy;
 
-  if (!input.batchId && !(await rateLimit(`gen:${ctx.orgId}`, 60, 3600))) throw new ApiError(429, "You've started a lot of shoots this hour. Please wait a few minutes.");
-  if (input.count > policy.maxImagesPerJob) throw new ApiError(400, `Up to ${policy.maxImagesPerJob} images per shoot`);
+  if (!opts.internal && !input.batchId && !(await rateLimit(`gen:${ctx.orgId}`, 60, 3600))) throw new ApiError(429, "You've started a lot of shoots this hour. Please wait a few minutes.");
+  if (!opts.internal && input.count > policy.maxImagesPerJob) throw new ApiError(400, `Up to ${policy.maxImagesPerJob} images per shoot`);
   if (input.mode === "creative" && !(await getFlag("creative_mode", ctx.orgId))) throw new ApiError(400, "Creative mode is turned off right now");
 
   // Same idempotency key: return the existing job instead of charging again.
@@ -67,7 +69,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
     palette = kit?.palette ?? [];
   }
 
-  const isTrial = policy.trialWatermark && (await isTrialOrg(ctx.orgId));
+  const isTrial = !opts.internal && policy.trialWatermark && (await isTrialOrg(ctx.orgId));
   const { data: job, error } = await db
     .from("generation_jobs")
     .insert({
@@ -101,7 +103,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   const styles = input.styles?.length ? input.styles : [input.style];
   await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => ({ job_id: job.id, organization_id: ctx.orgId, idx, style: styles[idx % styles.length] })));
 
-  if (!opts.freeRemake) {
+  if (!opts.freeRemake && !opts.internal) {
     const { data: ok, error: rErr } = await db.rpc("reserve_credits", { p_job: job.id, p_quantity: input.count * policy.creditsPerImage });
     if (rErr || !ok) {
       await db.from("generation_jobs").delete().eq("id", job.id);

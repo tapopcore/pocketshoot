@@ -49,7 +49,7 @@ export function QuickStart({ hello, credits }: { hello: string; credits: number 
   );
 }
 
-export function SceneStrip() {
+export function SceneStrip({ previews = {} }: { previews?: Record<string, string> }) {
   return (
     <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8">
       {SHOWCASE.map((id) => {
@@ -57,7 +57,8 @@ export function SceneStrip() {
         return (
           <a key={id} href="/app/new" className="group w-36 shrink-0">
             <div className="relative aspect-[4/5] overflow-hidden rounded-2xl ring-1 ring-black/5" style={{ background: s.art }}>
-              <div className="absolute inset-x-0 bottom-[16%] mx-auto h-[38%] w-[24%] rounded-[40%_40%_14%_14%/30%_30%_10%_10%] bg-white/55 shadow-[0_18px_22px_-14px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-110" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {previews[id] ? <img src={previews[id]} alt="" loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="absolute inset-x-0 bottom-[16%] mx-auto h-[38%] w-[24%] rounded-[40%_40%_14%_14%/30%_30%_10%_10%] bg-white/55 shadow-[0_18px_22px_-14px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-110" />}
             </div>
             <div className="mt-1.5 text-sm font-semibold">{s.name}</div>
             <div className="truncate text-xs text-mute">{s.description}</div>
