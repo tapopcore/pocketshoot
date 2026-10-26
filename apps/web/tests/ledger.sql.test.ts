@@ -46,7 +46,7 @@ beforeAll(async () => {
   db = new PGlite();
   await db.exec(AUTH_STUB);
   for (const f of readdirSync(MIGRATIONS).sort()) {
-    if (f.includes("storage") || f.includes("cron")) continue;
+    if (f.includes("storage") || f.includes("cron") || f.includes("bucket")) continue;
     await db.exec(readFileSync(join(MIGRATIONS, f), "utf8"));
   }
 }, 60_000);
