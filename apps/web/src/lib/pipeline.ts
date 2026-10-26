@@ -44,6 +44,9 @@ interface JobRow {
 }
 
 interface ItemParams {
+  /** A campaign idea chosen in the studio (its description acts as the brief). */
+  brief?: string;
+  ideaTitle?: string;
   shot?: ShotDirection;
   shotSource?: "ai" | "rules";
   place?: Place;
@@ -71,15 +74,17 @@ async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, produc
   const byStyle = new Map<string, typeof missing>();
   for (const it of missing) {
     const sid = output.forceStyle ?? (it.style && it.style in STYLES ? it.style : job.style);
-    byStyle.set(sid, [...(byStyle.get(sid) ?? []), it]);
+    const key = `${sid}|${(it.params as ItemParams)?.brief ?? ""}`;
+    byStyle.set(key, [...(byStyle.get(key) ?? []), it]);
   }
   // Previous shots of this product, so new ones don't repeat them.
   const { data: prev } = await db.from("generation_items").select("params, generation_jobs!inner(product_id)").eq("generation_jobs.product_id", job.product_id).neq("job_id", job.id).order("created_at", { ascending: false }).limit(6);
   const avoid = (prev ?? []).map((p) => (p.params as ItemParams)?.shot?.scene).filter(Boolean) as string[];
-  await Promise.all([...byStyle.entries()].map(async ([sid, list]) => {
+  await Promise.all([...byStyle.entries()].map(async ([key, list]) => {
+    const [sid, ideaBrief] = key.split("|");
     const { shots, source } = await directShots({
       style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
-      brief: job.custom_brief ?? undefined, palette: job.settings?.palette, avoid,
+      brief: [ideaBrief, job.custom_brief].filter(Boolean).join(". ") || undefined, palette: job.settings?.palette, avoid,
     });
     await Promise.all(list.map((it, k) => db.from("generation_items").update({ params: { ...((it.params as object) ?? {}), shot: shots[k], shotSource: source } }).eq("id", it.id)));
   }));
@@ -146,12 +151,13 @@ export async function processItem(item: ItemRow): Promise<void> {
     promptText = p.text; promptVersion = p.version;
   } else {
     if (job.mode === "preserve") {
-      cut = await getCutout(primary, { allowModel: true });
+      cut = await getCutout(primary, { allowModel: true, wait: true });
       if (cut) {
         place = layoutProduct(cut, W, H, params.shot ?? { product_scale: output.productScale, offset_x: 0, baseline: output.baseline });
         const rc = await renderCanvas(cut, place, W, H, renderEdge);
         images = [rc.canvas];
-        mask = rc.mask;
+        // No mask: the model may relight the product so it sits naturally; detail is restored afterwards.
+        mask = undefined;
         renderW = rc.renderWidth; renderH = rc.renderHeight;
       }
     }
@@ -236,14 +242,14 @@ export async function processItem(item: ItemRow): Promise<void> {
   let finalImage: Buffer;
   let finalPlace: Place | null = null;
   if (cut && place) {
-    const fc = await finishComposite(result.image, cut, place, W, H, settings.quality.alignmentFail);
+    const fc = await finishComposite(result.image, cut, place, W, H, settings.quality.alignmentFail, { relight: !edit });
     finalImage = fc.image;
     finalPlace = fc.place;
     checks.push({
       type: "product_alignment",
       score: round(fc.alignment),
       decision: fc.recomposited ? "pass" : alignmentDecision(fc.alignment, settings.quality),
-      details: fc.recomposited ? { note: "Your real product photo was put back pixel for pixel" } : { note: "The AI moved the product, so it was re-created. Check the label closely." },
+      details: fc.recomposited ? { note: "Label and logo detail restored from your product photo", lightShift: (fc as { lightShift?: number }).lightShift ?? null } : { note: "The AI moved the product, so it was re-created. Check the label closely." },
     });
   } else {
     finalImage = await sharp(result.image).removeAlpha().resize(W, H, { fit: "cover", kernel: "lanczos3" }).png().toBuffer();

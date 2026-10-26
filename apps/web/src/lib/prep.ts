@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import {
-  ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, parseAnalysis, parseDirections,
+  ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
   sanitizeUserText, type DirectionInput, type ProductAnalysis, type ShotDirection,
 } from "@packshot/core";
 import { admin } from "./supabase";
@@ -25,55 +25,121 @@ export interface ProductAssetRow {
   metadata?: Record<string, unknown> | null;
 }
 
+const HERO_LOCK_MS = 4 * 60_000;
+
 /**
- * Product cut-out with the customer's real pixels.
- * 1. Local background removal (free, instant) for plain backgrounds.
- * 2. Otherwise GPT Image renders a transparent version, and we keep the real pixels
- *    wherever they match it (so labels stay exact) and the model's pixels where it removed hands or clutter.
+ * The product, cleaned and cut out, used in every shot.
+ * 1. GPT Image retouches the customer's photo into a studio packshot on a transparent background:
+ *    hands, background, dust, fingerprints and glare removed, label kept.
+ * 2. A vision check compares it with the original; if any text or design changed we retry more strictly,
+ *    then fall back to the customer's own pixels (local background removal, or a model-assisted cut-out).
+ * The result is cached on the product photo.
  */
-export async function getCutout(asset: ProductAssetRow, opts: { allowModel?: boolean } = {}): Promise<Cutout | null> {
+export async function getCutout(asset: ProductAssetRow, opts: { allowModel?: boolean; wait?: boolean } = {}): Promise<Cutout | null> {
+  const meta = (asset.metadata ?? {}) as Record<string, unknown>;
   if (asset.cutout_key && asset.cutout_key !== "none") return cutoutFromRgba(await getObject("originals", asset.cutout_key));
   if (asset.cutout_key === "none" && !opts.allowModel) return null;
+
+  // Another request is already retouching this photo: wait for it instead of paying twice.
+  const startedAt = typeof meta.heroStartedAt === "number" ? meta.heroStartedAt : 0;
+  if (meta.heroStatus === "processing" && Date.now() - startedAt < HERO_LOCK_MS) {
+    if (!opts.wait) return null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const { data } = await admin().from("product_assets").select("cutout_key, metadata").eq("id", asset.id).single();
+      if (data?.cutout_key && data.cutout_key !== "none") return cutoutFromRgba(await getObject("originals", data.cutout_key));
+      if ((data?.metadata as Record<string, unknown>)?.heroStatus !== "processing") break;
+    }
+  }
+  await admin().from("product_assets").update({ metadata: { ...meta, heroStatus: "processing", heroStartedAt: Date.now() } }).eq("id", asset.id);
+
   const source = await getObject("originals", asset.storage_key);
-  let cut: Cutout | null = await localCutout(source);
-  let method = cut ? "local" : null;
-  let realShare = cut ? 1 : 0;
+  let cut: Cutout | null = null;
+  let method: string | null = null;
+  let fidelity: Record<string, unknown> | null = null;
+
+  if (opts.allowModel !== false && integrations.openai) {
+    const analysis = await analyzeProduct(asset.product_id);
+    for (const strict of [false, true]) {
+      try {
+        const r = await retouch(asset, source, analysis, strict);
+        if (!r) continue;
+        fidelity = r.verdict;
+        if (r.ok) { cut = r.cut; method = strict ? "retouch_strict" : "retouch"; break; }
+      } catch (e) {
+        await logError("prep.retouch", (e as Error).message, { asset: asset.id, strict });
+      }
+    }
+  }
+  if (!cut) {
+    cut = await localCutout(source);
+    if (cut) method = "local";
+  }
   if (!cut && opts.allowModel !== false && integrations.openai) {
     try {
       const settings = await getSettings();
-      const meta = await sharp(source).metadata();
-      const edge = 1536;
-      const s = Math.min(1, edge / Math.max(meta.width!, meta.height!));
-      const input = await sharp(source).resize(Math.round(meta.width! * s), Math.round(meta.height! * s)).png().toBuffer();
       const res = await getProvider("openai", settings.providers).edit({
-        prompt: "Cut out the product: keep only the main product on a fully transparent background. Keep the product exactly as it is in the photo: same position, size, angle, shape, colours, label, logo and every printed letter. Remove everything else, including hands, fingers, surfaces, shadows and other objects. Where a finger covered part of the product, restore only that hidden part of the product faithfully.",
-        images: [input],
-        width: Math.round(meta.width! * s),
-        height: Math.round(meta.height! * s),
-        transparent: true,
-        quality: settings.providers.render.cutoutQuality,
-        timeoutMs: 180_000,
+        prompt: "Cut out the product: keep only the main product on a fully transparent background, exactly as it is in the photo (same position, size, angle, colours, label and printed letters). Remove hands, surfaces and other objects.",
+        images: [await sharp(source).resize(1536, 1536, { fit: "inside" }).png().toBuffer()],
+        width: 1024, height: 1024, transparent: true, quality: "medium", timeoutMs: 180_000,
       }, settings.providers.openai.model);
       const blended = await blendModelCutout(source, res.image);
-      if (blended) {
-        cut = await cutoutFromRgba(blended.png);
-        if (cut) cut.method = "provider";
-        method = blended.realShare > 0.6 ? "model_blend" : "model";
-        realShare = blended.realShare;
-        await recordCost(asset.organization_id, "cutout", res.model, res.costUsd ?? 0);
-      }
+      if (blended) { cut = await cutoutFromRgba(blended.png); method = "model_blend"; }
     } catch (e) {
       await logError("prep.cutout", (e as Error).message, { asset: asset.id });
     }
   }
+
   const key = `${asset.organization_id}/${asset.product_id}/${asset.id}-cutout.png`;
-  if (cut) await putObject("originals", key, cut.png, "image/png");
+  const previewKey = `${asset.organization_id}/${asset.product_id}/${asset.id}-hero.jpg`;
+  if (cut) {
+    await putObject("originals", key, cut.png, "image/png");
+    const preview = await sharp(cut.png).extract(cut.bbox).resize(1200, 1200, { fit: "contain", background: "#ffffff" }).flatten({ background: "#ffffff" }).jpeg({ quality: 90 }).toBuffer();
+    await putObject("originals", previewKey, preview, "image/jpeg");
+  }
   await admin().from("product_assets").update({
     cutout_key: cut ? key : "none",
-    metadata: { ...(asset.metadata ?? {}), cutoutMethod: method, realPixelShare: Math.round(realShare * 100) / 100 },
+    metadata: { ...meta, heroStatus: cut ? "ready" : "failed", heroStartedAt: null, cutoutMethod: method, heroPreviewKey: cut ? previewKey : null, fidelity },
   }).eq("id", asset.id);
   asset.cutout_key = cut ? key : "none";
   return cut;
+}
+
+const FIDELITY_SCHEMA = {
+  type: "object", additionalProperties: false,
+  required: ["same_product", "text_changed", "logo_changed", "shape_changed", "colour_changed", "notes"],
+  properties: {
+    same_product: { type: "boolean" }, text_changed: { type: "boolean" }, logo_changed: { type: "boolean" },
+    shape_changed: { type: "boolean" }, colour_changed: { type: "boolean" }, notes: { type: "string" },
+  },
+};
+
+/** One retouch attempt plus its accuracy check. */
+async function retouch(asset: ProductAssetRow, source: Buffer, analysis: ProductAnalysis | null, strict: boolean) {
+  const settings = await getSettings();
+  const input = await sharp(source).resize(1536, 1536, { fit: "inside" }).png().toBuffer();
+  const res = await getProvider("openai", settings.providers).edit({
+    prompt: packshotPrompt(analysis, strict),
+    images: [input],
+    width: 1024, height: 1024,
+    transparent: true,
+    quality: "high",
+    timeoutMs: 180_000,
+  }, settings.providers.openai.model);
+  await recordCost(asset.organization_id, "retouch", res.model, res.costUsd ?? 0.06);
+  const cut = await cutoutFromRgba(res.image);
+  if (!cut) return null;
+  const flat = await sharp(res.image).flatten({ background: "#ffffff" }).png().toBuffer();
+  const check = await jsonCall({
+    models: settings.providers.llm.models,
+    prompt: `Image 1 is a customer's phone photo of a product. Image 2 is a retouched packshot of it. Ignore background, hands, lighting, dust, glare, angle straightening and cleanup: those are wanted.
+Check only whether the product itself changed: any printed word, letter or number different, missing or added; logo different; shape or proportions different; product colour different; a different product.${analysis?.visible_text.length ? ` The real printed text is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""}
+Answer with JSON. Be strict about text and logo.`,
+    images: [source, flat], detail: "high", schemaName: "fidelity", schema: FIDELITY_SCHEMA, timeoutMs: 60_000,
+  });
+  const v = check.data as { same_product: boolean; text_changed: boolean; logo_changed: boolean; shape_changed: boolean; colour_changed: boolean; notes: string };
+  const ok = v.same_product && !v.text_changed && !v.logo_changed && !v.shape_changed;
+  return { cut, ok, verdict: { ...v, strict } };
 }
 
 /** Vision analysis of the product photos. Cached on the product. */
@@ -82,7 +148,8 @@ export async function analyzeProduct(productId: string, force = false): Promise<
   const { data: product } = await db.from("products").select("id, organization_id, attributes").eq("id", productId).single();
   if (!product) return null;
   const attrs = (product.attributes ?? {}) as { analysis?: ProductAnalysis };
-  if (attrs.analysis && !force) return attrs.analysis;
+  // Re-run analyses made by older versions (no campaign ideas or camera angle).
+  if (attrs.analysis && !force && Array.isArray(attrs.analysis.ideas) && attrs.analysis.viewpoint) return attrs.analysis;
   if (!integrations.openai) return null;
   const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(3);
   if (!refs?.length) return null;

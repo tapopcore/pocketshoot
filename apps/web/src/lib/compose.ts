@@ -110,19 +110,84 @@ async function register(scenePng: Buffer, layer: Buffer, p: Place, W: number, H:
   return best;
 }
 
+/** Alpha-weighted Gaussian blur, so the background doesn't bleed into the product's low frequencies. */
+async function maskedBlur(rgb: Float32Array, alpha: Float32Array, w: number, h: number, sigma: number): Promise<Float32Array> {
+  const n = w * h;
+  const pre = Buffer.alloc(n * 4);
+  for (let i = 0; i < n; i++) {
+    const al = alpha[i];
+    pre[i * 4] = Math.round(rgb[i * 3] * al); pre[i * 4 + 1] = Math.round(rgb[i * 3 + 1] * al); pre[i * 4 + 2] = Math.round(rgb[i * 3 + 2] * al);
+    pre[i * 4 + 3] = Math.round(al * 255);
+  }
+  const blurred = await sharp(pre, { raw: { width: w, height: h, channels: 4 } }).blur(sigma).raw().toBuffer();
+  const out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const wa = blurred[i * 4 + 3] / 255;
+    for (let c = 0; c < 3; c++) out[i * 3 + c] = wa > 0.02 ? blurred[i * 4 + c] / wa : rgb[i * 3 + c];
+  }
+  return out;
+}
+
 /**
- * Upscales the model's scene to the final size and puts the real product pixels back,
- * at full resolution, exactly where the model left the product.
- * Returns recomposited=false when the model moved the product too far to restore safely.
+ * Upscales the model's scene to the final size and restores the product.
+ * The model is allowed to relight the product so it sits naturally in the scene. We keep the model's
+ * low-frequency light and colour, and put back the high-frequency detail (label text, logo edges,
+ * texture) from the product cut-out, aligned to where the model placed it.
+ * Returns recomposited=false when the model moved or changed the product too much to restore safely.
  */
-export async function finishComposite(generated: Buffer, cut: Cutout, place: Place, W: number, H: number, minScore: number) {
-  const scene = await sharp(generated).removeAlpha().resize(W, H, { fit: "fill", kernel: "lanczos3" }).sharpen({ sigma: 0.6 }).png().toBuffer();
+export async function finishComposite(generated: Buffer, cut: Cutout, place: Place, W: number, H: number, minScore: number, opts: { relight?: boolean } = {}) {
+  const relight = opts.relight ?? true;
+  const scene = await sharp(generated).removeAlpha().resize(W, H, { fit: "fill", kernel: "lanczos3" }).png().toBuffer();
   const layer = await productLayer(cut, place.width, place.height);
   const reg = await register(scene, layer, place, W, H);
-  if (reg.score < minScore) return { image: scene, alignment: reg.score, recomposited: false, place: reg.place };
-  const finalLayer = reg.place.width === place.width ? layer : await productLayer(cut, reg.place.width, reg.place.height);
-  const image = await sharp(scene).composite([{ input: finalLayer, left: reg.place.left, top: reg.place.top }]).png().toBuffer();
-  return { image, alignment: reg.score, recomposited: true, place: reg.place };
+  if (reg.score < minScore) return { image: await sharp(scene).sharpen({ sigma: 0.5 }).png().toBuffer(), alignment: reg.score, recomposited: false, place: reg.place };
+  const p = reg.place;
+  const finalLayer = p.width === place.width && p.height === place.height ? layer : await productLayer(cut, p.width, p.height);
+  if (!relight) {
+    const image = await sharp(scene).composite([{ input: finalLayer, left: p.left, top: p.top }]).png().toBuffer();
+    return { image, alignment: reg.score, recomposited: true, place: p };
+  }
+
+  // Work on the product region with a margin.
+  const m = Math.round(Math.max(p.width, p.height) * 0.04);
+  const rx = Math.max(0, p.left - m), ry = Math.max(0, p.top - m);
+  const rw = Math.min(W - rx, p.width + 2 * m), rh = Math.min(H - ry, p.height + 2 * m);
+  const n = rw * rh;
+  const [sceneRaw, layerRaw] = await Promise.all([
+    sharp(scene).extract({ left: rx, top: ry, width: rw, height: rh }).removeAlpha().raw().toBuffer(),
+    sharp({ create: { width: rw, height: rh, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: finalLayer, left: p.left - rx, top: p.top - ry }]).raw().toBuffer(),
+  ]);
+  const model = new Float32Array(n * 3), prod = new Float32Array(n * 3), alpha = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < 3; c++) { model[i * 3 + c] = sceneRaw[i * 3 + c]; prod[i * 3 + c] = layerRaw[i * 4 + c]; }
+    alpha[i] = layerRaw[i * 4 + 3] / 255;
+  }
+  const sigma = Math.max(2.5, Math.min(p.width, p.height) / 70);
+  const [lowModel, lowProd] = await Promise.all([maskedBlur(model, alpha, rw, rh, sigma), maskedBlur(prod, alpha, rw, rh, sigma)]);
+
+  // How far the model moved the product's colours. Lighting may tint, but not repaint, the product.
+  let shift = 0, cnt = 0;
+  for (let i = 0; i < n; i += 7) {
+    if (alpha[i] < 0.9) continue;
+    shift += Math.abs(lowModel[i * 3] - lowProd[i * 3]) + Math.abs(lowModel[i * 3 + 1] - lowProd[i * 3 + 1]) + Math.abs(lowModel[i * 3 + 2] - lowProd[i * 3 + 2]);
+    cnt++;
+  }
+  const meanShift = cnt ? shift / cnt / 3 : 0;
+  const k = meanShift > 45 ? 0.35 : meanShift > 28 ? 0.6 : 0.85; // share of the model's lighting kept
+
+  const out = Buffer.alloc(n * 4);
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < 3; c++) {
+      const j = i * 3 + c;
+      const low = lowProd[j] + k * (lowModel[j] - lowProd[j]);
+      out[i * 4 + c] = Math.max(0, Math.min(255, Math.round(low + (prod[j] - lowProd[j]))));
+    }
+    out[i * 4 + 3] = Math.round(alpha[i] * 255);
+  }
+  const patch = await sharp(out, { raw: { width: rw, height: rh, channels: 4 } }).png().toBuffer();
+  const image = await sharp(scene).composite([{ input: patch, left: rx, top: ry }]).png().toBuffer();
+  return { image, alignment: reg.score, recomposited: true, place: p, lightShift: Math.round(meanShift), lightKept: k };
 }
 
 /**

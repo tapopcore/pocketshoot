@@ -17,7 +17,7 @@ describe("prompts", () => {
     const p = buildPrompt({ mode: "preserve", category: "food", productName: "Masala", locks: ["label_text"], style: "festive", output: "marketplace_white", productPlaced: true });
     expect(p.parts.scene).toContain("white");
     expect(p.text).toContain("FSSAI");
-    expect(p.text).toContain("product pixels are final");
+    expect(p.text).toContain("Keep the product exactly where it is");
   });
   it("quotes the custom brief as data", () => {
     const p = buildPrompt({ mode: "creative", category: "beauty", productName: "Serum", locks: [], style: "custom", output: "square", customBrief: "on a beach at sunset" });
@@ -130,5 +130,21 @@ describe("quality and status", () => {
   });
   it("translates with fallback", () => {
     expect(t("hi", "wizard.cost", { n: 4, b: 10 })).toContain("4");
+  });
+});
+
+describe("art direction", () => {
+  it("cleans wear out of the product description and keeps valid ideas", async () => {
+    const { parseAnalysis } = await import("./director");
+    const a = parseAnalysis({
+      name: "Remote", brand: "Godrej", category: "electronics", description: "White AC remote with grey buttons. Shows signs of wear and dirt.",
+      materials: ["plastic"], colours: ["#ffffff"], visible_text: ["TURBO"], size: "small", orientation: "standing", viewpoint: "angled",
+      key_ingredients: [], suggested_scenes: ["desk_workspace", "nope"], photo_issues: ["held in a hand"], label_legibility: 1,
+      ideas: [{ title: "Calm desk", description: "On a pale oak desk with a ceramic mug and soft window light", base_scene: "desk_workspace" }, { title: "x", description: "short", base_scene: "bad" }],
+    }, ["desk_workspace", "neutral_studio"])!;
+    expect(a.description).not.toMatch(/dirt|wear/i);
+    expect(a.suggested_scenes).toEqual(["desk_workspace"]);
+    expect(a.ideas).toHaveLength(1);
+    expect(a.viewpoint).toBe("angled");
   });
 });

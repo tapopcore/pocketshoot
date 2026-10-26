@@ -1,16 +1,17 @@
+import { after } from "next/server";
 import { CATEGORIES, STYLES, scenesFor, type ProductAnalysis } from "@packshot/core";
-import { handler } from "@/lib/api";
+import { ApiError, handler } from "@/lib/api";
 import { assertRole } from "@/lib/auth";
-import { ApiError } from "@/lib/api";
 import { admin } from "@/lib/supabase";
 import { analyzeProduct, getCutout } from "@/lib/prep";
-import { signedUrl } from "@/lib/storage";
+import { heroState } from "@/lib/hero";
+import { logError } from "@/lib/observe";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /**
- * Runs right after upload: cuts the product out and has the AI study it, so the studio can
- * show the cut-out, fill in the name and category, and suggest scenes before the user spends credits.
+ * Runs right after upload. Returns the AI's read of the product (name, category, label text,
+ * campaign ideas) in a few seconds, and starts the retouched packshot in the background.
  */
 export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   assertRole(ctx, "editor");
@@ -21,28 +22,30 @@ export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   if (!refs?.length) throw new ApiError(400, "Add a photo first");
   const primary = refs.find((r) => r.view_type === "front") ?? refs[0];
 
-  const [cut, analysis] = await Promise.all([getCutout(primary, { allowModel: true }), analyzeProduct(id)]);
-  const { data: fresh } = await db.from("product_assets").select("cutout_key, metadata").eq("id", primary.id).single();
-  const cutoutUrl = cut && fresh?.cutout_key && fresh.cutout_key !== "none" ? await signedUrl("originals", fresh.cutout_key, 3600) : null;
+  const analysis = (await analyzeProduct(id)) as ProductAnalysis | null;
+  if (!primary.cutout_key) {
+    after(async () => {
+      try { await getCutout(primary, { allowModel: true, wait: true }); } catch (e) { await logError("prepare.hero", (e as Error).message, { product: id }); }
+    });
+  }
 
   // Fill in what the user hasn't: a clean name and the right category.
-  const a = analysis as ProductAnalysis | null;
   const patch: Record<string, string | string[]> = {};
-  if (a && (!product.name || /^(new product|product|untitled|img|image|photo)\b/i.test(product.name))) patch.name = a.name;
-  if (a && product.category === "other" && a.category !== "other") {
-    patch.category = a.category;
-    patch.locks = CATEGORIES[a.category].defaultLocks;
+  if (analysis && (!product.name || /^(new product|product|untitled|img|image|photo)\b/i.test(product.name))) patch.name = analysis.name;
+  if (analysis && product.category === "other" && analysis.category !== "other") {
+    patch.category = analysis.category;
+    patch.locks = CATEGORIES[analysis.category].defaultLocks;
   }
   if (Object.keys(patch).length) await db.from("products").update(patch).eq("id", id);
 
   const category = (patch.category ?? product.category) as Parameters<typeof scenesFor>[0];
   const ranked = scenesFor(category).map((s) => s.id);
-  const suggested = [...new Set([...(a?.suggested_scenes ?? []), ...ranked])].filter((s) => s in STYLES).slice(0, 8);
+  const suggested = [...new Set([...(analysis?.suggested_scenes ?? []), ...ranked])].filter((s) => s in STYLES).slice(0, 7);
   return {
     product: { id, name: (patch.name as string | undefined) ?? product.name, category },
-    cutoutUrl,
-    cutoutMethod: (fresh?.metadata as { cutoutMethod?: string } | null)?.cutoutMethod ?? null,
-    analysis: a,
+    analysis,
+    ideas: analysis?.ideas ?? [],
     suggestedScenes: suggested,
+    hero: await heroState(primary.id),
   };
 });

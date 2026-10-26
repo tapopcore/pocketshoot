@@ -18,6 +18,8 @@ export const createJobSchema = z.object({
   style: z.string().refine((s) => s in STYLES, "Unknown style"),
   /** Several scenes in one shoot: images cycle through them. */
   styles: z.array(z.string().refine((s) => s in STYLES, "Unknown style")).min(1).max(8).nullish(),
+  /** AI campaign ideas picked in the studio: each becomes its own shot. */
+  ideas: z.array(z.object({ title: z.string().max(60), description: z.string().max(300), base_scene: z.string().refine((s) => s in STYLES) })).max(4).nullish(),
   output: z.string().refine((s) => s in OUTPUTS, "Unknown output size"),
   count: z.number().int().min(1).max(20),
   customBrief: z.string().max(600).nullish(),
@@ -100,8 +102,15 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
     throw error;
   }
 
-  const styles = input.styles?.length ? input.styles : [input.style];
-  await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => ({ job_id: job.id, organization_id: ctx.orgId, idx, style: styles[idx % styles.length] })));
+  // Each image gets a slot: a scene, or an AI idea (scene + brief). Images cycle through the slots.
+  const slots: { style: string; params: Record<string, string> }[] = [
+    ...(input.styles?.length ? input.styles : input.ideas?.length ? [] : [input.style]).map((s) => ({ style: s, params: {} })),
+    ...(input.ideas ?? []).map((i) => ({ style: i.base_scene, params: { brief: i.description, ideaTitle: i.title } })),
+  ];
+  await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => {
+    const slot = slots[idx % slots.length];
+    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: slot.params };
+  }));
 
   if (!opts.freeRemake && !opts.internal) {
     const { data: ok, error: rErr } = await db.rpc("reserve_credits", { p_job: job.id, p_quantity: input.count * policy.creditsPerImage });
