@@ -40,7 +40,7 @@ export async function productList(orgId: string, opts: { q?: string | null; limi
 export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: { productId?: string; batchId?: string } = {}) {
   let q = admin()
     .from("generation_jobs")
-    .select("id, status, mode, style, output, requested_count, created_at, is_trial, source, products(id, name), generated_assets(id, thumb_key, storage_key, quality_status)")
+    .select("id, status, mode, style, output, requested_count, created_at, is_trial, source, products(id, name), generated_assets!generated_assets_job_id_fkey(id, thumb_key, storage_key, quality_status)")
     .eq("organization_id", orgId)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);

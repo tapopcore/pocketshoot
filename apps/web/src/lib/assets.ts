@@ -130,7 +130,7 @@ export async function downloadAsset(ctx: AuthContext, id: string, format: Downlo
 
 export async function exportZip(ctx: AuthContext, assetIds: string[], format: DownloadFormat) {
   if (assetIds.length === 0 || assetIds.length > 100) throw new ApiError(400, "Choose between 1 and 100 images");
-  const { data } = await admin().from("generated_assets").select("id, storage_key, products(name), generation_jobs(output, style)").in("id", assetIds).eq("organization_id", ctx.orgId).neq("quality_status", "fail");
+  const { data } = await admin().from("generated_assets").select("id, storage_key, products(name), generation_jobs!generated_assets_job_id_fkey(output, style)").in("id", assetIds).eq("organization_id", ctx.orgId).neq("quality_status", "fail");
   const zip = new JSZip();
   for (const a of data ?? []) {
     const row = a as unknown as { id: string; storage_key: string; products: { name: string }; generation_jobs: { output: string; style: string } };

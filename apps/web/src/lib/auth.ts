@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { admin, userClient } from "./supabase";
@@ -18,6 +19,7 @@ export interface AuthContext {
   locale: "en" | "hi";
   platformRole: "platform_support" | "platform_admin" | null;
   shop?: { domain: string; accessToken: string };
+  orgs?: { id: string; name: string }[];
 }
 
 export class AuthError extends Error {
@@ -50,22 +52,26 @@ async function contextForUser(userId: string, email: string | null, via: "web" |
     role: m.role,
     locale: profile.locale === "hi" ? "hi" : "en",
     platformRole: envAdmin ? "platform_admin" : profile.platform_role,
+    orgs: list.map((x) => ({ id: x.organization_id, name: x.organizations.name })),
   };
 }
 
 /** Auth for server components and server actions (cookie session). */
-export async function getWebContext(): Promise<AuthContext | null> {
+// cache(): the layout and the page share one lookup per request.
+// getClaims() verifies the session JWT locally (signing keys), so no call to the auth server on every click.
+export const getWebContext = cache(async (): Promise<AuthContext | null> => {
   const supabase = await userClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) return null;
   const store = await cookies();
   try {
-    return await contextForUser(data.user.id, data.user.email ?? null, "web", store.get(ORG_COOKIE)?.value);
+    return await contextForUser(claims.sub, (claims.email as string | undefined) ?? null, "web", store.get(ORG_COOKIE)?.value);
   } catch (e) {
     if (e instanceof AuthError) return null;
     throw e;
   }
-}
+});
 
 export async function requireWeb(minRole: Role = "viewer"): Promise<AuthContext> {
   const ctx = await getWebContext();

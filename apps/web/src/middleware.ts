@@ -34,8 +34,8 @@ export async function middleware(req: NextRequest) {
       },
     },
   });
-  const { data } = await supabase.auth.getUser();
-  if (!data.user && (pathname.startsWith("/app") || pathname.startsWith("/admin"))) {
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub && (pathname.startsWith("/app") || pathname.startsWith("/admin"))) {
     const url = req.nextUrl.clone();
     url.pathname = "/sign-in";
     url.searchParams.set("next", pathname);

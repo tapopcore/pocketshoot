@@ -121,7 +121,7 @@ export async function remakeAsset(ctx: AuthContext, assetId: string, idempotency
   const db = admin();
   const { data: asset } = await db
     .from("generated_assets")
-    .select("id, product_id, remakes_used, delivered_at, job_id, generation_jobs(mode, style, output, custom_brief, project_id, settings)")
+    .select("id, product_id, remakes_used, delivered_at, job_id, generation_jobs!generated_assets_job_id_fkey(mode, style, output, custom_brief, project_id, settings)")
     .eq("id", assetId)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();

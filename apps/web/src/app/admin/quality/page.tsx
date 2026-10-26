@@ -11,7 +11,7 @@ export default async function Quality() {
   const [{ data: items }, { data: ratings }, { data: sample }] = await Promise.all([
     db.from("generation_items").select("status, decision, generation_jobs(mode, style, settings)").gte("created_at", month).in("status", ["delivered", "failed"]).limit(50000),
     db.from("analytics_events").select("props").eq("name", "human_rating").limit(50000),
-    db.from("generated_assets").select("id, storage_key, quality_status, generation_jobs(mode, style, settings), products(name)").neq("quality_status", "fail").order("created_at", { ascending: false }).limit(60),
+    db.from("generated_assets").select("id, storage_key, quality_status, generation_jobs!generated_assets_job_id_fkey(mode, style, settings), products(name)").neq("quality_status", "fail").order("created_at", { ascending: false }).limit(60),
   ]);
   const rated = new Set((ratings ?? []).map((r) => (r.props as { assetId: string }).assetId));
   const toRate = (sample ?? []).filter((s) => !rated.has(s.id)).sort(() => Math.random() - 0.5).slice(0, 12);

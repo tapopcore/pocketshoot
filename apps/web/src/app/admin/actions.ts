@@ -155,7 +155,7 @@ export async function rateOutputAction(form: FormData) {
   const ctx = await requirePlatform();
   const assetId = String(form.get("assetId"));
   const usable = String(form.get("usable")) === "1";
-  const { data: a } = await admin().from("generated_assets").select("organization_id, generation_jobs(style, mode, settings)").eq("id", assetId).single();
+  const { data: a } = await admin().from("generated_assets").select("organization_id, generation_jobs!generated_assets_job_id_fkey(style, mode, settings)").eq("id", assetId).single();
   const job = (a as unknown as { generation_jobs: { style: string; mode: string; settings: { category?: string } } } | null)?.generation_jobs;
   await admin().from("analytics_events").insert({ name: "human_rating", user_id: ctx.userId, organization_id: a?.organization_id, props: { assetId, usable, style: job?.style, mode: job?.mode, category: job?.settings?.category } });
   revalidatePath("/admin/quality");
