@@ -7,7 +7,7 @@ import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";
 
-const name = process.env.NEXT_PUBLIC_APP_NAME || "PackShot";
+const name = process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),

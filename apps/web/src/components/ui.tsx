@@ -110,7 +110,7 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 export function Logo({ className }: { className?: string }) {
-  const name = process.env.NEXT_PUBLIC_APP_NAME || "PackShot";
+  const name = process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot";
   return (
     <span className={clsx("inline-flex items-center gap-2", className)}>
       <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>

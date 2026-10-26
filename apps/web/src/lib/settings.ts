@@ -52,7 +52,7 @@ const DEFAULTS: Settings = {
   },
   quality: { ...DEFAULT_THRESHOLDS, useJudge: true },
   seller: {
-    legalName: "", tradeName: "PackShot", gstin: "", stateCode: "07", address: "", email: "", phone: "",
+    legalName: "", tradeName: "PocketShoot", gstin: "", stateCode: "07", address: "", email: "", phone: "",
     sacCode: "998399", gstRatePercent: 18, invoicePrefix: "PS", exportUnderLut: false,
   },
   shopify_billing: { test: true },

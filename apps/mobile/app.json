@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "PackShot",
-    "slug": "packshot",
+    "name": "PocketShoot",
+    "slug": "pocketshoot",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "packshot",
+    "scheme": "pocketshoot",
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.REPLACE.packshot",
+      "bundleIdentifier": "com.REPLACE.pocketshoot",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -23,7 +23,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.REPLACE.packshot"
+      "package": "com.REPLACE.pocketshoot"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -41,21 +41,21 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "PackShot uses the camera to photograph your products.",
+          "cameraPermission": "PocketShoot uses the camera to photograph your products.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "PackShot needs access to choose product photos from your gallery."
+          "photosPermission": "PocketShoot needs access to choose product photos from your gallery."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "PackShot saves finished product photos to your gallery.",
-          "savePhotosPermission": "PackShot saves finished product photos to your gallery.",
+          "photosPermission": "PocketShoot saves finished product photos to your gallery.",
+          "savePhotosPermission": "PocketShoot saves finished product photos to your gallery.",
           "isAccessMediaLocationEnabled": false
         }
       ],
@@ -67,9 +67,9 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrl": "https://REPLACE_WITH_DOMAIN",
-      "supabaseUrl": "https://REPLACE.supabase.co",
-      "supabaseAnonKey": "REPLACE",
+      "apiUrl": "https://pocketshoot.vercel.app",
+      "supabaseUrl": "https://vsgsoqofddqodbmarpkx.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzZ3NvcW9mZGRxb2RibWFycGt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMzE2MzQsImV4cCI6MjEwODYwNzYzNH0.ELCyiRvg0eG1EnYAUOQnDjd6LcZxi8OB_hNqvWaX888",
       "revenuecatIosKey": "",
       "revenuecatAndroidKey": "",
       "eas": {

@@ -89,7 +89,7 @@ describe("delivery helpers", () => {
   it("watermarks, detects blanks and encodes formats", async () => {
     const img = await sharp({ create: { width: 600, height: 600, channels: 3, background: "#336699" } }).png().toBuffer();
     expect(await isBlank(img)).toBe(true);
-    const wm = await watermark(img, "PackShot trial");
+    const wm = await watermark(img, "PocketShoot trial");
     expect(await isBlank(wm)).toBe(false);
     const jpg = await encodeFor(wm, "jpg", 300);
     expect(jpg.type).toBe("image/jpeg");

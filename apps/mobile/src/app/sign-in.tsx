@@ -32,7 +32,7 @@ export default function SignIn() {
     <SafeAreaView style={s.screen}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, justifyContent: "space-between", padding: 24 }}>
         <View style={{ marginTop: 40 }}>
-          <Text style={s.eyebrow}>PackShot</Text>
+          <Text style={s.eyebrow}>PocketShoot</Text>
           <Text style={[s.display, { fontSize: 46, lineHeight: 48, marginTop: 14 }]}>Your phone photo in.{"\n"}<Text style={{ color: C.accent, fontStyle: "italic" }}>Studio shot</Text> out.</Text>
           <Text style={[s.body, { marginTop: 16 }]}>Sign in with your email. New here? You get 2 free images.</Text>
         </View>

@@ -1,4 +1,4 @@
--- PackShot core schema
+-- PocketShoot core schema
 -- Every tenant-owned row carries organization_id. The app server talks to the
 -- database with the service role and always filters by the caller's org;
 -- RLS below is a second line of defence for any direct client access.
@@ -792,5 +792,6 @@ end $$;
 
 -- Ledger and queue functions are for the server only.
 revoke execute on function public.grant_credits, public.reserve_credits, public.settle_item, public.refund_item_credit,
-  public.adjust_credits, public.expire_credit_lots, public.next_invoice_seq, public.claim_generation_items, public.hit_rate_limit
+  public.adjust_credits, public.expire_credit_lots, public.next_invoice_seq, public.claim_generation_items, public.hit_rate_limit,
+  public.handle_new_user
   from public, anon, authenticated;

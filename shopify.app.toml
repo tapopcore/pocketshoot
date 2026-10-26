@@ -1,8 +1,8 @@
 # Shopify app configuration. Deploy with: shopify app deploy
 # Replace the URLs with your production domain and client_id with your app's API key.
 client_id = "REPLACE_WITH_SHOPIFY_API_KEY"
-name = "PackShot: AI Product Photos"
-handle = "packshot-product-photos"
+name = "PocketShoot: AI Product Photos"
+handle = "pocketshoot-product-photos"
 application_url = "https://REPLACE_WITH_DOMAIN/shopify"
 embedded = true
 

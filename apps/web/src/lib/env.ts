@@ -6,7 +6,7 @@ function opt(name: string): string | undefined {
 }
 
 export const env = {
-  appName: process.env.NEXT_PUBLIC_APP_NAME || "PackShot",
+  appName: process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot",
   appUrl: (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, ""),
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
@@ -24,7 +24,7 @@ export const env = {
   cronSecret: opt("CRON_SECRET"),
   encryptionKey: opt("ENCRYPTION_KEY"),
   resendKey: opt("RESEND_API_KEY"),
-  emailFrom: opt("EMAIL_FROM") || "PackShot <hello@example.com>",
+  emailFrom: opt("EMAIL_FROM") || "PocketShoot <hello@example.com>",
   alertEmail: opt("ALERT_EMAIL"),
   platformAdminEmails: (opt("PLATFORM_ADMIN_EMAILS") || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
   /** Sandbox payments only when Razorpay keys are missing and this is explicitly on. */

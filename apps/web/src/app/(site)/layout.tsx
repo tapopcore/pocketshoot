@@ -45,7 +45,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             {[["/faq", "FAQ"], ["/contact", "Contact"], ["/legal/terms", "Terms"], ["/legal/privacy", "Privacy"], ["/legal/refunds", "Credits & refunds"], ["/legal/acceptable-use", "Acceptable use"]].map(([h, l]) => <Link key={h} href={h} className="block hover:underline">{l}</Link>)}
           </div>
         </div>
-        <div className="border-t border-line py-5 text-center text-xs text-mute">© {new Date().getFullYear()} {process.env.NEXT_PUBLIC_APP_NAME || "PackShot"}. Prices exclude GST.</div>
+        <div className="border-t border-line py-5 text-center text-xs text-mute">© {new Date().getFullYear()} {process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot"}. Prices exclude GST.</div>
       </footer>
     </>
   );

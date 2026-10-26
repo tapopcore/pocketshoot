@@ -18,7 +18,7 @@ const REASONS: [string, string][] = [
 ];
 
 async function downloadToCache(url: string, name: string) {
-  const dir = new Directory(Paths.cache, "packshot");
+  const dir = new Directory(Paths.cache, "pocketshoot");
   if (!dir.exists) dir.create();
   const target = new File(dir, name);
   if (target.exists) target.delete();

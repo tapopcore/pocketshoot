@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-const NAME = process.env.NEXT_PUBLIC_APP_NAME || "PackShot";
+const NAME = process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot";
 const UPDATED = "26 October 2026";
 
 /**

@@ -1,4 +1,4 @@
-# PackShot
+# PocketShoot
 
 AI product photography for real products. One engine, three ways in:
 
@@ -53,7 +53,7 @@ cp .env.example apps/web/.env.local   # fill in
 
 ### 5. Mobile app
 - Fill `apps/mobile/app.json` → `extra` (API URL, Supabase URL/anon key, RevenueCat keys) and the iOS `bundleIdentifier` / Android `package`.
-- RevenueCat: create the consumable products (`packshot.credits.5` etc. for iOS, `packshot_credits_5` etc. for Android, matching Admin → Pricing), add a webhook to `https://your-domain.com/api/webhooks/revenuecat` with an Authorization header value of `Bearer <REVENUECAT_WEBHOOK_AUTH>`.
+- RevenueCat: create the consumable products (`pocketshoot.credits.5` etc. for iOS, `pocketshoot_credits_5` etc. for Android, matching Admin → Pricing), add a webhook to `https://your-domain.com/api/webhooks/revenuecat` with an Authorization header value of `Bearer <REVENUECAT_WEBHOOK_AUTH>`.
 - Build: `npx eas-cli@latest build --platform all`, submit with `eas submit`. In-app purchases need a development or production build (not Expo Go).
 
 ## Tests
