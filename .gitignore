@@ -10,3 +10,4 @@ dist/
 *.tsbuildinfo
 .vercel
 .DS_Store
+node_modules

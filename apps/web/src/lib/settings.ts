@@ -6,7 +6,19 @@ export interface ProviderSettings {
   generation: "auto" | "gemini" | "openai" | "fal" | "mock";
   fallback: "gemini" | "openai" | "fal" | "mock" | "none";
   gemini: { model: string; judgeModel: string };
-  openai: { model: string; quality: "low" | "medium" | "high" | "auto" };
+  openai: {
+    model: string;
+    /** Fallback order if a model isn't available on the account. */
+    models: string[];
+    quality: "low" | "medium" | "high" | "xhigh" | "max" | "auto";
+    legacyQuality: "low" | "medium" | "high";
+    /** USD per 1M tokens, for cost tracking. */
+    prices: Record<string, { input: number; output: number }>;
+  };
+  /** Small text/vision model for product analysis, art direction and accuracy checks. */
+  llm: { models: string[] };
+  /** Long edge the model renders at. Final images are upscaled with the real product composited at full resolution. */
+  render: { trialEdge: number; paidEdge: number; cutoutQuality: "low" | "medium" | "high" };
   fal: { model: string; segmentModel: string };
   costUsdPerImage: Record<string, number>;
   concurrency: number;
@@ -41,12 +53,25 @@ export interface Settings {
 const DEFAULTS: Settings = {
   credit_policy: DEFAULT_POLICY,
   providers: {
-    generation: "auto",
+    generation: "openai",
     fallback: "mock",
     gemini: { model: "gemini-2.5-flash-image", judgeModel: "gemini-2.5-flash" },
-    openai: { model: "gpt-image-2", quality: "high" },
+    openai: {
+      model: "gpt-image-2.5-sunburst",
+      models: ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "gpt-image-2"],
+      quality: "high",
+      legacyQuality: "medium",
+      prices: {
+        "gpt-image-2.5-sunburst": { input: 8, output: 30 },
+        "gpt-image-2.5-flare": { input: 8, output: 30 },
+        "gpt-image-2": { input: 10, output: 30 },
+        default: { input: 10, output: 40 },
+      },
+    },
+    llm: { models: ["gpt-5-mini", "gpt-4.1-mini"] },
+    render: { trialEdge: 1024, paidEdge: 1536, cutoutQuality: "medium" },
     fal: { model: "fal-ai/flux-pro/kontext", segmentModel: "fal-ai/birefnet" },
-    costUsdPerImage: { gemini: 0.039, openai: 0.17, fal: 0.04, mock: 0 },
+    costUsdPerImage: { gemini: 0.039, openai: 0.06, fal: 0.04, mock: 0 },
     concurrency: 4,
     timeoutMs: 120_000,
   },
@@ -68,7 +93,7 @@ export async function getSettings(fresh = false): Promise<Settings> {
   const merged = structuredClone(DEFAULTS) as unknown as Record<string, unknown>;
   for (const row of data ?? []) {
     const base = merged[row.key];
-    merged[row.key] = base && typeof base === "object" ? { ...(base as object), ...(row.value as object) } : row.value;
+    merged[row.key] = base && typeof base === "object" ? deepMerge(base as Record<string, unknown>, row.value as Record<string, unknown>) : row.value;
   }
   cache = { at: Date.now(), value: merged as unknown as Settings };
   return cache.value;
@@ -84,4 +109,13 @@ export async function getFlag(key: string, orgId?: string): Promise<boolean> {
   const org = data?.find((r) => r.scope === orgId);
   const global = data?.find((r) => r.scope === "global");
   return Boolean((org ?? global)?.value ?? false);
+}
+
+function deepMerge(a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...a };
+  for (const [k, v] of Object.entries(b ?? {})) {
+    const cur = out[k];
+    out[k] = v && typeof v === "object" && !Array.isArray(v) && cur && typeof cur === "object" && !Array.isArray(cur) ? deepMerge(cur as Record<string, unknown>, v as Record<string, unknown>) : v;
+  }
+  return out;
 }

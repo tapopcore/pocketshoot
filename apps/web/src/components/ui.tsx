@@ -4,17 +4,17 @@ import type { ComponentProps, ReactNode } from "react";
 
 type Variant = "primary" | "accent" | "ghost" | "outline" | "danger";
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-ink text-paper hover:bg-ink-2",
+  primary: "bg-ink text-white hover:bg-ink-2 shadow-[0_1px_2px_rgb(0_0_0/0.1)]",
   accent: "bg-accent text-white hover:bg-accent-ink",
   ghost: "text-ink hover:bg-paper-2",
-  outline: "border border-ink/80 text-ink hover:bg-ink hover:text-paper",
+  outline: "border border-line bg-card text-ink hover:border-ink/50",
   danger: "border border-bad/40 text-bad hover:bg-bad hover:text-white",
 };
 const SIZES = { sm: "h-8 px-3 text-sm", md: "h-11 px-5 text-[15px]", lg: "h-13 px-7 text-base" };
 
 export function buttonClass(variant: Variant = "primary", size: keyof typeof SIZES = "md", extra?: string) {
   return clsx(
-    "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none select-none whitespace-nowrap",
+    "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none select-none whitespace-nowrap",
     VARIANTS[variant], SIZES[size], extra,
   );
 }
@@ -55,7 +55,7 @@ export function Field({ label, hint, error, children, className }: { label: stri
 }
 
 export const inputClass =
-  "w-full h-11 rounded-xl border border-line bg-white/70 px-3.5 text-[15px] text-ink placeholder:text-mute/70 focus:border-ink focus:outline-none focus:ring-0 transition-colors";
+  "w-full h-11 rounded-xl border border-line bg-white px-3.5 text-[15px] text-ink placeholder:text-mute/70 focus:border-ink/60 focus:outline-none focus:ring-4 focus:ring-ink/5 transition";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={clsx(inputClass, props.className)} />;
@@ -72,7 +72,7 @@ export function PageHeader({ eyebrow, title, children, actions }: { eyebrow?: Re
     <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="animate-rise">
         {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
-        <h1 className="display text-4xl sm:text-5xl">{title}</h1>
+        <h1 className="display text-3xl sm:text-4xl">{title}</h1>
         {children && <div className="mt-3 max-w-2xl text-ink-2">{children}</div>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -82,8 +82,8 @@ export function PageHeader({ eyebrow, title, children, actions }: { eyebrow?: Re
 
 export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="cropmarks rounded-[var(--radius-card)] border border-dashed border-line px-6 py-14 text-center">
-      <div className="display text-3xl">{title}</div>
+    <div className="rounded-[var(--radius-card)] border border-dashed border-line bg-card/60 px-6 py-14 text-center">
+      <div className="display text-2xl">{title}</div>
       {children && <p className="mx-auto mt-2 max-w-md text-sm text-mute">{children}</p>}
       {action && <div className="mt-6 flex justify-center">{action}</div>}
     </div>
@@ -94,7 +94,7 @@ export function Stat({ label, value, sub, accent }: { label: string; value: Reac
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-card p-5">
       <div className="eyebrow">{label}</div>
-      <div className={clsx("display mt-2 text-5xl tabular-nums", accent && "text-accent")}>{value}</div>
+      <div className={clsx("display mt-2 text-4xl tabular-nums", accent && "text-accent")}>{value}</div>
       {sub && <div className="mt-1 text-xs text-mute">{sub}</div>}
     </div>
   );
@@ -114,8 +114,9 @@ export function Logo({ className }: { className?: string }) {
   return (
     <span className={clsx("inline-flex items-center gap-2", className)}>
       <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
-        <path d="M1 6V1h5M16 1h5v5M21 16v5h-5M6 21H1v-5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <circle cx="11" cy="11" r="4.2" fill="#e2531b" />
+        <rect x="1" y="1" width="20" height="20" rx="6" fill="currentColor" />
+        <circle cx="11" cy="11" r="4.6" fill="#ff5a1f" />
+        <circle cx="16.2" cy="5.8" r="1.3" fill="#fff" />
       </svg>
       <span className="text-[17px] font-semibold tracking-tight">{name}</span>
     </span>

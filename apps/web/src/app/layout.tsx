@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 // Self-hosted fonts (bundled from npm, no request to Google at runtime).
 import "@fontsource/instrument-serif/latin-400.css";
 import "@fontsource/instrument-serif/latin-400-italic.css";
-import "@fontsource-variable/bricolage-grotesque/index.css";
+import "@fontsource-variable/inter/index.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./globals.css";
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: { siteName: name, type: "website" },
 };
 
-export const viewport: Viewport = { themeColor: "#f4f1ea", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#f6f6f4", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

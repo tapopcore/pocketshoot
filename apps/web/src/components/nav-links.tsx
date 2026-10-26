@@ -15,16 +15,16 @@ export function NavLinks({ items, compact }: { items: { href: string; label: str
         const Icon = ICONS[i.icon as keyof typeof ICONS] ?? Home;
         if (compact) {
           return (
-            <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[11px]", active ? "text-accent" : "text-ink-2")}>
-              {i.icon === "plus" ? <span className="-mt-5 grid size-11 place-items-center rounded-full bg-accent text-white shadow-[var(--shadow-lift)]"><Icon size={22} /></span> : <Icon size={20} />}
+            <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium", active ? "text-ink" : "text-mute")}>
+              {i.icon === "plus" ? <span className="-mt-5 grid size-12 place-items-center rounded-2xl bg-ink text-white shadow-[var(--shadow-pop)]"><Icon size={22} /></span> : <Icon size={20} />}
               <span className="truncate">{i.label}</span>
             </Link>
           );
         }
         return (
           <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined}
-            className={clsx("group flex items-center gap-3 rounded-lg px-2.5 py-2 text-[14.5px] transition-colors", active ? "bg-ink text-paper" : "text-ink-2 hover:bg-paper-2 hover:text-ink")}>
-            <Icon size={17} strokeWidth={1.8} className={clsx(i.icon === "plus" && !active && "text-accent")} />
+            className={clsx("group flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium transition-colors", active ? "bg-paper-2 text-ink" : "text-ink-2 hover:bg-paper-2/70 hover:text-ink")}>
+            <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
             {i.label}
           </Link>
         );

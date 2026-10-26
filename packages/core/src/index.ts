@@ -1,5 +1,7 @@
 export * from "./categories";
 export * from "./presets";
+export * from "./scenes";
+export * from "./director";
 export * from "./prompts";
 export * from "./credits";
 export * from "./gst";

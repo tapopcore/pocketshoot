@@ -17,7 +17,7 @@ describe("prompts", () => {
     const p = buildPrompt({ mode: "preserve", category: "food", productName: "Masala", locks: ["label_text"], style: "festive", output: "marketplace_white", productPlaced: true });
     expect(p.parts.scene).toContain("white");
     expect(p.text).toContain("FSSAI");
-    expect(p.text).toContain("untouchable");
+    expect(p.text).toContain("product pixels are final");
   });
   it("quotes the custom brief as data", () => {
     const p = buildPrompt({ mode: "creative", category: "beauty", productName: "Serum", locks: [], style: "custom", output: "square", customBrief: "on a beach at sunset" });

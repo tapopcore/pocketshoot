@@ -48,7 +48,7 @@ export const mock: ImageProvider = {
 export function getProvider(id: ProviderId, settings: ProviderSettings): ImageProvider {
   switch (id) {
     case "gemini": return gemini;
-    case "openai": return openaiProvider(settings.openai.quality);
+    case "openai": return openaiProvider({ models: settings.openai.models, quality: settings.openai.quality, legacyQuality: settings.openai.legacyQuality, prices: settings.openai.prices });
     case "fal": return fal;
     default: return mock;
   }
@@ -69,8 +69,8 @@ export function isConfigured(id: ProviderId): boolean {
 
 /** Ordered list of providers to try for a generation. */
 export function providerChain(settings: ProviderSettings): ProviderId[] {
-  // Default order is cheapest-first. Admin can pin a provider in settings.
-  const configured = (["gemini", "openai", "fal"] as ProviderId[]).filter(isConfigured);
+  // OpenAI first by default. Admin can pin another provider in settings.
+  const configured = (["openai", "gemini", "fal"] as ProviderId[]).filter(isConfigured);
   const primary =
     settings.generation !== "auto" && isConfigured(settings.generation)
       ? [settings.generation, ...configured.filter((p) => p !== settings.generation)]

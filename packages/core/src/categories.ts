@@ -7,6 +7,8 @@ export type CategoryId =
   | "home_kitchen"
   | "food"
   | "jewellery"
+  | "fashion"
+  | "electronics"
   | "other";
 
 export type Difficulty = "standard" | "harder";
@@ -90,7 +92,7 @@ export const CATEGORIES: Record<CategoryId, Category> = {
       "Pump, dropper and cap types stay exactly as in the reference.",
       "Liquid colour visible through transparent packaging stays the same.",
     ],
-    recommendedPresets: ["premium_minimal", "botanical", "water_splash", "marble_stone", "pure_white", "luxury_dark"],
+    recommendedPresets: ["pastel_podium", "botanical", "water_splash", "shadow_play", "marble_stone", "bathroom_vanity", "luxury_dark", "ingredients"],
     defaultLocks: ["label_text", "logo", "colour", "shape", "cap_closure"],
   },
   home_kitchen: {
@@ -104,7 +106,7 @@ export const CATEGORIES: Record<CategoryId, Category> = {
       "Handles, lids and spouts stay in the same position and shape.",
       "Patterns and prints on the surface are not redrawn.",
     ],
-    recommendedPresets: ["kitchen_lifestyle", "natural_sunlight", "neutral_studio", "pure_white", "industrial", "festive"],
+    recommendedPresets: ["kitchen_lifestyle", "living_room", "natural_sunlight", "shadow_play", "neutral_studio", "festive"],
     defaultLocks: ["logo", "colour", "shape", "material", "item_count"],
   },
   food: {
@@ -121,7 +123,7 @@ export const CATEGORIES: Record<CategoryId, Category> = {
       "Do not add health claims, certifications or awards that are not on the reference pack.",
       "Food props may appear around the pack but must not cover the brand name or front label.",
     ],
-    recommendedPresets: ["kitchen_lifestyle", "natural_sunlight", "festive", "pure_white", "neutral_studio", "water_splash"],
+    recommendedPresets: ["ingredients", "dining_spread", "kitchen_lifestyle", "colour_pop", "cafe_table", "festive"],
     defaultLocks: ["label_text", "logo", "colour", "shape", "item_count"],
   },
   jewellery: {
@@ -138,8 +140,38 @@ export const CATEGORIES: Record<CategoryId, Category> = {
       "Engravings, hallmarks and clasp types are not altered.",
       "Do not place the piece on a human model unless the user chose a lifestyle preset that allows it.",
     ],
-    recommendedPresets: ["luxury_dark", "premium_minimal", "marble_stone", "pure_white", "botanical", "festive"],
+    recommendedPresets: ["velvet_gold", "silk_satin", "luxury_dark", "marble_stone", "wedding", "dressing_table"],
     defaultLocks: ["shape", "colour", "material", "item_count", "logo"],
+  },
+  fashion: {
+    id: "fashion",
+    label: "Fashion & footwear",
+    labelHi: "फ़ैशन और फ़ुटवियर",
+    short: "Bags, shoes, watches, sunglasses, folded apparel",
+    examples: ["Handbag", "Sneakers", "Watch", "Sunglasses", "Folded T-shirt"],
+    difficulty: "standard",
+    preserve: [
+      "Stitching, hardware (buckles, zips, clasps) and logos keep their exact design and position.",
+      "Fabric or leather texture, weave and colour match the reference.",
+      "Prints and patterns keep their exact layout; do not invent new patterns.",
+    ],
+    recommendedPresets: ["shadow_play", "colour_pop", "silk_satin", "desk_workspace", "beach_sand", "neutral_studio"],
+    defaultLocks: ["logo", "colour", "shape", "material", "item_count"],
+  },
+  electronics: {
+    id: "electronics",
+    label: "Electronics & gadgets",
+    labelHi: "इलेक्ट्रॉनिक्स और गैजेट",
+    short: "Earbuds, speakers, chargers, accessories",
+    examples: ["Earbuds", "Power bank", "Smartwatch", "Speaker", "Phone case"],
+    difficulty: "standard",
+    preserve: [
+      "Ports, buttons, LEDs, grilles and seams stay in the exact same place and count.",
+      "Screens show exactly what the reference shows, or stay off; never invent UI.",
+      "Logos and printed specs are unchanged.",
+    ],
+    recommendedPresets: ["gradient_glow", "desk_workspace", "luxury_dark", "neon_night", "colour_pop", "industrial"],
+    defaultLocks: ["label_text", "logo", "colour", "shape", "item_count"],
   },
   other: {
     id: "other",
@@ -149,7 +181,7 @@ export const CATEGORIES: Record<CategoryId, Category> = {
     examples: ["Toy", "Stationery", "Electronics accessory", "Hardware"],
     difficulty: "standard",
     preserve: [],
-    recommendedPresets: ["pure_white", "neutral_studio", "premium_minimal", "natural_sunlight"],
+    recommendedPresets: ["neutral_studio", "shadow_play", "premium_minimal", "natural_sunlight", "colour_pop", "pure_white"],
     defaultLocks: ["label_text", "logo", "colour", "shape", "item_count"],
   },
 };

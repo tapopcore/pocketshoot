@@ -16,6 +16,8 @@ export const createJobSchema = z.object({
   batchId: z.string().uuid().nullish(),
   mode: z.enum(["preserve", "creative"]).default("preserve"),
   style: z.string().refine((s) => s in STYLES, "Unknown style"),
+  /** Several scenes in one shoot: images cycle through them. */
+  styles: z.array(z.string().refine((s) => s in STYLES, "Unknown style")).min(1).max(8).nullish(),
   output: z.string().refine((s) => s in OUTPUTS, "Unknown output size"),
   count: z.number().int().min(1).max(20),
   customBrief: z.string().max(600).nullish(),
@@ -32,7 +34,15 @@ export const productSchema = z.object({
   mustNotChange: z.string().trim().max(400).nullish(),
 });
 
-export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: { source?: AuthContext["via"] | "api"; parentAssetId?: string; freeRemake?: boolean } = {}) {
+export interface JobOptions {
+  source?: AuthContext["via"] | "api";
+  parentAssetId?: string;
+  freeRemake?: boolean;
+  /** Edit an existing image with a text instruction. */
+  edit?: { assetId: string; instruction: string };
+}
+
+export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: JobOptions = {}) {
   assertRole(ctx, "editor");
   const db = admin();
   const settings = await getSettings();
@@ -68,11 +78,11 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: {
       created_by: ctx.userId,
       source: opts.source ?? ctx.via,
       mode: input.mode,
-      style: input.style,
+      style: input.styles?.[0] ?? input.style,
       output: input.output,
       requested_count: input.count,
       custom_brief: input.customBrief ?? null,
-      settings: { palette, brandKitId: input.brandKitId ?? null, category: product.category },
+      settings: { palette, brandKitId: input.brandKitId ?? null, category: product.category, styles: input.styles ?? [input.style], ...(opts.edit ? { edit: opts.edit } : {}) },
       idempotency_key: input.idempotencyKey,
       is_trial: isTrial,
       parent_asset_id: opts.parentAssetId ?? null,
@@ -88,7 +98,8 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: {
     throw error;
   }
 
-  await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => ({ job_id: job.id, organization_id: ctx.orgId, idx })));
+  const styles = input.styles?.length ? input.styles : [input.style];
+  await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => ({ job_id: job.id, organization_id: ctx.orgId, idx, style: styles[idx % styles.length] })));
 
   if (!opts.freeRemake) {
     const { data: ok, error: rErr } = await db.rpc("reserve_credits", { p_job: job.id, p_quantity: input.count * policy.creditsPerImage });
@@ -121,21 +132,58 @@ export async function remakeAsset(ctx: AuthContext, assetId: string, idempotency
   const db = admin();
   const { data: asset } = await db
     .from("generated_assets")
-    .select("id, product_id, remakes_used, delivered_at, job_id, generation_jobs!generated_assets_job_id_fkey(mode, style, output, custom_brief, project_id, settings)")
+    .select("id, product_id, remakes_used, delivered_at, job_id, generation_items!generated_assets_item_id_fkey(style), generation_jobs!generated_assets_job_id_fkey(mode, style, output, custom_brief, project_id, settings)")
     .eq("id", assetId)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
   if (!asset) throw new ApiError(404, "Image not found");
-  const job = (asset as unknown as { generation_jobs: { mode: "preserve" | "creative"; style: string; output: string; custom_brief: string | null; project_id: string | null; settings: { brandKitId?: string } } }).generation_jobs;
+  const job = (asset as unknown as { generation_jobs: ParentJob }).generation_jobs;
+  const itemStyle = (asset as unknown as { generation_items: { style: string | null } | null }).generation_items?.style ?? job.style;
   const policy = (await getSettings()).credit_policy;
   const free = isFreeRemake(asset.remakes_used, asset.delivered_at, policy);
   const res = await createJob(
     ctx,
-    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style: job.style, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, idempotencyKey },
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style: itemStyle, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, idempotencyKey },
     { parentAssetId: asset.id, freeRemake: free },
   );
   if (!res.duplicate) await db.from("generated_assets").update({ remakes_used: asset.remakes_used + 1 }).eq("id", asset.id);
   return { ...res, free };
+}
+
+interface ParentJob { mode: "preserve" | "creative"; style: string; output: string; custom_brief: string | null; project_id: string | null; settings: { brandKitId?: string } }
+
+async function parentOf(ctx: AuthContext, assetId: string) {
+  const { data: asset } = await admin()
+    .from("generated_assets")
+    .select("id, product_id, job_id, generation_items!generated_assets_item_id_fkey(style), generation_jobs!generated_assets_job_id_fkey(mode, style, output, custom_brief, project_id, settings)")
+    .eq("id", assetId).eq("organization_id", ctx.orgId).neq("quality_status", "fail").maybeSingle();
+  if (!asset) throw new ApiError(404, "Image not found");
+  const job = (asset as unknown as { generation_jobs: ParentJob }).generation_jobs;
+  const style = (asset as unknown as { generation_items: { style: string | null } | null }).generation_items?.style ?? job.style;
+  return { asset, job, style };
+}
+
+/** Changes a finished image with a plain-language instruction, keeping the product exact. 1 credit. */
+export async function editAsset(ctx: AuthContext, assetId: string, instruction: string, idempotencyKey: string) {
+  const { asset, job, style } = await parentOf(ctx, assetId);
+  const text = instruction.trim();
+  if (text.length < 3) throw new ApiError(400, "Describe the change you want");
+  return createJob(
+    ctx,
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output: job.output, count: 1, customBrief: text.slice(0, 500), brandKitId: job.settings?.brandKitId ?? null, idempotencyKey },
+    { parentAssetId: asset.id, edit: { assetId: asset.id, instruction: text.slice(0, 500) } },
+  );
+}
+
+/** Same scene in another format (for example square to story). 1 credit. */
+export async function resizeAsset(ctx: AuthContext, assetId: string, output: string, idempotencyKey: string) {
+  const { asset, job, style } = await parentOf(ctx, assetId);
+  if (!(output in OUTPUTS)) throw new ApiError(400, "Unknown size");
+  return createJob(
+    ctx,
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, idempotencyKey },
+    { parentAssetId: asset.id },
+  );
 }
 
 export async function cancelJob(ctx: AuthContext, jobId: string) {
@@ -173,7 +221,7 @@ export async function jobView(orgId: string, jobId: string) {
     .maybeSingle();
   if (!job) return null;
   const [{ data: items }, { data: assets }, { data: refs }] = await Promise.all([
-    db.from("generation_items").select("id, idx, status, attempts, last_error, decision, delivered_asset_id, settled").eq("job_id", jobId).order("idx"),
+    db.from("generation_items").select("id, idx, status, attempts, last_error, decision, delivered_asset_id, settled, style, updated_at").eq("job_id", jobId).order("idx"),
     db.from("generated_assets").select("id, item_id, storage_key, thumb_key, width, height, quality_status, approval_status, watermarked, remakes_used, delivered_at, pushed_to_shopify_at, quality_checks(check_type, score, decision, details), refund_requests(status)").eq("job_id", jobId).neq("quality_status", "fail"),
     db.from("product_assets").select("id, storage_key, view_type").eq("product_id", job.product_id).order("created_at"),
   ]);

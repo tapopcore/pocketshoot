@@ -8,6 +8,10 @@ export interface EditRequest {
   mask?: Buffer;
   width: number;
   height: number;
+  /** Provider-specific quality override. */
+  quality?: "low" | "medium" | "high" | "xhigh" | "max" | "auto";
+  /** Ask for a transparent background (used for cut-outs). */
+  transparent?: boolean;
   /** Swatch colours, used by the sandbox provider only. */
   swatch?: [string, string];
   timeoutMs: number;

@@ -4,7 +4,7 @@ import { getFlag, getSettings } from "@/lib/settings";
 import { admin } from "@/lib/supabase";
 import { productList } from "@/lib/views";
 import { categoryOrOther } from "@/lib/products";
-import { Wizard } from "./wizard";
+import { Studio } from "./studio";
 
 export const metadata = { title: "New photoshoot" };
 
@@ -22,7 +22,7 @@ export default async function NewShoot({ searchParams }: { searchParams: Promise
   const existing = sp.product ? recent.products.find((p) => p.id === sp.product) ?? (await productList(ctx.orgId, { limit: 200 })).products.find((p) => p.id === sp.product) : null;
   const toLite = (p: (typeof recent.products)[number]) => ({ id: p.id, name: p.name, category: categoryOrOther(p.category), coverUrl: p.coverUrl });
   return (
-    <Wizard
+    <Studio
       key={sp.product ?? "new"}
       locale={ctx.locale}
       balance={wallet.available}

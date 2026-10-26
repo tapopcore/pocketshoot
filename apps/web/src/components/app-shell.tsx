@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { t, type Locale, type MessageKey } from "@packshot/core";
+import { Plus, Sparkles } from "lucide-react";
 import { Logo } from "./ui";
 import { NavLinks } from "./nav-links";
 import { Toaster } from "./toaster";
@@ -34,16 +35,22 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
   const items = NAV.map((n) => ({ ...n, label: t(locale, n.key) }));
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-paper/80 px-4 py-6 backdrop-blur lg:flex">
-        <Link href="/app" className="px-2"><Logo /></Link>
+      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-card px-3 py-5 lg:flex">
+        <Link href="/app" className="px-3"><Logo /></Link>
         <OrgSwitcher orgs={orgs} current={orgId} name={orgName} />
+        <Link href="/app/new" className="mx-1 mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-ink text-[14px] font-semibold text-white shadow-[var(--shadow-lift)] transition-transform hover:scale-[1.02]">
+          <Plus size={17} /> New photoshoot
+        </Link>
         <nav className="mt-4 flex-1 space-y-0.5 overflow-y-auto">
-          <NavLinks items={items} />
+          <NavLinks items={items.filter((i) => i.href !== "/app/new")} />
           {isPlatform && <NavLinks items={[{ href: "/admin", label: "Admin", icon: "shield" }]} />}
         </nav>
-        <Link href="/app/wallet" className="mt-4 rounded-xl border border-line bg-card p-3 transition-colors hover:border-ink">
-          <div className="eyebrow">{t(locale, "wallet.available")}</div>
-          <div className="mt-1 flex items-baseline gap-1.5"><span className="display text-3xl tabular-nums">{credits}</span><span className="text-sm text-mute">{t(locale, "common.credits")}</span></div>
+        <Link href="/app/wallet" className="mx-1 mt-4 flex items-center justify-between rounded-2xl bg-paper-2 px-4 py-3 transition-colors hover:bg-line">
+          <div>
+            <div className="text-xs font-medium text-mute">{t(locale, "wallet.available")}</div>
+            <div className="mt-0.5 flex items-baseline gap-1"><span className="text-2xl font-semibold tabular-nums tracking-tight">{credits}</span><span className="text-sm text-mute">{t(locale, "common.credits")}</span></div>
+          </div>
+          <span className="grid size-8 place-items-center rounded-full bg-ink text-white"><Sparkles size={14} /></span>
         </Link>
         <form action="/auth/sign-out" method="post" className="mt-3 flex items-center justify-between px-2 text-xs text-mute">
           <span className="truncate">{email}</span>
@@ -51,14 +58,14 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
         </form>
       </aside>
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-paper/90 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="glass sticky top-0 z-30 flex items-center justify-between border-b border-line px-4 py-3 lg:hidden">
         <Link href="/app"><Logo /></Link>
-        <Link href="/app/wallet" className="rounded-full border border-line bg-card px-3 py-1 text-sm"><b className="tabular-nums">{credits}</b> {t(locale, "common.credits")}</Link>
+        <Link href="/app/wallet" className="rounded-full bg-ink px-3 py-1.5 text-sm text-white"><b className="tabular-nums">{credits}</b> {t(locale, "common.credits")}</Link>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 sm:px-8 lg:pb-16 lg:pt-10">{children}</main>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 sm:px-8 lg:pb-16 lg:pt-8">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Main">
+      <nav className="glass fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Main">
         <NavLinks items={items.filter((i) => i.mobile)} compact />
       </nav>
       <Toaster />

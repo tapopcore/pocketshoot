@@ -2,159 +2,86 @@
  * Style presets (the scene) and output presets (the canvas).
  * Users pick these instead of writing prompts.
  */
+import { SCENE_RECIPES, type SceneGroup, type SceneRecipe } from "./scenes";
+import type { CategoryId } from "./categories";
 
-export type StyleId =
-  | "pure_white"
-  | "neutral_studio"
-  | "premium_minimal"
-  | "natural_sunlight"
-  | "botanical"
-  | "marble_stone"
-  | "water_splash"
-  | "festive"
-  | "industrial"
-  | "kitchen_lifestyle"
-  | "luxury_dark"
-  | "custom";
 
-export interface StylePreset {
+export type StyleId = keyof typeof SCENE_RECIPES | "custom";
+
+export interface StylePreset extends SceneRecipe {
   id: StyleId;
   name: string;
   nameHi: string;
   description: string;
-  /** Scene description sent to the model. Never contains product details. */
-  scene: string;
-  lighting: string;
-  /** Props allowed in the frame. Empty means none. */
-  props: string;
-  /** Swatch colours used for the preset card in the UI. */
+  /** Two colours used by the sandbox provider. */
   swatch: [string, string];
-  /** Creative mode only: presets that need more freedom than Preserve gives. */
   creativeOnly?: boolean;
 }
 
-export const STYLES: Record<StyleId, StylePreset> = {
-  pure_white: {
-    id: "pure_white",
-    name: "Pure White",
-    nameHi: "सफ़ेद बैकग्राउंड",
-    description: "Clean white background for catalogues and marketplaces.",
-    scene: "a seamless pure white (#FFFFFF) studio background with no visible horizon line",
-    lighting: "soft, even, shadowless-looking key light with a faint natural contact shadow directly under the product",
-    props: "no props",
-    swatch: ["#FFFFFF", "#ECECEC"],
-  },
-  neutral_studio: {
-    id: "neutral_studio",
-    name: "Neutral Studio",
-    nameHi: "न्यूट्रल स्टूडियो",
-    description: "Warm grey sweep with soft shadows. Works for almost anything.",
-    scene: "a warm light-grey paper sweep studio backdrop",
-    lighting: "large softbox from the upper left, gentle fill, a soft realistic shadow falling to the right",
-    props: "no props",
-    swatch: ["#D9D6D0", "#B9B4AC"],
-  },
-  premium_minimal: {
-    id: "premium_minimal",
-    name: "Premium Minimal",
-    nameHi: "प्रीमियम मिनिमल",
-    description: "Muted colour, simple plinths and long shadows. Feels expensive.",
-    scene: "a minimal set with one or two matte geometric plinths in a muted tone that complements the product colours",
-    lighting: "directional hard-soft light creating long elegant shadows, calm editorial mood",
-    props: "only simple geometric plinths or blocks",
-    swatch: ["#E8DDD3", "#A8927F"],
-  },
-  natural_sunlight: {
-    id: "natural_sunlight",
-    name: "Natural Sunlight",
-    nameHi: "धूप वाली रोशनी",
-    description: "Morning sun, window shadows and a linen surface.",
-    scene: "a light linen or pale wood tabletop near a window",
-    lighting: "warm morning sunlight with soft window-pane and leaf shadows across the surface",
-    props: "at most a sprig of greenery or a folded cloth, kept away from the product front",
-    swatch: ["#F4E6C8", "#D9B98A"],
-  },
-  botanical: {
-    id: "botanical",
-    name: "Botanical",
-    nameHi: "बोटैनिकल",
-    description: "Fresh leaves and flowers around the product.",
-    scene: "a fresh botanical setting with green leaves and a few flowers arranged around the base",
-    lighting: "bright diffused daylight, fresh and clean",
-    props: "leaves, petals and small flowers that never overlap the product label",
-    swatch: ["#DCE8D2", "#6E8F5E"],
-  },
-  marble_stone: {
-    id: "marble_stone",
-    name: "Marble & Stone",
-    nameHi: "मार्बल और स्टोन",
-    description: "Polished marble or textured stone surfaces.",
-    scene: "a polished white marble surface with subtle grey veins and a softly blurred stone backdrop",
-    lighting: "soft overhead studio light with a gentle reflection of the product on the marble",
-    props: "no props, or one small stone",
-    swatch: ["#F2F0EC", "#9E9A94"],
-  },
-  water_splash: {
-    id: "water_splash",
-    name: "Water & Splash",
-    nameHi: "पानी और स्प्लैश",
-    description: "Water ripples and droplets. Great for skincare and drinks.",
-    scene: "a shallow clear water surface with gentle ripples and a few droplets in the air behind the product",
-    lighting: "crisp backlight making the water sparkle, cool fresh mood",
-    props: "water only; droplets must not cover the label",
-    swatch: ["#D4ECF4", "#5FA8C6"],
-  },
-  festive: {
-    id: "festive",
-    name: "Festive",
-    nameHi: "त्योहार",
-    description: "Diyas, marigolds and warm lights for Diwali and gifting.",
-    scene: "a warm festive Indian setting with softly blurred fairy lights, a few marigold flowers and brass diyas in the background",
-    lighting: "warm golden glow with soft bokeh",
-    props: "diyas, marigolds and lights placed beside or behind the product, never in front of it",
-    swatch: ["#F6C76B", "#B5481F"],
-  },
-  industrial: {
-    id: "industrial",
-    name: "Industrial",
-    nameHi: "इंडस्ट्रियल",
-    description: "Concrete, steel and raw textures. Good for tools and hardware.",
-    scene: "a raw concrete surface with a dark steel or brushed metal backdrop",
-    lighting: "cool directional light with defined shadows",
-    props: "no props",
-    swatch: ["#9A9A96", "#4A4C4E"],
-  },
-  kitchen_lifestyle: {
-    id: "kitchen_lifestyle",
-    name: "Kitchen Lifestyle",
-    nameHi: "किचन लाइफ़स्टाइल",
-    description: "A real-looking kitchen counter with soft background blur.",
-    scene: "a modern Indian home kitchen counter with softly blurred background details",
-    lighting: "natural window light from the side, homely and inviting",
-    props: "a few relevant ingredients or utensils kept behind or beside the product",
-    swatch: ["#EADBC8", "#8C6A4F"],
-  },
-  luxury_dark: {
-    id: "luxury_dark",
-    name: "Luxury Dark",
-    nameHi: "लग्ज़री डार्क",
-    description: "Deep black or charcoal with dramatic rim light.",
-    scene: "a deep charcoal-black backdrop on a dark glossy surface",
-    lighting: "dramatic rim lighting outlining the product edges, a controlled highlight on the front",
-    props: "no props",
-    swatch: ["#2A2A2C", "#0E0E10"],
-  },
-  custom: {
-    id: "custom",
-    name: "Custom brief",
-    nameHi: "अपना ब्रीफ़",
-    description: "Describe the scene in your own words.",
-    scene: "",
-    lighting: "natural, believable studio lighting that suits the scene",
-    props: "only what the brief asks for",
-    swatch: ["#FFFFFF", "#111111"],
-  },
+const META: Record<StyleId, { name: string; nameHi: string; description: string; swatch: [string, string]; creativeOnly?: boolean }> = {
+  pure_white: { name: "Pure White", nameHi: "सफ़ेद", description: "Clean white for catalogues and marketplaces", swatch: ["#FFFFFF", "#ECECEC"] },
+  neutral_studio: { name: "Soft Studio", nameHi: "स्टूडियो", description: "Warm grey sweep, soft shadow. Works for anything", swatch: ["#D9D6D0", "#B9B4AC"] },
+  shadow_play: { name: "Sun Shadows", nameHi: "धूप की परछाई", description: "Palm and window shadows on warm plaster", swatch: ["#EFE6D8", "#CDB99A"] },
+  colour_pop: { name: "Colour Pop", nameHi: "कलर पॉप", description: "Bold single-colour set that makes the product pop", swatch: ["#FF8A5C", "#FF5F6D"] },
+  pastel_podium: { name: "Pastel Podium", nameHi: "पेस्टल पोडियम", description: "Soft podiums and arches in pastel tones", swatch: ["#F3E4F1", "#E4DCF5"] },
+  gradient_glow: { name: "Glow", nameHi: "ग्लो", description: "Colour halo and glossy reflection, tech-launch feel", swatch: ["#9FB8FF", "#1D1846"] },
+  kitchen_lifestyle: { name: "Kitchen", nameHi: "किचन", description: "A real kitchen counter with soft blur", swatch: ["#EADBC8", "#8C6A4F"] },
+  bathroom_vanity: { name: "Vanity", nameHi: "वैनिटी", description: "Spa-like bathroom counter", swatch: ["#EEF1EF", "#C7D3CD"] },
+  dressing_table: { name: "Dressing Table", nameHi: "ड्रेसिंग टेबल", description: "Soft blush dressing table with dried flowers", swatch: ["#F6E7E1", "#D8B3A4"] },
+  cafe_table: { name: "Café", nameHi: "कैफ़े", description: "Cosy café table with warm lights", swatch: ["#D9B48F", "#5D3C25"] },
+  desk_workspace: { name: "Workspace", nameHi: "वर्कस्पेस", description: "Clean desk with laptop and plant", swatch: ["#EEF0EC", "#C1B49B"] },
+  living_room: { name: "Living Room", nameHi: "लिविंग रूम", description: "Styled Indian living room", swatch: ["#E7D6C3", "#8E6C50"] },
+  dining_spread: { name: "Dining Spread", nameHi: "डाइनिंग", description: "Plated food spread around the product", swatch: ["#F1DFC3", "#A1532C"] },
+  natural_sunlight: { name: "Morning Sun", nameHi: "सुबह की धूप", description: "Linen, window light and leaf shadows", swatch: ["#F4E6C8", "#D9B98A"] },
+  botanical: { name: "Botanical", nameHi: "बोटैनिकल", description: "Lush leaves, ferns and flowers", swatch: ["#DCE8D2", "#6E8F5E"] },
+  water_splash: { name: "Water Splash", nameHi: "पानी", description: "Ripples, splash and droplets", swatch: ["#D4ECF4", "#5FA8C6"] },
+  beach_sand: { name: "Beach", nameHi: "बीच", description: "Golden sand and sunny sky", swatch: ["#BFE6F5", "#E1C287"] },
+  forest_moss: { name: "Forest", nameHi: "जंगल", description: "Moss, stones and soft forest light", swatch: ["#A9B99A", "#2F3F2A"] },
+  ingredients: { name: "Ingredients", nameHi: "सामग्री", description: "Surrounded by its own key ingredients", swatch: ["#F6EFE4", "#9CCC65"] },
+  luxury_dark: { name: "Luxury Dark", nameHi: "लग्ज़री डार्क", description: "Black set, rim light, mirror reflection", swatch: ["#2A2A2C", "#0E0E10"] },
+  marble_stone: { name: "Marble", nameHi: "मार्बल", description: "Polished Carrara marble", swatch: ["#F2F0EC", "#9E9A94"] },
+  velvet_gold: { name: "Velvet & Gold", nameHi: "वेलवेट और गोल्ड", description: "Jewel-tone velvet with gold accents", swatch: ["#1F6B55", "#07211B"] },
+  silk_satin: { name: "Silk", nameHi: "सिल्क", description: "Flowing champagne satin", swatch: ["#F6EADB", "#D6B88F"] },
+  premium_minimal: { name: "Minimal Plinth", nameHi: "मिनिमल", description: "Muted plinths and long shadows", swatch: ["#E8DDD3", "#A8927F"] },
+  levitation: { name: "Levitation", nameHi: "हवा में", description: "Product floating with flying elements", swatch: ["#D9ECFF", "#B7C8F5"], creativeOnly: false },
+  neon_night: { name: "Neon", nameHi: "नियॉन", description: "Pink and blue neon, moody reflections", swatch: ["#FF3CAC", "#2B86C5"] },
+  ice_frost: { name: "Ice", nameHi: "बर्फ़", description: "Ice cubes, frost and cold mist", swatch: ["#F2FBFF", "#7FB8D6"] },
+  smoke_mist: { name: "Smoke", nameHi: "धुआँ", description: "Moody swirling smoke", swatch: ["#8C8C94", "#141418"] },
+  industrial: { name: "Concrete", nameHi: "कंक्रीट", description: "Raw concrete and steel", swatch: ["#9A9A96", "#4A4C4E"] },
+  festive: { name: "Diwali", nameHi: "दिवाली", description: "Diyas, marigolds and warm lights", swatch: ["#F6C76B", "#B5481F"] },
+  gifting: { name: "Gifting", nameHi: "गिफ़्टिंग", description: "Gift boxes, ribbons and confetti", swatch: ["#F7D6D0", "#C95F6A"] },
+  holi_colours: { name: "Holi", nameHi: "होली", description: "Bursts of colour powder", swatch: ["#FF4FA0", "#3BCEAC"] },
+  christmas: { name: "Christmas", nameHi: "क्रिसमस", description: "Tree, lights and ornaments", swatch: ["#1E4D2B", "#0E2616"] },
+  wedding: { name: "Wedding", nameHi: "शादी", description: "Rose petals, mogra and gold", swatch: ["#F8E9DF", "#B8735D"] },
+  summer: { name: "Summer", nameHi: "गर्मी", description: "Sunny pastels and citrus", swatch: ["#FFF4C2", "#FFAB76"] },
+  monsoon: { name: "Monsoon", nameHi: "मानसून", description: "Rainy window and chai mood", swatch: ["#C9D6D3", "#57706A"] },
+  custom: { name: "Your idea", nameHi: "आपका आइडिया", description: "Describe any scene in your own words", swatch: ["#FFFFFF", "#111111"] },
 };
+
+const CUSTOM_RECIPE: SceneRecipe = {
+  group: "creative",
+  scene: "",
+  surface: "a surface that suits the scene",
+  lighting: "natural, believable professional lighting that suits the scene",
+  camera: "85mm lens, eye level",
+  props: "only what the brief asks for",
+  grade: "polished commercial colour",
+  bestFor: ["all"],
+  art: "conic-gradient(from 90deg, #ffb4a2, #e5989b, #b5838d, #6d6875, #ffb4a2)",
+};
+
+export const STYLES = Object.fromEntries(
+  (Object.keys(META) as StyleId[]).map((id) => [id, { id, ...(id === "custom" ? CUSTOM_RECIPE : SCENE_RECIPES[id as keyof typeof SCENE_RECIPES]), ...META[id] }]),
+) as Record<StyleId, StylePreset>;
+
+/** Scenes ranked for a category: best fits first, then the rest. */
+export function scenesFor(category: CategoryId): StylePreset[] {
+  const list = Object.values(STYLES).filter((s) => s.id !== "custom");
+  const score = (s: StylePreset) => (s.bestFor.includes(category) ? 2 : s.bestFor.includes("all") ? 1 : 0);
+  return list.map((s, i) => ({ s, i })).sort((a, b) => score(b.s) - score(a.s) || a.i - b.i).map((x) => x.s);
+}
+
+export type { SceneGroup };
 
 export const STYLE_LIST = Object.values(STYLES);
 
@@ -177,14 +104,14 @@ export interface OutputPreset {
 
 export const OUTPUTS: Record<OutputId, OutputPreset> = {
   square: { id: "square", name: "Square", ratio: "1:1", width: 2048, height: 2048, productScale: 0.62, baseline: 0.84, hint: "Instagram feed, Shopify product pages" },
-  portrait: { id: "portrait", name: "Portrait", ratio: "4:5", width: 1638, height: 2048, productScale: 0.6, baseline: 0.84, hint: "Instagram and Facebook feed ads" },
+  portrait: { id: "portrait", name: "Portrait", ratio: "4:5", width: 1632, height: 2048, productScale: 0.6, baseline: 0.84, hint: "Instagram and Facebook feed ads" },
   story: { id: "story", name: "Story", ratio: "9:16", width: 1152, height: 2048, productScale: 0.66, baseline: 0.78, hint: "Stories, Reels covers, WhatsApp status" },
   landscape: { id: "landscape", name: "Landscape", ratio: "16:9", width: 2048, height: 1152, productScale: 0.66, baseline: 0.86, hint: "Website banners, YouTube, presentations" },
   marketplace_white: {
     id: "marketplace_white", name: "Marketplace white", ratio: "1:1", width: 2048, height: 2048, productScale: 0.85, baseline: 0.93, forceStyle: "pure_white",
     hint: "White background with the product filling most of the frame. Check each marketplace's current rules before listing.",
   },
-  website_hero: { id: "website_hero", name: "Website hero", ratio: "21:9", width: 2560, height: 1097, productScale: 0.72, baseline: 0.88, hint: "Wide homepage banners with space for text" },
+  website_hero: { id: "website_hero", name: "Website hero", ratio: "21:9", width: 2560, height: 1088, productScale: 0.72, baseline: 0.88, hint: "Wide homepage banners with space for text" },
 };
 
 export const OUTPUT_LIST = Object.values(OUTPUTS);
