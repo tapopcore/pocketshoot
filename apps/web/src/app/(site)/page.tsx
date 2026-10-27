@@ -25,10 +25,10 @@ export default async function Home() {
         <div className="animate-rise">
           <div className="eyebrow">AI product photography for Indian brands and makers</div>
           <h1 className="display mt-5 text-[2.9rem] leading-[0.92] sm:text-7xl lg:text-[4.9rem]">
-            Your phone photo in.<br /><em className="text-accent">Studio shot</em> out.<br />Label untouched.
+            Your product photo.<br /><em className="text-accent">A better photoshoot.</em><br />Made simple.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-ink-2">
-            Upload a plain photo of your product and get catalogue, marketplace and lifestyle images in about a minute. We keep the real pixels of your product, so the logo, label and colours stay exactly as they are.
+            Upload a real product photo. Review a cleaned product preview, choose the scene, and create a polished commercial image. We work to preserve the actual packaging, with a final review before you publish.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <LinkButton href="/sign-in" variant="accent" size="lg">Try 2 images free <ArrowRight size={18} /></LinkButton>
@@ -62,9 +62,9 @@ export default async function Home() {
       <section className="mx-auto grid max-w-7xl gap-12 px-4 py-24 sm:px-8 lg:grid-cols-2">
         <div>
           <div className="eyebrow">Why labels stay readable</div>
-          <h2 className="display mt-3 text-5xl">Most AI tools redraw your product. We don&apos;t.</h2>
+          <h2 className="display mt-3 text-5xl">Keep the product. Improve the photograph.</h2>
           <p className="mt-5 text-ink-2">General AI image tools paint the whole picture from scratch, product included. That&apos;s why brand names come out misspelt and logos drift. For packaging, that&apos;s not usable.</p>
-          <p className="mt-4 text-ink-2">In our default mode, we cut your product out of your photo, build the new scene around it, and then place your original product pixels back on top. The AI only creates the background, the surface and the shadows.</p>
+          <p className="mt-4 text-ink-2">We first prepare a separate product preview, then design a scene around it. Where safe, we restore details from your product photo after generation. You approve the preparation and review the final image, because fine labels and reflective packaging still require care.</p>
           <p className="mt-4 text-sm text-mute">Every image then goes through automatic checks. They catch most problems, not all, so you always review before publishing. If your product changed, report it and the credit comes back.</p>
         </div>
         <ol className="grid gap-3 self-center">
@@ -72,7 +72,7 @@ export default async function Home() {
             ["Your photo", "Plain surface, any phone", "#d9d2c4"],
             ["Product cut out", "Background removed, edges kept", "checker"],
             ["New scene made around it", "AI creates the set, light and shadows", "#e7efdf"],
-            ["Your real pixels placed back", "Label, logo and colour are from your photo", "#141310"],
+            ["Your real pixels placed back", "Original packaging details restored where possible", "#141310"],
           ].map(([t, d, bg], i) => (
             <li key={t} className="flex items-center gap-4 rounded-xl border border-line bg-card p-3">
               <span className={`grid size-14 shrink-0 place-items-center rounded-lg ${bg === "checker" ? "checker" : ""}`} style={bg !== "checker" ? { background: bg } : undefined}>
@@ -163,8 +163,8 @@ export default async function Home() {
 
       <section className="mx-auto max-w-7xl px-4 sm:px-8">
         <div className="cropmarks rounded-[22px] bg-accent px-6 py-16 text-center text-white sm:px-16">
-          <h2 className="display text-5xl sm:text-6xl">Shoot your first product free.</h2>
-          <p className="mx-auto mt-4 max-w-xl text-white/85">Two free images when you sign up. No card needed. If you don&apos;t like what you get, you&apos;ve lost two minutes.</p>
+          <h2 className="display text-5xl sm:text-6xl">Try Pocket Shoot on your own product.</h2>
+          <p className="mx-auto mt-4 max-w-xl text-white/85">Start with trial credits. Review product preparation before generating, and see the credit cost before you shoot.</p>
           <LinkButton href="/sign-in" size="lg" className="mt-8 !bg-ink hover:!bg-ink-2">Start with a photo</LinkButton>
         </div>
       </section>

@@ -169,6 +169,8 @@ export const DIRECTION_SCHEMA = {
 } as const;
 
 export interface DirectionInput {
+  /** Analytics attribution only, never included in image prompts. */
+  orgId?: string;
   style: StylePreset;
   output: OutputPreset;
   count: number;

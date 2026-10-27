@@ -61,6 +61,10 @@ export interface JudgeVerdict {
   shape_changed: boolean;
   extra_or_missing_items: boolean;
   artefacts: boolean;
+  commercially_usable?: boolean;
+  lighting_consistent?: boolean;
+  shadow_plausible?: boolean;
+  product_clean?: boolean;
   notes?: string;
 }
 
@@ -70,6 +74,7 @@ export function judgeDecision(v: JudgeVerdict, mode: "preserve" | "creative"): D
   const minor = [v.colour_changed, v.shape_changed, v.artefacts].filter(Boolean).length;
   if (mode === "preserve" && serious > 0) return "review";
   if (serious + minor > 0) return "review";
+  if ([v.commercially_usable, v.lighting_consistent, v.shadow_plausible, v.product_clean].some((x) => x === false)) return "review";
   return "pass";
 }
 

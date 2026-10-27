@@ -83,7 +83,7 @@ async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, produc
   await Promise.all([...byStyle.entries()].map(async ([key, list]) => {
     const [sid, ideaBrief] = key.split("|");
     const { shots, source } = await directShots({
-      style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
+      style: STYLES[sid as StyleId], output, count: list.length, analysis, productName, orgId: job.organization_id,
       brief: [ideaBrief, job.custom_brief].filter(Boolean).join(". ") || undefined, palette: job.settings?.palette, avoid,
     });
     await Promise.all(list.map((it, k) => db.from("generation_items").update({ params: { ...((it.params as object) ?? {}), shot: shots[k], shotSource: source } }).eq("id", it.id)));
@@ -206,7 +206,7 @@ export async function processItem(item: ItemRow): Promise<void> {
         mask: provider.supportsMask ? mask : undefined,
         width: renderW,
         height: renderH,
-        quality: job.is_trial ? "medium" : undefined,
+        quality: job.is_trial || (job.mode === "preserve" && ["pure_white", "neutral_studio"].includes(styleId)) ? "medium" : undefined,
         swatch: STYLES[styleId]?.swatch,
         timeoutMs: settings.providers.timeoutMs,
       }, model);
@@ -232,7 +232,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   if (!result) {
     const err = lastError!;
     if (err.userFacing) return failItem(item, job, err.code, "The AI service declined this image. Try a different scene or photo.");
-    if (err.retryable && attemptNo < item.max_attempts) return retryLater(item, attemptNo, err.code);
+    if (err.retryable && attemptNo < Math.min(2, item.max_attempts)) return retryLater(item, attemptNo, err.code);
     return failItem(item, job, err.code, "We couldn't create this image. No credit was used.");
   }
 
@@ -265,12 +265,13 @@ export async function processItem(item: ItemRow): Promise<void> {
   checks.push({ type: "dimensions", score: dimsOk ? 1 : 0, decision: dimsOk ? "pass" : "fail", details: { expected: [W, H], got: [dims.width, dims.height] } });
 
   // ---- AI accuracy review when the product wasn't restored from the real photo
-  const recomposited = checks.find((c) => c.type === "product_alignment")?.decision === "pass" && !!finalPlace;
-  const judgeNeeded = settings.quality.useJudge && result.provider !== "mock" && (job.mode === "creative" || !recomposited);
+  // A real product can be geometrically preserved yet still look commercially unusable.
+  // Judge lighting, presentation and cleanup independently from product registration.
+  const judgeNeeded = settings.quality.useJudge && result.provider !== "mock";
   if (judgeNeeded && integrations.openai) {
     try {
       const res = await jsonCall({
-        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
+        models: settings.providers.llm.models, task: "scene_quality", orgId: job.organization_id, prompt: FIDELITY_JUDGE_PROMPT + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
         images: [refImages[0], finalImage], detail: "high", schemaName: "fidelity", schema: JUDGE_SCHEMA, timeoutMs: 60_000,
       });
       const verdict = parseJudgeJson(JSON.stringify(res.data));
@@ -282,7 +283,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   }
 
   const decision: Decision = aggregate(checks);
-  if (decision === "fail" && attemptNo < item.max_attempts) {
+  if (decision === "fail" && attemptNo < Math.min(2, item.max_attempts)) {
     await saveFailedOutput(job, item, result.attemptId, finalImage, checks);
     return retryLater(item, attemptNo, "quality_fail", 0);
   }
@@ -378,7 +379,9 @@ const JUDGE_SCHEMA = {
   required: ["same_product", "text_changed", "logo_changed", "colour_changed", "shape_changed", "extra_or_missing_items", "artefacts", "notes"],
   properties: {
     same_product: { type: "boolean" }, text_changed: { type: "boolean" }, logo_changed: { type: "boolean" }, colour_changed: { type: "boolean" },
-    shape_changed: { type: "boolean" }, extra_or_missing_items: { type: "boolean" }, artefacts: { type: "boolean" }, notes: { type: "string" },
+    shape_changed: { type: "boolean" }, extra_or_missing_items: { type: "boolean" }, artefacts: { type: "boolean" },
+    commercially_usable: { type: "boolean" }, lighting_consistent: { type: "boolean" },
+    shadow_plausible: { type: "boolean" }, product_clean: { type: "boolean" }, notes: { type: "string" },
   },
 };
 
@@ -401,7 +404,7 @@ export async function runTick(workerId: string, budgetMs = 240_000) {
         await processItem(it);
       } catch (e) {
         await logError("pipeline.item", (e as Error).message, { item: it.id, stack: (e as Error).stack?.slice(0, 1500) });
-        if (it.attempts + 1 < it.max_attempts) await retryLater(it, it.attempts + 1, "internal_error");
+        if (it.attempts + 1 < Math.min(2, it.max_attempts)) await retryLater(it, it.attempts + 1, "internal_error");
         else {
           const { data: job } = await admin().from("generation_jobs").select("*").eq("id", it.job_id).single<JobRow>();
           if (job) await failItem(it, job, "internal_error", "Something went wrong on our side. No credit was used.");

@@ -53,7 +53,8 @@ export async function rateLimit(key: string, limit: number, windowSeconds: numbe
   const { data, error } = await admin().rpc("hit_rate_limit", { p_key: key, p_limit: limit, p_window_seconds: windowSeconds });
   if (error) {
     console.error("rate limit check failed", error);
-    return true;
+    // Fail CLOSED for paid/abuse-sensitive operations when the limiter cannot decide.
+    return false;
   }
   return data === true;
 }

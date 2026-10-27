@@ -65,6 +65,16 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   const { count: assetCount } = await db.from("product_assets").select("id", { count: "exact", head: true }).eq("product_id", product.id);
   if (!assetCount) throw new ApiError(400, "Add at least one photo of the product first");
 
+  if (!opts.internal) {
+    const { data: primary } = await db.from("product_assets")
+      .select("metadata, cutout_key").eq("product_id", product.id)
+      .order("created_at").limit(1).maybeSingle();
+    const meta = (primary?.metadata ?? {}) as { prepApprovedAt?: string };
+    if (!meta.prepApprovedAt) {
+      throw new ApiError(409, "Review and approve the product preparation before starting a photoshoot.", "preparation_not_approved");
+    }
+  }
+
   let palette: string[] = [];
   if (input.brandKitId) {
     const { data: kit } = await db.from("brand_kits").select("palette").eq("id", input.brandKitId).eq("organization_id", ctx.orgId).maybeSingle();
