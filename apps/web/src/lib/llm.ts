@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import sharp from "sharp";
 import { env } from "./env";
 import { track } from "./observe";
+import { assertAiBudget } from "./ai-budget";
 
 let client: OpenAI | null = null;
 export function openai() {
@@ -52,6 +53,7 @@ export async function jsonCall(call: JsonCall): Promise<JsonResult> {
   for (const model of call.models) {
     const startedAt = Date.now();
     try {
+      await assertAiBudget(call.orgId);
       const reasoning = /^(gpt-5|o\d)/.test(model) ? { reasoning_effort: "low" as const } : { temperature: 0.4 };
       const res = await openai().chat.completions.create(
         {
