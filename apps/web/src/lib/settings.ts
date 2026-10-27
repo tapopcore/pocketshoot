@@ -58,7 +58,7 @@ const DEFAULTS: Settings = {
     gemini: { model: "gemini-2.5-flash-image", judgeModel: "gemini-2.5-flash" },
     openai: {
       model: "gpt-image-2.5-sunburst",
-      models: ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "gpt-image-2"],
+      models: ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare"],
       quality: "high",
       legacyQuality: "medium",
       prices: {
@@ -72,7 +72,7 @@ const DEFAULTS: Settings = {
     render: { trialEdge: 1024, paidEdge: 1536, cutoutQuality: "medium" },
     fal: { model: "fal-ai/flux-pro/kontext", segmentModel: "fal-ai/birefnet" },
     costUsdPerImage: { gemini: 0.039, openai: 0.06, fal: 0.04, mock: 0 },
-    concurrency: 4,
+    concurrency: 2,
     timeoutMs: 120_000,
   },
   quality: { ...DEFAULT_THRESHOLDS, useJudge: true },
@@ -95,7 +95,14 @@ export async function getSettings(fresh = false): Promise<Settings> {
     const base = merged[row.key];
     merged[row.key] = base && typeof base === "object" ? deepMerge(base as Record<string, unknown>, row.value as Record<string, unknown>) : row.value;
   }
-  cache = { at: Date.now(), value: merged as unknown as Settings };
+  // Production guardrails apply even to persisted admin settings from older releases.
+  // Do not silently fall back to a different image model family that may have different costs.
+  const safe = merged as unknown as Settings;
+  safe.providers.concurrency = Math.max(1, Math.min(2, Number(safe.providers.concurrency) || 1));
+  const allowed = /^gpt-image-2\\.5-(sunburst|flare)(-\\d{4}-\\d{2}-\\d{2})?$/;
+  if (!allowed.test(safe.providers.openai.model)) safe.providers.openai.model = "gpt-image-2.5-sunburst";
+  safe.providers.openai.models = [...new Set([safe.providers.openai.model, ...safe.providers.openai.models.filter((m) => allowed.test(m))])];
+  cache = { at: Date.now(), value: safe };
   return cache.value;
 }
 
