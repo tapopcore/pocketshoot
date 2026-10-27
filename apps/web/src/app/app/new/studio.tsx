@@ -121,7 +121,7 @@ export function Studio(props: {
   }
 
   const back = () => go(step === 3 ? 2 : step === 2 ? 1 : 0);
-  return <div className="shoot-flow mx-auto max-w-[1040px] pb-36">
+  return <div className="shoot-flow mx-auto max-w-[1040px] pb-12">
     {notice && <div className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-line bg-card px-4 py-3 text-sm" role="status"><span>{notice}</span><button type="button" className="grid size-11 shrink-0 place-items-center" onClick={() => setNotice(null)} aria-label="Dismiss notice"><X size={16} /></button></div>}
     {jobId ? <section>
       <Link href="/app/library" className="mb-5 inline-flex min-h-11 items-center gap-2 text-sm"><ArrowLeft size={16} /> Your library</Link>
@@ -205,7 +205,7 @@ export function Studio(props: {
   </div>;
 }
 function PhotoChoice({ image, title, subtitle, selected, onClick }: { image: string; title: string; subtitle?: string; selected: boolean; onClick: () => void }) {
-  return <button type="button" aria-pressed={selected} onClick={onClick} className="group min-w-0 text-left">
+  return <button type="button" aria-pressed={selected} onClick={onClick} className="group min-w-0 self-start text-left">
     <span className={clsx("relative block aspect-square overflow-hidden rounded-2xl border-2 transition-colors", selected ? "border-accent" : "border-transparent")}>
       <img src={image} alt={title + " example"} width={512} height={512} className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.025] motion-reduce:transform-none" />
       <span className={clsx("absolute right-2.5 top-2.5 grid size-7 place-items-center rounded-full border", selected ? "border-accent bg-accent text-white" : "border-white/75 bg-black/15 text-transparent")}><Check size={16} strokeWidth={2.5} /></span>

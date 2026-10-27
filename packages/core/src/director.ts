@@ -305,7 +305,7 @@ export function fallbackDirections(i: DirectionInput): ShotDirection[] {
       human_presence: i.humanPresence ?? "none",
       scene: `${i.brief || i.style.scene || "A clean professional studio set"}. ${i.humanPresence && i.humanPresence !== "none" ? "Follow the specified adult gesture with realistic grip, scale and contact." : "The product rests naturally on " + i.style.surface + "."}${i.style.props !== "none" ? ` Props: ${i.style.props}.` : ""}${ingredients}`,
       lighting: i.style.lighting,
-      camera: `${i.style.camera}, shot from ${view}, ${v.camera}`,
+      camera: `${i.framing === "macro" ? "100mm macro lens at f/8, deliberate focus plane and realistic optical falloff" : i.framing === "close" ? "85mm lens at f/5.6, close focus with crisp material detail" : i.style.camera}, shot from ${view}, ${v.camera}`,
       product_scale: scale,
       offset_x: v.offset_x,
       baseline: Math.min(v.baseline, i.output.baseline + 0.02),

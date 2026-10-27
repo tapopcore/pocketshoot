@@ -20,6 +20,7 @@ describe("photographic style contract", () => {
     const shot=fallbackDirections({ style:STYLES[recipe.scene], output:OUTPUTS.square, count:1, analysis:null, productName:"Leather bag", brief:recipe.brief, framing:recipe.framing, humanPresence:recipe.human })[0];
     const prompt=buildPrompt({mode:"preserve",category:"fashion",productName:"Leather bag",locks:[],style:recipe.scene,output:"square",direction:shot});
     expect(shot.framing).toBe(recipe.framing);
+    if (id === "macro") expect(shot.camera).toContain("100mm macro");
     expect(prompt.text).toContain("intentional");
     expect(prompt.text).not.toContain("The whole product is visible");
   });
