@@ -124,6 +124,8 @@ export async function processItem(item: ItemRow): Promise<void> {
   const params = (itemRow?.params ?? {}) as ItemParams;
   const styleId = (output.forceStyle ?? (itemRow?.style && itemRow.style in STYLES ? itemRow.style : job.style)) as StyleId;
 
+  const humanShot = !!params.shot?.human_presence && params.shot.human_presence !== "none";
+
   // ---- build the model input
   let cut: Cutout | null = null;
   let place: Place | null = null;
@@ -254,7 +256,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     });
   } else {
     finalImage = await sharp(result.image).removeAlpha().resize(W, H, { fit: "cover", kernel: "lanczos3" }).png().toBuffer();
-    if (job.mode === "preserve") {
+    if (job.mode === "preserve" && !humanShot) {
       checks.push({ type: "product_alignment", score: null, decision: "review", details: { note: "We couldn't cut the product out of this photo, so the AI re-created it. Check the label closely, or upload a photo on a plain background." } });
     }
   }
@@ -267,7 +269,6 @@ export async function processItem(item: ItemRow): Promise<void> {
 
   // ---- AI accuracy review when the product wasn't restored from the real photo
   const recomposited = checks.find((c) => c.type === "product_alignment")?.decision === "pass" && !!finalPlace;
-  const humanShot = !!params.shot?.human_presence && params.shot.human_presence !== "none";
   const judgeNeeded = result.provider !== "mock" && (humanShot || !!params.shot || (settings.quality.useJudge && (job.mode === "creative" || !recomposited)));
   if (judgeNeeded && integrations.openai) {
     try {

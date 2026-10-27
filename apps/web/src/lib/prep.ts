@@ -138,7 +138,7 @@ Answer with JSON. Be strict about text and logo.`,
     images: [source, flat], detail: "high", schemaName: "fidelity", schema: FIDELITY_SCHEMA, timeoutMs: 60_000,
   });
   const v = check.data as { same_product: boolean; text_changed: boolean; logo_changed: boolean; shape_changed: boolean; colour_changed: boolean; notes: string };
-  const ok = v.same_product && !v.text_changed && !v.logo_changed && !v.shape_changed;
+  const ok = v.same_product && !v.text_changed && !v.logo_changed && !v.shape_changed && !v.colour_changed;
   return { cut, ok, verdict: { ...v, strict } };
 }
 

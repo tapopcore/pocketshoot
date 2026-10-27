@@ -63,9 +63,9 @@ export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
       const result = await getProvider("openai", settings.providers).edit({ prompt, images: [source], width: 1536, height: 1024, quality: "low", timeoutMs: 180_000 }, settings.providers.openai.model);
       const sheet = await sharp(result.image).resize(1536, 1024, { fit: "fill" }).png().toBuffer();
       const keys = await Promise.all(ideas.map(async (_idea, i) => {
-        const key = ctx.orgId + "/" + id + "/directions/" + c.fingerprint + "-" + i + ".webp";
-        const image = await sharp(sheet).extract({ left: i * 512, top: 0, width: 512, height: 1024 }).webp({ quality: 85 }).toBuffer();
-        await putObject("originals", key, image, "image/webp");
+        const key = ctx.orgId + "/" + id + "/directions/" + c.fingerprint + "-" + i + ".jpg";
+        const image = await sharp(sheet).extract({ left: i * 512, top: 0, width: 512, height: 1024 }).jpeg({ quality: 85 }).toBuffer();
+        await putObject("originals", key, image, "image/jpeg");
         return key;
       }));
       completed = { ...pending, state: "ready", keys };
