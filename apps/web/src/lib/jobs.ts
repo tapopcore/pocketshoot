@@ -168,7 +168,7 @@ interface ParentJob { mode: "preserve" | "creative"; style: string; output: stri
 async function parentOf(ctx: AuthContext, assetId: string) {
   const { data: asset } = await admin()
     .from("generated_assets")
-    .select("id, product_id, job_id, generation_items!generated_assets_item_id_fkey(style), generation_jobs!generated_assets_job_id_fkey(mode, style, output, custom_brief, project_id, settings)")
+    .select("id, product_id, job_id, watermarked, generation_items!generated_assets_item_id_fkey(style), generation_jobs!generated_assets_job_id_fkey(mode, style, output, custom_brief, project_id, settings)")
     .eq("id", assetId).eq("organization_id", ctx.orgId).neq("quality_status", "fail").maybeSingle();
   if (!asset) throw new ApiError(404, "Image not found");
   const job = (asset as unknown as { generation_jobs: ParentJob }).generation_jobs;
@@ -179,6 +179,7 @@ async function parentOf(ctx: AuthContext, assetId: string) {
 /** Changes a finished image with a plain-language instruction, keeping the product exact. 1 credit. */
 export async function editAsset(ctx: AuthContext, assetId: string, instruction: string, idempotencyKey: string) {
   const { asset, job, style } = await parentOf(ctx, assetId);
+  if (asset.watermarked) throw new ApiError(400, "This older image contains a watermark. Start a new shoot from your original product photo to get a clean image. No credit was used.");
   const text = instruction.trim();
   if (text.length < 3) throw new ApiError(400, "Describe the change you want");
   return createJob(

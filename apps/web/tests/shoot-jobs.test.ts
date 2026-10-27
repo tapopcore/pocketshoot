@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const fakes=vi.hoisted(()=>({ job:vi.fn(), items:vi.fn(), rpc:vi.fn() }));
+const fakes=vi.hoisted(()=>({ job:vi.fn(), items:vi.fn(), rpc:vi.fn(), parent:null as Record<string,unknown>|null }));
 vi.mock("@/lib/auth",()=>({assertRole:vi.fn()}));
 vi.mock("@/lib/api",()=>({ApiError:class extends Error{constructor(public status:number,message:string){super(message);}}}));
 vi.mock("@/lib/credits",()=>({isTrialOrg:async()=>false}));
@@ -12,18 +12,18 @@ vi.mock("@/lib/supabase",()=>({admin:()=>({
   from:(table:string)=>{
     let inserted=false;
     const chain={
-      select:()=>chain,eq:()=>chain,
-      maybeSingle:async()=>({data:table==="products"?{id:"p",name:"Bag",category:"fashion",archived_at:null}:null}),
+      select:()=>chain,eq:()=>chain,neq:()=>chain,
+      maybeSingle:async()=>({data:table==="products"?{id:"p",name:"Bag",category:"fashion",archived_at:null}:table==="generated_assets"?fakes.parent:null}),
       insert:(value:unknown)=>{inserted=true;if(table==="generation_jobs")fakes.job(value);if(table==="generation_items")fakes.items(value);return chain;},
       single:async()=>({data:{id:"job-a"},error:null}),
       then:(resolve:(value:unknown)=>unknown)=>resolve({count:table==="product_assets"?1:undefined,error:null,data:inserted?{id:"job-a"}:null}),
     };return chain;
   },
 })}));
-import { createJob,createJobSchema } from "@/lib/jobs";
+import { createJob,createJobSchema,editAsset } from "@/lib/jobs";
 import type { AuthContext } from "@/lib/auth";
 const ctx={orgId:"org-a",userId:"user-a",via:"web"} as AuthContext;
-beforeEach(()=>{vi.clearAllMocks();fakes.rpc.mockResolvedValue({data:true,error:null});});
+beforeEach(()=>{vi.clearAllMocks();fakes.parent=null;fakes.rpc.mockResolvedValue({data:true,error:null});});
 describe("canonical photographic jobs",()=>{
   it("persists macro framing and reserves only the displayed image credit total",async()=>{
     await createJob(ctx,{productId:"p",mode:"preserve",style:"neutral_studio",shootStyle:"macro",output:"square",count:3,idempotencyKey:"test-key-macro"});
@@ -36,6 +36,11 @@ describe("canonical photographic jobs",()=>{
     await createJob(ctx,{productId:"p",mode:"preserve",style:"pure_white",shootStyle:"model",output:"portrait",count:1,idempotencyKey:"test-key-model"});
     expect(fakes.items.mock.calls[0][0][0]).toMatchObject({style:"natural_sunlight",params:{humanPresence:"model",framing:"full"}});
     expect(fakes.job.mock.calls[0][0].style).toBe("natural_sunlight");
+  });
+  it("blocks paid edits of historical watermarked files before creating or reserving a job",async()=>{
+    fakes.parent={id:"old",product_id:"p",watermarked:true,generation_jobs:{mode:"preserve",style:"natural_sunlight",output:"square",settings:{shootStyle:"outdoor"}},generation_items:{style:"natural_sunlight"}};
+    await expect(editAsset(ctx,"old","change the background","test-old-watermark")).rejects.toMatchObject({status:400});
+    expect(fakes.job).not.toHaveBeenCalled(); expect(fakes.rpc).not.toHaveBeenCalled();
   });
   it("rejects unrecognised photographic styles at the API schema",()=>{
     expect(createJobSchema.safeParse({productId:"11111111-1111-4111-8111-111111111111",style:"neutral_studio",shootStyle:"unknown",output:"square",count:1,idempotencyKey:"test-key-invalid"}).success).toBe(false);
