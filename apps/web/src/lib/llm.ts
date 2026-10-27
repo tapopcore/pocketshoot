@@ -2,11 +2,12 @@ import "server-only";
 import OpenAI from "openai";
 import sharp from "sharp";
 import { env } from "./env";
+import { track } from "./observe";
 
 let client: OpenAI | null = null;
 export function openai() {
   if (!env.openaiKey) throw new Error("OPENAI_API_KEY is not set");
-  client ??= new OpenAI({ apiKey: env.openaiKey, maxRetries: 1 });
+  client ??= new OpenAI({ apiKey: env.openaiKey, maxRetries: 0 });
   return client;
 }
 
@@ -14,6 +15,9 @@ export interface JsonCall {
   /** Ordered list of models to try; the next one is used if a model isn't available on the account. */
   models: string[];
   prompt: string;
+  /** Trace every supporting API request to the same cost funnel as image generation. */
+  task?: string;
+  orgId?: string;
   images?: Buffer[];
   /** "high" reads small label text; "low" is cheaper for rough checks. */
   detail?: "low" | "high" | "auto";
@@ -46,6 +50,7 @@ export async function jsonCall(call: JsonCall): Promise<JsonResult> {
   for (const img of call.images ?? []) content.push({ type: "image_url", image_url: { url: await visionUrl(img), detail: call.detail ?? "high" } });
   let lastError: unknown = null;
   for (const model of call.models) {
+    const startedAt = Date.now();
     try {
       const reasoning = /^(gpt-5|o\d)/.test(model) ? { reasoning_effort: "low" as const } : { temperature: 0.4 };
       const res = await openai().chat.completions.create(
@@ -58,8 +63,16 @@ export async function jsonCall(call: JsonCall): Promise<JsonResult> {
         { timeout: call.timeoutMs ?? 60_000 },
       );
       const text = res.choices[0]?.message?.content ?? "";
-      return { data: JSON.parse(text), model, inputTokens: res.usage?.prompt_tokens ?? 0, outputTokens: res.usage?.completion_tokens ?? 0 };
+      const parsed = JSON.parse(text);
+      await track("ai_operation", { orgId: call.orgId }, {
+        task: call.task ?? "structured_vision", provider: "openai", model, status: "succeeded",
+        requestId: res._request_id ?? null, inputTokens: res.usage?.prompt_tokens ?? null,
+        outputTokens: res.usage?.completion_tokens ?? null,
+        latencyMs: Date.now() - startedAt, costUsd: null, costStatus: "unpriced",
+      });
+      return { data: parsed, model, inputTokens: res.usage?.prompt_tokens ?? 0, outputTokens: res.usage?.completion_tokens ?? 0 };
     } catch (e) {
+      await track("ai_operation", { orgId: call.orgId }, { task: call.task ?? "structured_vision", provider: "openai", model, status: "failed", latencyMs: Date.now() - startedAt, costUsd: null, costStatus: "unknown" });
       lastError = e;
       if (!isModelMissing(e)) throw e;
     }
