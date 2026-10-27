@@ -52,8 +52,12 @@ export function errorResponse(e: unknown, req?: Request) {
   }
   if (e instanceof ZodError) return json({ error: "Some details are missing or invalid", issues: e.issues.map((i) => ({ path: i.path.join("."), message: i.message })) }, 400);
   if (e instanceof joseErrors.JOSEError) return json({ error: "Session expired. Reload the page." }, 401);
-  const msg = e instanceof Error ? e.message : String(e);
-  void logError("api", msg, { url: req?.url, stack: e instanceof Error ? e.stack?.slice(0, 1500) : undefined });
+  // Supabase returns PostgrestError objects, not Error instances.
+  // String(e) used to log "[object Object]" and concealed the worker failure.
+  const obj = e && typeof e === "object" ? e as Record<string, unknown> : null;
+  const msg = e instanceof Error ? e.message : typeof obj?.message === "string" ? obj.message : typeof e === "string" ? e : "Unknown server error";
+  const code = typeof obj?.code === "string" ? obj.code : undefined;
+  void logError("api", msg, { path: req ? new URL(req.url).pathname : undefined, code, stack: e instanceof Error ? e.stack?.slice(0, 1500) : undefined });
   return json({ error: "Something went wrong on our side. Please try again." }, 500);
 }
 
