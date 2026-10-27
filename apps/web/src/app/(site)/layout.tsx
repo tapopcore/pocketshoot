@@ -17,12 +17,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <div className="flex items-center gap-2">
             {ctx ? <LinkButton href="/app" size="sm">Open app</LinkButton> : (
               <>
-                <Link href="/sign-in" className="hidden px-3 text-sm sm:block">Sign in</Link>
+                <Link href="/sign-in" className="inline-flex min-h-11 items-center px-2 text-sm">Sign in</Link>
                 <LinkButton href="/sign-in" size="sm" variant="accent">Start a shoot</LinkButton>
               </>
             )}
           </div>
         </div>
+        <details className="border-t border-line px-4 md:hidden"><summary className="min-h-11 cursor-pointer py-3 text-sm">Explore Pocket Shoot</summary><nav aria-label="Mobile site navigation" className="grid grid-cols-2 gap-x-4 pb-3">{NAV.map(([h,l])=><Link key={h} href={h} className="min-h-11 py-3 text-sm">{l}</Link>)}</nav></details>
       </header>
       <main>{children}</main>
       <footer className="mt-24 border-t border-line">

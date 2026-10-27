@@ -1,18 +1,50 @@
 export const metadata = { title: "FAQ" };
 
 const QA: [string, string][] = [
-  ["Will my label and logo stay exactly the same?", "In the default mode, yes for the product itself: we cut your product out of your photo and put your original pixels back after the new scene is made. What can go wrong is the cut-out edge (a cap or handle clipped) or lighting that doesn't quite match. Our checks catch most of these. You review every image before using it, and if the product changed, the credit comes back."],
-  ["What's the difference between the two modes?", "\"Keep my product exact\" keeps your product pixels and only creates the surroundings. It's right for packaging and anything with text. \"Creative\" lets the AI redraw the product for new angles and arrangements. It looks more varied, but labels and small text can change."],
-  ["What photo should I upload?", "A sharp photo of the front of the product on a plain surface, in soft daylight. At least 500px on the shorter side; a normal phone photo is far more than enough. JPG, PNG or WebP. Add an angle or back photo if you have one."],
-  ["Which products work best?", "Bottles, jars, tubes, boxes, pouches, cups, cookware, decor and accessories. Jewellery works but is harder because of reflections. Clear glass, very shiny metal, clothing on people, and products with many small parts are the hardest."],
-  ["How long does it take?", "Usually 20 to 60 seconds per image. A shoot of 4 images is typically ready in about a minute. Batches of hundreds run in the background and you can leave the page."],
-  ["When is a credit used?", "When we reserve credits at the start, nothing is spent yet. A credit is used only when an image is delivered. If an image fails, or doesn't pass our checks after retries, its credit is returned automatically."],
-  ["What if I don't like an image?", "Every image has one free remake within 7 days. After that a remake uses a credit. If the problem is that your product changed, report it instead and you'll get the credit back."],
-  ["Can I use the images commercially?", "Yes. The images you make are yours to use for your products: your website, marketplaces, ads, catalogues and packaging. You need to own or have rights to the product and brand in the photo you upload."],
-  ["Are the images accepted on Amazon, Flipkart and Meesho?", "Many sellers use our Marketplace white size for listings. Each marketplace has its own image rules that change over time, so check their current guidelines before listing. We don't guarantee acceptance."],
-  ["Do you use my photos to train AI?", "No. We don't train models on your photos or images. They're stored privately, only your team can see them, and you can ask us to delete them."],
-  ["Do I get a GST invoice?", "Yes, for every purchase on the website. Add your GSTIN at checkout or in Settings to get a business invoice for input tax credit."],
-  ["Is there a Hindi version?", "The main screens are available in Hindi. Switch in Settings. More languages are planned."],
+  [
+    "Will my product stay exactly the same?",
+    "Your references guide the actual product identity. We check design, text, shape, colour and the selected direction, but AI checks cannot guarantee every fine detail. Inspect the result before publishing; report any product change from the viewer."
+  ],
+  [
+    "Why are styles different for each product?",
+    "A saree needs different art direction from a serum or a ring. Confirm the product type, then choose from a small set of compatible visual references. Some poses need another photo or a detail view."
+  ],
+  [
+    "What photo should I upload?",
+    "Start with a sharp front view in soft light, at least 500px on the shorter side. JPG, PNG and WebP are supported. Add another angle, a back view or a close-up when the selected direction needs it. For clothing, model poses currently need a reference of the finished garment being worn."
+  ],
+  [
+    "Do previews use image-generation credits?",
+    "Browsing the pre-authored style library does not create an image-generation request. Your own shoot begins only after you review the total and press Create."
+  ],
+  [
+    "How long does a shoot take?",
+    "Timing depends on the provider, queue and image checks. The saved shoot page shows the actual stage and elapsed time. You can leave and reopen it from Shoots."
+  ],
+  [
+    "When are credits used?",
+    "The total is shown before Create. Credits are reserved for the accepted job, captured for delivered images, and released for failed images. Reports show their review and credit outcome."
+  ],
+  [
+    "Do images have a watermark?",
+    "New images are delivered without an added Pocket Shoot watermark, including trial images. Older files can still contain a historical watermark; start a new shoot from the original product photo for a clean replacement."
+  ],
+  [
+    "Can I change the output size?",
+    "You can download the same photo fitted into another supported shape for free, keeping the entire photo with white margins. A genuinely new scene or composition is a separate generation."
+  ],
+  [
+    "Can I use the images commercially?",
+    "Use images for products and brands you own or have permission to represent. Review fine details and the requirements of your destination marketplace before publishing."
+  ],
+  [
+    "Can I return to a shoot later?",
+    "Yes. Accepted shoots have permanent links in Shoots. Product-based drafts are saved in this browser for the active workspace."
+  ],
+  [
+    "Where is my account?",
+    "Open Account in the mobile bottom navigation to see your email, active workspace, credits and workspace tools."
+  ]
 ];
 
 export default function Faq() {

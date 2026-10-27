@@ -19,6 +19,9 @@ export const REFUND_REASONS = {
   extra_items: "Extra or duplicate products",
   colour_wrong: "Product colour is wrong",
   shape_wrong: "Product shape is wrong",
+  wrong_style: "The selected style or setting is wrong",
+  unrealistic_interaction: "The person, pose or handling looks wrong",
+  design_changed: "Fabric, embroidery or product design changed",
   corrupt_image: "Image is broken or won't open",
   other: "Something else",
 } as const;
@@ -44,6 +47,7 @@ export async function setApproval(ctx: AuthContext, id: string, status: "approve
 /** Maps a report reason to the screening check that would confirm it. */
 const REASON_TO_JUDGE: Record<string, string> = {
   logo_changed: "logo_changed", text_changed: "text_changed", wrong_product: "same_product",
+  design_changed: "design_changed",
   missing_product: "extra_or_missing_items", extra_items: "extra_or_missing_items", colour_wrong: "colour_changed", shape_wrong: "shape_changed",
 };
 
@@ -105,7 +109,9 @@ export async function reportAsset(ctx: AuthContext, id: string, input: z.infer<t
 export async function restoreCredit(requestId: string, itemId: string, actorId: string | null) {
   const db = admin();
   const { data: ok } = await db.rpc("refund_item_credit", { p_item: itemId, p_refund_request: requestId, p_actor: actorId });
-  await db.from("refund_requests").update({ credits_restored: ok ? 1 : 0 }).eq("id", requestId);
+  const { data: entries } = await db.from("credit_ledger").select("quantity").eq("item_id",itemId).eq("entry_type","refund");
+  const restored=(entries??[]).reduce((n,e)=>n+Number(e.quantity),0);
+  await db.from("refund_requests").update({ credits_restored: ok ? restored : 0 }).eq("id", requestId);
   return !!ok;
 }
 
@@ -119,10 +125,13 @@ export async function decideRefund(actor: AuthContext, requestId: string, approv
   await audit(actor, approve ? "refund.approve" : "refund.reject", { type: "refund_request", id: requestId }, { org: r.organization_id, resolution });
 }
 
-export async function downloadAsset(ctx: AuthContext, id: string, format: DownloadFormat, size: "full" | "web") {
+export async function downloadAsset(ctx: AuthContext, id: string, format: DownloadFormat, size: "full" | "web", fit?: string | null) {
   const asset = await loadAsset(ctx, id);
   const raw = await getObject("outputs", asset.storage_key);
-  const out = await encodeFor(raw, format, size === "web" ? 1600 : undefined);
+  const dimensions = fit && ["square","portrait","story"].includes(fit) ? OUTPUTS[fit as keyof typeof OUTPUTS] : null;
+  // Fit the existing complete photo with white margins; never generate or crop away the product.
+  const fitted = dimensions ? await sharp(raw).resize(dimensions.width,dimensions.height,{fit:"contain",background:"#ffffff",withoutEnlargement:true}).png().toBuffer() : raw;
+  const out = await encodeFor(fitted, format, size === "web" ? 1600 : undefined);
   await track("image_downloaded", ctx, { format, size });
   const name = `${slug(asset.products.name)}-${id.slice(0, 6)}.${format}`;
   return { ...out, name };

@@ -35,6 +35,12 @@ beforeEach(async () => {
   f.rpc.mockResolvedValue({ data: true });
 });
 describe("selected style production pipeline", () => {
+  it("rejects altered fabric or design details without capturing credit", async () => {
+    f.judge.mockResolvedValue({data:{...verdict,design_changed:true}});
+    await processItem(item);
+    expect(f.rpc).toHaveBeenCalledWith("settle_item",{p_item:"item",p_capture:false});
+    expect(f.assets.mock.calls[0][0]).toMatchObject({quality_status:"fail"});
+  });
   it("uses original references without a cutout and delivers even queued trial jobs without watermarking", async () => {
     await processItem(item);
     expect(f.cutout).not.toHaveBeenCalled(); expect(f.canvas).not.toHaveBeenCalled(); expect(f.composite).not.toHaveBeenCalled();

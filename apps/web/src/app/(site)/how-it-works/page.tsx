@@ -3,9 +3,9 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 export const metadata = { title: "How a shoot works" };
 const STEPS = [
-  { n: "01", title: "Tell us what you sell.", image: "beauty", text: "Choose your industry: beauty, fashion, jewellery, food, home or electronics. Something different? Choose Something else." },
-  { n: "02", title: "Choose a style you can see.", image: "model", text: "Compare six clear photographic examples. Pick indoor, outdoor, with a model, close-up, macro or a graphic campaign. Browsing styles does not generate images." },
-  { n: "03", title: "Add a clear product photo.", image: "indoor", text: "Show the whole product in soft light with a sharp label. We study its visible materials and details. Your photo guides the product; the style guides the scene." },
+  { n: "01", title: "Start with your product.", image: "beauty", text: "Take a photo, choose one from your library, or reuse a saved product. Your photo appears immediately while we read its visible details." },
+  { n: "02", title: "Confirm the details.", image: "model", text: "Check the short product summary, industry and product type. Add useful reference angles for fine details, worn garments or actual contents." },
+  { n: "03", title: "Choose a direction you can see.", image: "indoor", text: "See a small selection made for your product category, with more when you need them. Reusable visual references make the direction clear without a generated preview charge." },
   { n: "04", title: "Create, review, make it yours.", image: "graphic", text: "Choose a shape and image count. Check the credit total, then press Create. Review labels, materials and human details before you download or publish." },
 ];
 export default function HowItWorks() { return <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8 sm:py-16">

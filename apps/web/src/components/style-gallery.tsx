@@ -1,21 +1,14 @@
-/* eslint-disable @next/next/no-img-element -- Catalogue images are pre-sized and compressed. */
 "use client";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check } from "lucide-react";
-import { INDUSTRIES, SHOOT_STYLES, SHOOT_STYLE_IDS, signInToShoot } from "@/lib/shoot-catalog";
-export function StyleGallery() {
-  const [industry, setIndustry] = useState("beauty");
-  return <div>
-    <div className="no-scrollbar -mx-4 mb-7 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:px-0" aria-label="Choose your industry">
-      {INDUSTRIES.map(i => <button type="button" key={i.id} aria-pressed={industry === i.id} onClick={() => setIndustry(i.id)} className={"flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors " + (industry === i.id ? "border-ink bg-ink text-paper" : "border-line bg-card text-ink-2")}>{industry === i.id && <Check size={13} />}{i.title}</button>)}
-    </div>
-    <div className="grid grid-cols-2 gap-x-3 gap-y-7 md:grid-cols-3 md:gap-x-6">
-      {SHOOT_STYLE_IDS.map(id => { const s = SHOOT_STYLES[id]; return <Link key={id} href={signInToShoot(industry, id)} className="group min-w-0">
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-paper-2"><img src={s.image} alt={s.title + " AI-created photographic style example"} width={512} height={512} loading="lazy" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.025] motion-reduce:transform-none" /><span className="absolute bottom-3 right-3 grid size-9 place-items-center rounded-full bg-white text-black"><ArrowUpRight size={17} /></span></div>
-        <div className="mt-3 text-base font-semibold tracking-tight sm:text-xl">{s.title}</div><p className="mt-1 text-xs leading-relaxed text-ink-2 sm:text-sm">{s.subtitle}</p>
-      </Link>; })}
-    </div>
-    <p className="mt-6 text-xs leading-relaxed text-mute">AI-created style examples across industries. Choose a look; your own product is photographed when you create a shoot.</p>
-  </div>;
+import { PRODUCT_COLLECTIONS } from "@packshot/core";
+import { INDUSTRIES, signInToShoot } from "@/lib/shoot-catalog";
+export function StyleGallery(){
+ const [industry,setIndustry]=useState("fashion"),[type,setType]=useState("saree"),[more,setMore]=useState(false);
+ const collection=PRODUCT_COLLECTIONS.find(c=>c.id===type&&c.category===industry)??PRODUCT_COLLECTIONS.find(c=>c.category===industry)!;
+ return <div><div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:px-0" aria-label="Choose your industry">{INDUSTRIES.map(i=><button key={i.id} aria-pressed={industry===i.id} onClick={()=>{setIndustry(i.id);setType(PRODUCT_COLLECTIONS.find(c=>c.category===i.id)!.id);setMore(false);}} className={"flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm "+(industry===i.id?"border-ink bg-ink text-paper":"border-line bg-card")}>{industry===i.id&&<Check size={13}/>} {i.title}</button>)}</div>
+ <label className="mb-6 block max-w-md text-sm font-medium">Product type<select className="studio-input" value={collection.id} onChange={e=>{setType(e.target.value);setMore(false);}}>{PRODUCT_COLLECTIONS.filter(c=>c.category===industry).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+ <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-6">{collection.looks.slice(0,more?5:3).map(l=><Link key={l.id} href={signInToShoot(industry,l.id)} className="group min-w-0"><div className="relative aspect-square overflow-hidden rounded-2xl bg-paper-2"><div role="img" aria-label={l.title+" — illustrative "+collection.label+" reference"} className="size-full transition-transform duration-200 group-hover:scale-[1.02]" style={{backgroundImage:'url("'+l.atlas+'")',backgroundSize:"300% 200%",backgroundPosition:["0% 0%","50% 0%","100% 0%","0% 100%","50% 100%"][l.tile]}}/><span className="absolute bottom-3 right-3 grid size-9 place-items-center rounded-full bg-white text-black"><ArrowUpRight size={17}/></span></div><h3 className="mt-3 text-sm font-semibold tracking-tight sm:text-lg">{l.title}</h3><p className="mt-1 text-xs text-ink-2 sm:text-sm">{l.subtitle}</p></Link>)}</div>
+ <button className="mt-5 min-h-11 text-sm font-medium underline underline-offset-4" onClick={()=>setMore(!more)}>{more?"Show recommended looks":"More looks for "+collection.label.toLowerCase()}</button><p className="mt-2 text-xs leading-relaxed text-mute">Illustrative examples; people shown are synthetic adults. Some directions need additional references. Your product photo is used only after you confirm the shoot and its price.</p></div>;
 }

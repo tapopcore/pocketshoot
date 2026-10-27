@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { browserSupabase } from "@/lib/supabase-browser";
 import { Button, Input, Spinner } from "@/components/ui";
 
@@ -9,27 +9,32 @@ export function SignInForm({ next }: { next: string }) {
   const [stage, setStage] = useState<"email" | "code">("email");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cooldown,setCooldown]=useState(0);
+  useEffect(()=>{if(cooldown<=0)return;const timer=setTimeout(()=>setCooldown(cooldown-1),1000);return()=>clearTimeout(timer);},[cooldown]);
   const supabase = browserSupabase();
   const redirectTo = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
   async function sendLink(e: React.FormEvent) {
     e.preventDefault();
+    if(busy||cooldown>0)return;
     setBusy(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirectTo(), shouldCreateUser: true } });
-    setBusy(false);
-    if (error) setError(/rate limit|too many/i.test(error.message) ? "We've hit the email sending limit. Try again in a while." : error.message);
-    else setStage("code");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirectTo(), shouldCreateUser: true } });
+      if (error) setError(/rate limit|too many/i.test(error.message) ? "We've hit the email sending limit. Try again in a while." : error.message);
+      else {setStage("code");setCooldown(60);}
+    } catch {setError("We couldn't reach sign-in. Check your connection and try again.");} finally {setBusy(false);}
   }
 
   async function verify(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
-    setBusy(false);
-    if (error) setError("That code didn't work. Check it or use the link in the email.");
-    else window.location.href = next;
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
+      if (error) setError("That code didn't work or expired. Check it, or request a new code.");
+      else window.location.href = next;
+    } catch {setError("We couldn't verify the code. Check your connection and retry.");} finally {setBusy(false);}
   }
 
   async function google() {
@@ -52,18 +57,19 @@ export function SignInForm({ next }: { next: string }) {
       </>}
       {stage === "email" ? (
         <form onSubmit={sendLink} className="space-y-3">
-          <Input type="email" required autoComplete="email" placeholder="you@yourbrand.com" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" />
-          <Button className="w-full" disabled={busy || !email}>{busy ? <Spinner /> : "Email me a sign-in code"}</Button>
+          <Input type="email" required autoComplete="email" placeholder="you@yourbrand.com" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" className="text-base" />
+          <Button className="w-full" disabled={busy || !email || cooldown>0}>{busy ? <Spinner /> : cooldown>0?`Try again in ${cooldown}s`:"Email me a sign-in code"}</Button>
         </form>
       ) : (
         <form onSubmit={verify} className="space-y-3">
           <p className="text-sm text-ink-2">We sent a code and a link to <b>{email}</b>. Enter the code, or tap the link in the email.</p>
-          <Input inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Code" className="text-center tracking-[0.4em]" />
+          <Input inputMode="numeric" autoComplete="one-time-code" placeholder="Sign-in code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g,""))} aria-label="Code" className="text-base text-center tracking-[0.3em]" />
           <Button className="w-full" disabled={busy || code.length < 6}>{busy ? <Spinner /> : "Sign in"}</Button>
           <button type="button" className="w-full text-sm text-mute underline" onClick={() => setStage("email")}>Use a different email</button>
+          <button type="button" disabled={busy||cooldown>0} className="min-h-11 w-full text-sm underline disabled:text-mute" onClick={sendLink}>{cooldown>0?`Resend in ${cooldown}s`:"Send a new code"}</button>
         </form>
       )}
-      {error && <p className="text-sm text-bad">{error}</p>}
+      {error && <p role="alert" className="text-sm text-bad">{error}</p>}
     </div>
   );
 }

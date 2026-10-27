@@ -14,7 +14,7 @@ export const maxDuration = 300;
 export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   assertRole(ctx, "editor");
   const db = admin();
-  const { data: product } = await db.from("products").select("id, name, category").eq("id", id).eq("organization_id", ctx.orgId).maybeSingle();
+  const { data: product } = await db.from("products").select("id, name, category, attributes").eq("id", id).eq("organization_id", ctx.orgId).maybeSingle();
   if (!product) throw new ApiError(404, "Product not found");
   const { data: refs } = await db.from("product_assets").select("id, storage_key, cutout_key, view_type, organization_id, product_id, metadata").eq("product_id", id).order("created_at");
   if (!refs?.length) throw new ApiError(400, "Add a photo first");
@@ -35,7 +35,8 @@ export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   const ranked = scenesFor(category).map((s) => s.id);
   const suggested = [...new Set([...(analysis?.suggested_scenes ?? []), ...ranked])].filter((s) => s in STYLES).slice(0, 7);
   return {
-    product: { id, name: (patch.name as string | undefined) ?? product.name, category },
+    product: { id, name: (patch.name as string | undefined) ?? product.name, category, shootProfile: (product.attributes as Record<string, unknown> | null)?.shootProfile ?? null },
+    references: refs.map(r => ({ id: r.id, view_type: r.view_type })),
     analysis,
     ideas: analysis?.ideas ?? [],
     suggestedScenes: suggested,

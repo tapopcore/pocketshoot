@@ -38,7 +38,8 @@ export async function middleware(req: NextRequest) {
   if (!data?.claims?.sub && (pathname.startsWith("/app") || pathname.startsWith("/admin"))) {
     const url = req.nextUrl.clone();
     url.pathname = "/sign-in";
-    url.searchParams.set("next", pathname);
+    url.search = "";
+    url.searchParams.set("next", pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
   return res;

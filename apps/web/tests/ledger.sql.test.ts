@@ -60,6 +60,21 @@ describe("signup", () => {
 });
 
 describe("credit ledger", () => {
+  it("settles and refunds a multi-credit image across lots exactly once", async () => {
+    const {org}=await newUser("multi-price@example.com");
+    await db.query(`select grant_credits($1,'trial','trial',1,null,'trial',null,'multi:trial')`,[org]);
+    await db.query(`select grant_credits($1,'paid','purchase',8,null,'order',null,'multi:paid')`,[org]);
+    const {job,items}=await newJob(org,2);
+    await db.query(`update generation_jobs set settings='{"creditsPerImage":3}'::jsonb where id=$1`,[job]);
+    await db.query(`select reserve_credits($1,6)`,[job]);
+    await db.query(`select settle_item($1,true)`,[items[0]]);
+    await db.query(`select settle_item($1,true)`,[items[0]]);
+    await db.query(`select settle_item($1,false)`,[items[1]]);
+    expect(await balance(org)).toEqual({available:6,reserved:0,consumed:3});
+    await db.query(`select refund_item_credit($1,null,null)`,[items[0]]);
+    await db.query(`select refund_item_credit($1,null,null)`,[items[0]]);
+    expect(await balance(org)).toEqual({available:9,reserved:0,consumed:0});
+  });
   it("grants idempotently (duplicate webhook never doubles credits)", async () => {
     const { org } = await newUser("b@example.com");
     for (let i = 0; i < 3; i++) {

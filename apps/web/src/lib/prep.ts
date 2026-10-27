@@ -15,6 +15,14 @@ import { integrations } from "./env";
 import { logError } from "./observe";
 
 const SCENE_IDS = Object.keys(STYLES).filter((k) => k !== "custom");
+// Upload needs identity, not a second creative brief. No image call is made here.
+const SUMMARY_SCHEMA = {
+  ...ANALYSIS_SCHEMA,
+  properties: { ...ANALYSIS_SCHEMA.properties,
+    ideas: { type: "array", maxItems: 0, items: ANALYSIS_SCHEMA.properties.ideas.items },
+    suggested_scenes: { type: "array", maxItems: 0, items: { type: "string" } },
+  },
+};
 
 export interface ProductAssetRow {
   id: string;
@@ -156,7 +164,8 @@ export async function analyzeProduct(productId: string, force = false): Promise<
   try {
     const settings = await getSettings();
     const images = await Promise.all(refs.map((r) => getObject("originals", r.storage_key)));
-    const res = await jsonCall({ models: settings.providers.llm.models, prompt: analysisPrompt(SCENE_IDS), images, detail: "high", schemaName: "product_analysis", schema: ANALYSIS_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 60_000 });
+    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + "\nReturn only concise product facts. ideas and suggested_scenes must be empty arrays. Leave audience and visual_strategy empty. Do not plan a campaign or generate an image. Report uncertainties in photo_issues; do not invent hidden details.";
+    const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 30_000 });
     const analysis = parseAnalysis(res.data, SCENE_IDS);
     if (!analysis) return null;
     await db.from("products").update({ attributes: { ...attrs, analysis, analysisModel: res.model, analysedAt: new Date().toISOString() } }).eq("id", productId);

@@ -1,216 +1,79 @@
-/* eslint-disable @next/next/no-img-element -- Catalogue images are pre-sized and compressed. */
+/* eslint-disable @next/next/no-img-element -- Local previews and authored references. */
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
-import { ArrowLeft, ArrowRight, Camera, Check, ChevronDown, ImagePlus, Loader2, Minus, Plus, X } from "lucide-react";
-import { CATEGORIES, isCategoryId, SHOOT_STYLE_IDS, SHOOT_STYLES, type CategoryId, type Locale, type OutputId, type ProductAnalysis, type SceneIdea, type ShootStyleId } from "@packshot/core";
-import { INDUSTRIES } from "@/lib/shoot-catalog";
+import { ArrowLeft, ArrowRight, Camera, Check, ImagePlus, Loader2, Minus, Plus, X } from "lucide-react";
+import { CATEGORIES, PRODUCT_COLLECTIONS, RECIPE_VERSION, collectionById, categoryLook, inferCollection, lookEligibility, styleForLook, type CategoryId, type Locale, type OutputId, type ProductAnalysis, type SceneIdea, type ShootProfile, type CollectionId } from "@packshot/core";
 import { api, ClientApiError, newKey, uploadFiles } from "@/lib/client";
 import { checkPhoto, shrinkPhoto, takePendingFiles } from "@/lib/photo-client";
-import dynamic from "next/dynamic";
-const JobView = dynamic(() => import("@/components/job-view").then(m => m.JobView), { loading: () => <p role="status" className="py-8 text-sm text-mute">Opening your shoot…</p> });
-import { JobCard, type JobSummary } from "@/components/job-card";
-
-export interface StudioProduct { id: string; name: string; category: CategoryId; coverUrl: string | null }
-interface Hero { status: string; originalUrl: string | null; cutoutUrl: string | null; previewUrl: string | null; method: string | null }
-interface Prepared { product: { id: string; name: string; category: CategoryId }; analysis: ProductAnalysis | null; ideas: SceneIdea[]; suggestedScenes: string[]; hero: Hero }
-type Step = 0 | 1 | 2 | 3;
-const STEPS = ["Industry", "Style", "Product", "Create"];
-export function Studio(props: {
-  fixture?: Prepared; initialIndustry?: string; initialLook?: string;
-  locale: Locale; balance: number; creditsPerImage?: number; isTrial: boolean; creativeEnabled: boolean; maxImages: number;
-  brandKits: { id: string; name: string; palette: string[] }[]; existing: StudioProduct | null; recentProducts: StudioProduct[];
-  recentJobs: JobSummary[]; previews?: Record<string, string>; notice?: string | null; canEdit?: boolean;
-}) {
-  const initialIndustry = props.initialIndustry && isCategoryId(props.initialIndustry) ? props.initialIndustry : null;
-  const initialLook = SHOOT_STYLE_IDS.includes(props.initialLook as ShootStyleId) ? props.initialLook as ShootStyleId : null;
-  const [industry, setIndustry] = useState<CategoryId | null>(props.existing?.category ?? initialIndustry);
-  const [look, setLook] = useState<ShootStyleId | null>(initialLook);
-  const [step, setStep] = useState<Step>(initialIndustry ? initialLook ? 2 : 1 : 0);
-  const [prep, setPrep] = useState<Prepared | null>(null);
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState(props.notice ?? null);
-  const [photo, setPhoto] = useState<string | null>(props.existing?.coverUrl ?? null);
-  const [output, setOutput] = useState<OutputId>("square");
-  const [count, setCount] = useState(1);
-  const [brief, setBrief] = useState("");
-  const [kit, setKit] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const cameraInput = useRef<HTMLInputElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const key = useRef(newKey());
-  const submitLock = useRef(false);
-  const pendingFiles = useRef<File[]>([]);
-  const objectUrl = useRef<string | null>(null);
-  const maxCount = Math.max(1, Math.min(props.maxImages, 4));
-  const cost = count * (props.creditsPerImage ?? 1);
-  const selected = look ? SHOOT_STYLES[look] : null;
-  const disabled = props.canEdit === false;
-  const go = (next: Step) => { setError(null); setStep(next); };
-
-  useEffect(() => { heading.current?.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: "instant" }); }, [step, jobId]);
-  useEffect(() => () => { if (objectUrl.current) URL.revokeObjectURL(objectUrl.current); }, []);
-  useEffect(() => { pendingFiles.current = takePendingFiles(); }, []);
-
-  const prepare = useCallback(async (id: string) => {
-    const p = await api<Prepared>("/api/products/" + id + "/prepare", { method: "POST" });
-    setPrep(p); setName(p.product.name); setPhoto(previous => p.hero.originalUrl ?? previous); setStep(3);
-  }, []);
-
-  async function upload(files: File[]) {
-    const file = files[0];
-    if (!file || busy || disabled || !industry || !look) return;
-    const issue = checkPhoto(file);
-    if (issue) { setError(issue); return; }
-    setBusy(true); setError(null);
-    if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
-    objectUrl.current = URL.createObjectURL(file); setPhoto(objectUrl.current);
-    try {
-      const small = await shrinkPhoto(file);
-      const [storageKey] = await uploadFiles([small]);
-      const p = await api<{ productId: string }>("/api/products", { method: "POST", json: {
-        name: "New product", category: industry, locks: CATEGORIES[industry].defaultLocks,
-        uploads: [{ key: storageKey, viewType: "front" }],
-      } });
-      await prepare(p.productId);
-    } catch (e) { setError(e instanceof ClientApiError ? e.message : "We couldn't read that photo. Please try again."); }
-    finally { setBusy(false); }
-  }
-
-  async function next() {
-    if (step === 0 && industry) {
-      if (prep && prep.product.category !== industry && !props.fixture) {
-        setBusy(true);
-        try {
-          await api("/api/products/" + prep.product.id, { method: "PATCH", json: { category: industry, locks: CATEGORIES[industry].defaultLocks } });
-          setPrep({ ...prep, product: { ...prep.product, category: industry } });
-        } catch { setError("We couldn't update the industry. Try again."); return; }
-        finally { setBusy(false); }
-      }
-      go(1);
-    } else if (step === 1 && look) go(prep ? 3 : 2);
-    else if (step === 2) {
-      if (prep) go(3);
-      else if (props.existing) {
-        setBusy(true); setError(null);
-        try { await prepare(props.existing.id); } catch { setError("We couldn't open this product. Please try again."); } finally { setBusy(false); }
-      } else if (pendingFiles.current.length) { const files = pendingFiles.current; pendingFiles.current = []; await upload(files); }
-      else fileInput.current?.click();
-    }
-  }
-
-  async function generate() {
-    if (!prep || !look || submitLock.current || disabled) return;
-    if (props.fixture) { setNotice("Design preview only. No images generated and no credits used."); return; }
-    submitLock.current = true; setStarting(true); setError(null);
-    try {
-      if (name.trim() && name.trim() !== prep.product.name) await api("/api/products/" + prep.product.id, { method: "PATCH", json: { name: name.trim() } });
-      const result = await api<{ jobId: string }>("/api/jobs", { method: "POST", json: {
-        productId: prep.product.id, mode: "preserve", style: SHOOT_STYLES[look].scene,
-        shootStyle: look, output, count, customBrief: brief.trim() || null,
-        brandKitId: kit, idempotencyKey: key.current,
-      } });
-      key.current = newKey(); setJobId(result.jobId);
-    } catch (e) { setError(e instanceof ClientApiError ? e.message : "We couldn't start this shoot. Please try again."); }
-    finally { setStarting(false); submitLock.current = false; }
-  }
-
-  const back = () => go(step === 3 ? 2 : step === 2 ? 1 : 0);
-  return <div className="shoot-flow mx-auto max-w-[1040px] pb-12">
-    {notice && <div className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-line bg-card px-4 py-3 text-sm" role="status"><span>{notice}</span><button type="button" className="grid size-11 shrink-0 place-items-center" onClick={() => setNotice(null)} aria-label="Dismiss notice"><X size={16} /></button></div>}
-    {jobId ? <section>
-      <Link href="/app/library" className="mb-5 inline-flex min-h-11 items-center gap-2 text-sm"><ArrowLeft size={16} /> Your library</Link>
-      <h1 ref={heading} tabIndex={-1} className="mb-2 text-3xl font-semibold tracking-tight">Your shoot is taking shape.</h1>
-      <p className="mb-7 text-sm text-ink-2">Results appear here as they finish. Review product details before publishing.</p>
-      <JobView jobId={jobId} embedded />
-      <button type="button" onClick={() => { setJobId(null); setPrep(null); setPhoto(null); setName(""); go(2); }} className="mt-6 min-h-12 rounded-full border border-line px-6 font-semibold">Shoot another product</button>
-    </section> : <>
-      <nav aria-label="Shoot progress" className="mb-7 grid grid-cols-4 gap-2 border-b border-line pb-5 sm:mb-10">
-        {STEPS.map((label, i) => <button key={label} type="button" disabled={i > step || busy || starting} onClick={() => go(i as Step)} aria-current={i === step ? "step" : undefined} className={clsx("flex min-h-11 items-center justify-center gap-1.5 text-xs font-medium sm:text-sm", i === step ? "text-ink" : "text-mute")}>
-          <span className={clsx("grid size-6 shrink-0 place-items-center rounded-full text-[11px]", i === step ? "bg-ink text-paper" : i < step ? "bg-accent/10 text-accent-ink" : "bg-paper-2")}>{i < step ? <Check size={12} /> : i + 1}</span>{label}
-        </button>)}
-      </nav>
-      <header className="mb-6 sm:mb-8">
-        <h1 ref={heading} tabIndex={-1} className="text-[30px] font-semibold leading-[1.1] tracking-[-0.04em] sm:text-[46px]">{["What do you sell?", "Find your photographic style.", "Meet your product.", "Ready for its close-up."][step]}</h1>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2 sm:text-base">{["Choose your industry. We'll tailor the shoot to your product.", "Pick one look. The example shows the style, not your final image.", "One clear product photo is enough to start.", "Check your choices, then create your first shot."][step]}</p>
-      </header>
-      {error && <p role="alert" className="mb-5 rounded-xl border border-bad/30 bg-bad/5 px-4 py-3 text-sm text-bad">{error}</p>}
-      {disabled && <p className="mb-5 text-sm text-warn">Your workspace role can view shoots. Ask an editor to create one.</p>}
-      {step === 0 && <section aria-label="Industries">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-5">
-          {INDUSTRIES.map(item => <PhotoChoice key={item.id} image={item.image} title={item.title} selected={industry === item.id} onClick={() => setIndustry(item.id)} />)}
-        </div>
-        <button type="button" aria-pressed={industry === "other"} onClick={() => setIndustry("other")} className={clsx("mt-6 min-h-11 rounded-full border px-5 text-sm", industry === "other" ? "border-ink bg-ink text-paper" : "border-line")}>Something else</button>
-      </section>}
-      {step === 1 && <section aria-label="Photographic styles">
-        <div className="mb-5 flex items-center gap-2 text-xs text-mute"><span className="size-1.5 rounded-full bg-accent" /> {industry ? INDUSTRIES.find(i => i.id === industry)?.title ?? "Your industry" : "All products"} <span aria-hidden="true">·</span> All six styles available</div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-5">
-          {SHOOT_STYLE_IDS.map(id => { const item = SHOOT_STYLES[id]; return <PhotoChoice key={id} image={item.image} title={item.title} subtitle={item.subtitle} selected={look === id} onClick={() => setLook(id)} />; })}
-        </div>
-        <p className="mt-6 text-xs leading-relaxed text-mute">AI-created style examples. Your product&apos;s colours, branding and construction guide the final shot.</p>
-      </section>}
-      {step === 2 && <section className="grid gap-6 md:grid-cols-[1.15fr_1fr]">
-        <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (!busy) void upload(Array.from(e.dataTransfer.files)); }} className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-ink/25 bg-card p-6 text-center sm:min-h-[360px]">
-          {busy ? <><Loader2 className="mb-4 size-8 animate-spin text-accent" /><h2 className="text-xl font-semibold">Studying your product</h2><p className="mt-2 text-sm text-mute">Reading the visible details. No images are being generated.</p></> : <>
-            {photo ? <img src={photo} alt="Your original product" className="mb-5 h-36 w-40 object-contain" /> : <ImagePlus className="mb-5 size-10 text-accent-ink" strokeWidth={1.4} />}
-            <h2 className="text-xl font-semibold">{props.existing ? props.existing.name : "Add your product photo"}</h2>
-            <p className="mt-2 text-sm text-mute">JPG, PNG or WebP · a sharp label works best</p>
-            <button type="button" disabled={disabled} onClick={() => fileInput.current?.click()} className="mt-6 min-h-12 rounded-full bg-ink px-7 text-sm font-semibold text-paper disabled:opacity-40">Choose a photo</button>
-            <button type="button" disabled={disabled} onClick={() => cameraInput.current?.click()} className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm text-ink-2"><Camera size={17} /> Take a photo</button>
-            {props.fixture && <button type="button" className="mt-3 min-h-11 text-sm underline" onClick={() => { setPrep(props.fixture!); setName(props.fixture!.product.name); setPhoto(props.fixture!.hero.originalUrl); go(3); }}>Use example product</button>}
-          </>}
-          <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Upload product photo" disabled={busy || disabled} onChange={e => { void upload(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-          <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="sr-only" aria-label="Take product photo" disabled={busy || disabled} onChange={e => { void upload(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-        </div>
-        <div className="rounded-2xl bg-paper-2/70 p-5 sm:p-7">
-          {selected && <div className="flex items-center gap-4"><img src={selected.image} alt={selected.title + " style example"} className="size-24 rounded-xl object-cover" /><div><p className="text-xs text-mute">Your style</p><h2 className="mt-1 text-xl font-semibold">{selected.title}</h2><button type="button" onClick={() => go(1)} className="mt-1 min-h-11 text-sm underline underline-offset-4">Change style</button></div></div>}
-          <h3 className="mt-6 text-sm font-semibold">For the best starting photo</h3>
-          <ul className="mt-3 space-y-3 text-sm leading-relaxed text-ink-2">{["Show the whole product.", "Use soft daylight and a plain background.", "Keep the label sharp and uncovered."].map(t => <li className="flex gap-2" key={t}><Check size={16} className="mt-0.5 shrink-0 text-accent-ink" />{t}</li>)}</ul>
-        </div>
-      </section>}
-      {step === 3 && prep && selected && <section className="grid gap-6 md:grid-cols-[1fr_1.1fr]">
-        <div className="grid grid-cols-2 gap-3 self-start">
-          <figure className="min-w-0"><div className="aspect-square overflow-hidden rounded-2xl border border-line bg-card"><img src={photo ?? prep.hero.originalUrl ?? ""} alt="Your original product photo" className="size-full object-contain p-4" /></div><figcaption className="mt-2 text-xs text-mute">Your product</figcaption></figure>
-          <figure className="min-w-0"><img src={selected.image} alt={selected.title + " style reference, not a generated preview"} className="aspect-square w-full rounded-2xl object-cover" /><figcaption className="mt-2 text-xs text-mute">{selected.title} · style example</figcaption></figure>
-          <div className="col-span-2 mt-2"><label htmlFor="product-name" className="text-xs text-mute">Product name</label><input id="product-name" value={name} onChange={e => setName(e.target.value)} maxLength={120} className="mt-1 min-h-12 w-full border-b border-line bg-transparent text-lg font-semibold outline-none focus:border-ink" /></div>
-          {prep.analysis?.photo_issues.length ? <p className="col-span-2 text-xs leading-relaxed text-warn">Photo note: {prep.analysis.photo_issues[0]}</p> : null}
-        </div>
-        <div className="rounded-2xl border border-line bg-card p-5 sm:p-7">
-          <h2 className="text-xl font-semibold">Make it yours.</h2>
-          <fieldset className="mt-6"><legend className="mb-3 text-sm font-medium">Image shape</legend><div className="grid grid-cols-3 gap-2">{([["square", "Square", "1:1"], ["portrait", "Portrait", "4:5"], ["story", "Story", "9:16"]] as const).map(([id, title, ratio]) => <button key={id} type="button" aria-pressed={output === id} onClick={() => setOutput(id)} className={clsx("min-h-16 rounded-xl border px-2 py-2 text-sm", output === id ? "border-ink bg-paper-2" : "border-line")}><span className="block font-semibold">{title}</span><span className="text-xs text-mute">{ratio}</span></button>)}</div></fieldset>
-          <div className="mt-6 flex items-center justify-between"><span className="text-sm font-medium">Images</span><div className="flex items-center rounded-full border border-line"><button type="button" aria-label="Fewer images" disabled={count === 1} onClick={() => setCount(n => n - 1)} className="grid size-11 place-items-center disabled:opacity-25"><Minus size={16} /></button><span className="w-8 text-center text-sm font-semibold" aria-live="polite">{count}</span><button type="button" aria-label="More images" disabled={count >= maxCount} onClick={() => setCount(n => n + 1)} className="grid size-11 place-items-center disabled:opacity-25"><Plus size={16} /></button></div></div>
-          <details className="mt-6 border-t border-line pt-2"><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm text-ink-2">Add a note or brand colours <ChevronDown size={16} /></summary><label htmlFor="shoot-note" className="sr-only">Optional creative note</label><textarea id="shoot-note" value={brief} onChange={e => setBrief(e.target.value)} maxLength={160} rows={3} placeholder="Optional. E.g. warm morning light, lots of space on the left." className="mt-2 w-full rounded-xl border border-line bg-paper p-3 text-base sm:text-sm" />{props.brandKits.length > 0 && <label className="mt-3 block text-sm">Brand colours<select value={kit ?? ""} onChange={e => setKit(e.target.value || null)} className="mt-2 min-h-12 w-full rounded-xl border border-line bg-paper px-3"><option value="">No brand kit</option>{props.brandKits.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>}</details>
-          <div className="mt-5 flex items-center justify-between border-t border-line pt-5"><span className="text-sm">Total</span><strong className="text-xl">{cost} credit{cost !== 1 ? "s" : ""}</strong></div>
-          <p className="mt-2 text-xs leading-relaxed text-mute">Review labels, fine details and any human interaction before publishing.</p>
-        </div>
-      </section>}
-      <div className="shoot-action fixed inset-x-0 bottom-[calc(62px+env(safe-area-inset-bottom))] z-20 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur-md lg:bottom-0 lg:left-[236px] sm:px-8">
-        <div className="mx-auto flex max-w-[1040px] items-center gap-3">
-          {step > 0 && <button type="button" onClick={back} disabled={busy || starting} aria-label="Previous step" className="grid size-12 shrink-0 place-items-center rounded-full border border-line disabled:opacity-40"><ArrowLeft size={19} /></button>}
-          <div className="hidden flex-1 text-sm text-ink-2 sm:block">{step === 3 ? props.balance + " credits available" : step === 0 ? "Start with your industry" : step === 1 ? selected?.title ?? "Choose one style" : "Your product, your chosen style"}</div>
-          {step === 3 && cost > props.balance ? <Link href="/app/wallet" className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-6 text-sm font-semibold text-paper sm:flex-none">Get credits · {cost} needed <ArrowRight size={17} /></Link> :
-          <button type="button" onClick={() => { if (step === 3) void generate(); else void next(); }} disabled={busy || starting || disabled || (step === 0 && !industry) || (step === 1 && !look) || (step === 3 && (!prep || !look || !name.trim()))} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-accent px-6 text-sm font-semibold text-white transition-colors hover:bg-accent-ink disabled:bg-paper-2 disabled:text-mute sm:flex-none">
-            {busy || starting ? <Loader2 size={18} className="animate-spin" /> : null}
-            {step === 3 ? "Create " + count + (count === 1 ? " image" : " images") + " · " + cost + (cost === 1 ? " credit" : " credits") : step === 2 ? prep ? "Review shoot" : props.existing ? "Use this product" : "Choose a photo" : "Continue"}{!busy && !starting && <ArrowRight size={17} />}
-          </button>}
-        </div>
-      </div>
-      {step === 0 && props.recentJobs.length > 0 && <section className="mt-12 border-t border-line pt-7"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Recent shoots</h2><Link href="/app/library" className="min-h-11 py-3 text-sm underline">View all</Link></div><div className="grid grid-cols-2 gap-4 sm:grid-cols-4">{props.recentJobs.slice(0, 4).map((job, i) => <JobCard key={job.id} job={job} index={i} />)}</div></section>}
-    </>}
-  </div>;
-}
-function PhotoChoice({ image, title, subtitle, selected, onClick }: { image: string; title: string; subtitle?: string; selected: boolean; onClick: () => void }) {
-  return <button type="button" aria-pressed={selected} onClick={onClick} className="group min-w-0 self-start text-left">
-    <span className={clsx("relative block aspect-square overflow-hidden rounded-2xl border-2 transition-colors", selected ? "border-accent" : "border-transparent")}>
-      <img src={image} alt={title + " example"} width={512} height={512} className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.025] motion-reduce:transform-none" />
-      <span className={clsx("absolute right-2.5 top-2.5 grid size-7 place-items-center rounded-full border", selected ? "border-accent bg-accent text-white" : "border-white/75 bg-black/15 text-transparent")}><Check size={16} strokeWidth={2.5} /></span>
-    </span>
-    <span className="mt-2.5 block text-[14px] font-semibold leading-snug tracking-tight sm:text-base">{title}</span>
-    {subtitle && <span className="mt-1 block text-[11px] leading-relaxed text-mute sm:text-xs">{subtitle}</span>}
-  </button>;
+import type { JobSummary } from "@/components/job-card";
+export interface StudioProduct { id:string; name:string; category:CategoryId; coverUrl:string|null }
+interface Hero { status:string; originalUrl:string|null; cutoutUrl:string|null; previewUrl:string|null; method:string|null }
+interface Prepared { product:{id:string;name:string;category:CategoryId;shootProfile?:ShootProfile|null}; analysis:ProductAnalysis|null; ideas:SceneIdea[]; suggestedScenes:string[]; hero:Hero; references?:{id:string;view_type:string}[] }
+type Step="source"|"product"|"looks"|"review"|"saved";
+interface Draft {productId:string;profile:ShootProfile;name:string;lookId:string|null;output:OutputId;count:number;brief:string;key:string;step:Step;updatedAt:number}
+const profileDefault=(type:CollectionId):ShootProfile=>({type,construction:collectionById(type)?.category==="fashion"?"unknown":"not_applicable",referenceForm:"unknown"});
+export function Studio(props:{fixture?:Prepared;initialIndustry?:string;initialLook?:string;draftScope?:string;locale:Locale;balance:number;creditsPerImage?:number;isTrial:boolean;creativeEnabled:boolean;maxImages:number;brandKits:{id:string;name:string;palette:string[]}[];existing:StudioProduct|null;recentProducts:StudioProduct[];recentJobs:JobSummary[];previews?:Record<string,string>;notice?:string|null;canEdit?:boolean}) {
+ const router=useRouter();
+ const [step,setStep]=useState<Step>("source"),[prep,setPrep]=useState<Prepared|null>(null),[profile,setProfile]=useState<ShootProfile|null>(null);
+ const [industry,setIndustry]=useState<CategoryId>("other"),[name,setName]=useState(""),[photo,setPhoto]=useState<string|null>(props.existing?.coverUrl??null),[lookId,setLookId]=useState<string|null>(null),[allLooks,setAllLooks]=useState(false);
+ const [output,setOutput]=useState<OutputId>("square"),[count,setCount]=useState(1),[brief,setBrief]=useState(""),[busy,setBusy]=useState<string|null>(null),[error,setError]=useState<string|null>(null),[notice,setNotice]=useState(props.notice??null);
+ const [quote,setQuote]=useState<{credits:number;recipeVersion:string}|null>(null),[quoteBusy,setQuoteBusy]=useState(false),[saved,setSaved]=useState(false),[viewType,setViewType]=useState("angle");
+ const input=useRef<HTMLInputElement>(null),camera=useRef<HTMLInputElement>(null),extra=useRef<HTMLInputElement>(null),heading=useRef<HTMLHeadingElement>(null),objectUrl=useRef<string|null>(null),productId=useRef<string|null>(null),key=useRef(newKey()),locked=useRef(false),initialized=useRef(false),accepted=useRef<string|null>(null);
+ const draftKey="pocketshoot:draft:v2:"+(props.draftScope??"preview");
+ const chosen=lookId?categoryLook(lookId):null,collection=profile?collectionById(profile.type):null,disabled=props.canEdit===false;
+ const references=prep?.references??(prep?[{id:"primary",view_type:"front"}]:[]);
+ const issue=chosen&&profile?lookEligibility(chosen,profile,references):null;
+ const maxCount=Math.max(1,Math.min(props.maxImages,4));
+ const move=(s:Step)=>{setStep(s);setError(null);};
+ const readProduct=useCallback(async(id:string,restore?:Draft)=>{
+  productId.current=id;setBusy("Understanding product");setError(null);setStep("product");
+  setPhoto(previous=>props.recentProducts.find(p=>p.id===id)?.coverUrl??(props.existing?.id===id?props.existing.coverUrl:null)??previous);
+  try{const p=await api<Prepared>("/api/products/"+id+"/prepare",{method:"POST"});setPrep(p);setName(restore?.name??p.product.name);setIndustry(p.product.category);setPhoto(prev=>p.hero.originalUrl??prev);
+   const inferred=inferCollection(p.product.category,p.product.name+" "+(p.analysis?.description??""));
+   const nextProfile=restore?.profile??p.product.shootProfile??(inferred?profileDefault(inferred):null);
+   setProfile(nextProfile);
+   if(!restore){const incoming=categoryLook(props.initialLook??"");setLookId(incoming&&incoming.collection===nextProfile?.type?incoming.id:null);}
+   if(restore){setLookId(restore.lookId);setOutput(restore.output);setCount(Math.max(1,Math.min(maxCount,restore.count)));setBrief(restore.brief);key.current=restore.key;}
+   setStep(restore?.step==="looks"||restore?.step==="review"?restore.step:"product");
+  }catch(e){setError(e instanceof Error?e.message:"We couldn't understand this photo. Retry without uploading again.");setStep("product");}finally{setBusy(null);}
+ },[maxCount,props.recentProducts,props.existing,props.initialLook]);
+ useEffect(()=>{if(initialized.current)return;initialized.current=true;const pending=takePendingFiles();if(pending.length){void upload(pending);return;}if(props.fixture){setPrep(props.fixture);setName(props.fixture.product.name);setPhoto(props.fixture.hero.originalUrl);setIndustry(props.fixture.product.category);const inferred=inferCollection(props.fixture.product.category,props.fixture.product.name);setProfile(inferred?profileDefault(inferred):null);setStep("product");return;}if(props.existing){void readProduct(props.existing.id);return;}try{const raw=localStorage.getItem(draftKey);if(raw){const d=JSON.parse(raw) as Draft;if(Date.now()-d.updatedAt<30*86400000&&d.productId&&collectionById(d.profile?.type)){void readProduct(d.productId,d);setNotice("Your draft is ready to continue.");}}}catch{/* Storage unavailable: server product is retained. */}},[draftKey,props.existing,props.fixture,readProduct]); // Start the initial upload once.
+ useEffect(()=>{if(!prep||!profile||props.fixture||accepted.current)return;try{const draft:Draft={productId:prep.product.id,profile,name,lookId,output,count,brief,key:key.current,step,updatedAt:Date.now()};localStorage.setItem(draftKey,JSON.stringify(draft));setSaved(true);}catch{setSaved(false);}},[prep,profile,name,lookId,output,count,brief,step,draftKey,props.fixture]);
+ useEffect(()=>{heading.current?.focus({preventScroll:true});window.scrollTo({top:0,behavior:"instant"});},[step]);
+ useEffect(()=>()=>{if(objectUrl.current)URL.revokeObjectURL(objectUrl.current);},[]);
+ useEffect(()=>{if(step!=="review"||!prep||!chosen||issue){setQuote(null);return;}if(props.fixture){setQuote({credits:count*(props.creditsPerImage??1),recipeVersion:RECIPE_VERSION});return;}const controller=new AbortController();setQuote(null);setQuoteBusy(true);api<{credits:number;recipeVersion:string}>("/api/jobs/quote",{method:"POST",json:{productId:prep.product.id,recipeId:chosen.id,count},signal:controller.signal}).then(setQuote).catch(e=>{if(!controller.signal.aborted)setError(e.message);}).finally(()=>{if(!controller.signal.aborted)setQuoteBusy(false);});return()=>controller.abort();},[step,prep,chosen,issue,count,props.fixture,props.creditsPerImage]);
+ async function upload(files:File[]){if(locked.current||disabled||!files.length)return;const file=files[0],problem=checkPhoto(file);if(problem){setError(problem);return;}locked.current=true;setError(null);setStep("product");setBusy("Preparing photo");if(objectUrl.current)URL.revokeObjectURL(objectUrl.current);objectUrl.current=URL.createObjectURL(file);setPhoto(objectUrl.current);setPrep(null);setProfile(null);setLookId(null);productId.current=null;accepted.current=null;key.current=newKey();
+  try{const small=await shrinkPhoto(file);setBusy("Uploading photo");const [storageKey]=await uploadFiles([small]);const p=await api<{productId:string}>("/api/products",{method:"POST",json:{name:"New product",category:"other",locks:[],uploads:[{key:storageKey,viewType:"front"}]}});productId.current=p.productId;await readProduct(p.productId);}catch(e){setError(e instanceof Error?e.message:"Upload failed. Your photo is still here; try again.");}finally{setBusy(null);locked.current=false;}}
+ async function addReference(files:File[]){if(!prep||!files.length||locked.current)return;const problem=checkPhoto(files[0]);if(problem){setError(problem);return;}locked.current=true;setBusy("Adding reference");try{const small=await shrinkPhoto(files[0]);const [storageKey]=await uploadFiles([small]);await api("/api/products/"+prep.product.id+"/photos",{method:"POST",json:{uploads:[{key:storageKey,viewType}]}});setPrep({...prep,references:[...references,{id:newKey(),view_type:viewType}]});setNotice("Reference added. Your product details are kept.");}catch(e){setError((e as Error).message);}finally{setBusy(null);locked.current=false;}}
+ async function confirmProduct(){if(!prep||!profile||!name.trim())return;setBusy("Saving product details");setError(null);try{if(!props.fixture)await api("/api/products/"+prep.product.id,{method:"PATCH",json:{name:name.trim(),category:industry,locks:CATEGORIES[industry].defaultLocks,shootProfile:profile}});setPrep({...prep,product:{...prep.product,name:name.trim(),category:industry,shootProfile:profile}});if(chosen?.collection!==profile.type)setLookId(null);setAllLooks(false);move("looks");}catch(e){setError((e as Error).message);}finally{setBusy(null);}}
+ async function generate(){if(!prep||!chosen||!quote||issue||locked.current||disabled)return;if(props.fixture){setNotice("Visual preview only. No credit was used.");return;}locked.current=true;setBusy("Saving your shoot");setError(null);try{const result=await api<{jobId:string}>("/api/jobs",{method:"POST",json:{productId:prep.product.id,mode:"preserve",style:chosen.scene,shootStyle:styleForLook(chosen),recipeId:chosen.id,recipeVersion:quote.recipeVersion,quotedCredits:quote.credits,output,count,customBrief:brief.trim()||null,idempotencyKey:key.current}});accepted.current=result.jobId;try{localStorage.removeItem(draftKey);}catch{}router.push("/app/jobs/"+result.jobId);router.refresh();setStep("saved");}catch(e){setError(e instanceof ClientApiError?e.message:"We couldn't confirm the request. Retry checks the same shoot without creating a duplicate.");}finally{locked.current=false;setBusy(null);}}
+ const eligible=collection?.looks.filter(l=>profile&&!lookEligibility(l,profile,references))??[];
+ const visible=(allLooks?collection?.looks:eligible.slice(0,3))??[];
+ const back=()=>move(step==="review"?"looks":step==="looks"?"product":"source");
+ const button="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 text-sm font-semibold text-white transition-colors hover:bg-accent/90 disabled:opacity-45";
+ return <div data-create-flow className="mx-auto w-full max-w-[920px] pb-24 sm:pb-12">
+  <div className="mb-6 flex items-center justify-between"><button onClick={step==="source"?()=>router.push("/app"):back} className="inline-flex min-h-11 items-center gap-2 text-sm"><ArrowLeft size={17}/>{step==="source"?"Home":"Back"}</button><span className="text-xs text-mute">{saved?"Draft saved":"New shoot"}</span><Link href="/app" className="grid size-11 place-items-center" aria-label="Save draft and close"><X size={18}/></Link></div>
+  <div className="mb-6 flex gap-1.5" role="group" aria-label="Shoot progress">{["source","product","looks","review"].map((s,i)=><span key={s} className={clsx("h-1 flex-1 rounded-full",i<=["source","product","looks","review"].indexOf(step)?"bg-ink":"bg-line")}/>)}</div>
+  {notice&&<div role="status" className="mb-5 flex items-start justify-between gap-3 rounded-xl bg-paper-2 px-4 py-3 text-sm"><span>{notice}</span><button onClick={()=>setNotice(null)} aria-label="Dismiss notice"><X size={16}/></button></div>}
+  <header className="mb-6"><p className="tracked mb-2 text-accent-ink">Your creative studio</p><h1 ref={heading} tabIndex={-1} className="text-[32px] font-semibold leading-[1.08] tracking-[-.045em] sm:text-5xl">{{source:"Start with your product.",product:"Let's get the details right.",looks:"A direction made for it.",review:"One clear plan.",saved:"Your shoot is saved."}[step]}</h1><p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">{{source:"Take a photo, choose one, or use a product you've already saved.",product:"Confirm what we understood before choosing a look.",looks:"A few considered looks for your product. Choose the one that feels right.",review:"Your product, your direction, your price. Check everything before creating.",saved:"Leave safely and return from Shoots whenever you're ready."}[step]}</p></header>
+  {error&&<div role="alert" className="mb-5 rounded-xl border border-bad/25 bg-bad/5 p-4 text-sm text-bad">{error}{productId.current&&!prep&&<button onClick={()=>readProduct(productId.current!)} className="mt-3 block min-h-11 font-semibold underline">Retry understanding · reuse uploaded photo</button>}</div>}
+  {disabled&&<p className="mb-5 text-sm text-warn">Your role can view shoots. Ask a workspace editor to create one.</p>}
+  <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden" onChange={e=>{void upload(Array.from(e.target.files??[]));e.target.value="";}}/>
+  <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={e=>{void upload(Array.from(e.target.files??[]));e.target.value="";}}/>
+  <input ref={extra} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e=>{void addReference(Array.from(e.target.files??[]));e.target.value="";}}/>
+  {step==="source"&&<><div className="grid gap-3 sm:grid-cols-2"><button disabled={disabled||!!busy} className="source-choice" onClick={()=>camera.current?.click()}><Camera size={26}/><span><strong>Take a photo</strong><small>Open your phone camera</small></span><ArrowRight size={18}/></button><button disabled={disabled||!!busy} className="source-choice" onClick={()=>input.current?.click()}><ImagePlus size={26}/><span><strong>Choose a photo</strong><small>From your library or files</small></span><ArrowRight size={18}/></button></div>{props.recentProducts.length>0&&<section className="mt-9"><h2 className="mb-4 text-lg font-semibold">Or use a saved product</h2><div className="grid gap-3 sm:grid-cols-2">{props.recentProducts.map(p=><button key={p.id} className="flex min-h-24 items-center gap-4 rounded-2xl border border-line bg-card p-3 text-left" onClick={()=>readProduct(p.id)} disabled={!!busy}>{p.coverUrl&&<img src={p.coverUrl} alt="" className="size-16 rounded-xl object-cover"/>}<span className="flex-1"><strong className="block text-sm">{p.name}</strong><small className="text-mute">Reuse photos and details</small></span><ArrowRight size={16}/></button>)}</div><Link href="/app/products" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Browse all products</Link></section>}</>}
+  {step==="product"&&<div className="grid items-start gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><section>{photo&&<div className="overflow-hidden rounded-2xl bg-paper-2"><img src={photo} alt="Your product reference" className="aspect-square w-full object-contain"/></div>}<button disabled={!!busy||disabled} onClick={()=>input.current?.click()} className="mt-2 min-h-11 text-sm underline underline-offset-4">Replace photo</button>{busy&&<p role="status" className="mt-2 flex items-center gap-2 text-sm"><Loader2 size={16} className="animate-spin"/>{busy}…</p>}</section>{prep&&<section className="space-y-5"><div className="rounded-2xl border border-line bg-card p-5"><label className="text-xs font-medium text-mute" htmlFor="product-name">Product name</label><input id="product-name" className="mt-1 w-full border-0 bg-transparent py-2 text-lg font-semibold outline-none focus:ring-2 focus:ring-accent" value={name} onChange={e=>setName(e.target.value)} maxLength={120}/>{prep.analysis?<><p className="mt-2 text-sm text-ink-2">{[prep.analysis.materials.slice(0,2).join(" · "),prep.analysis.brand?prep.analysis.brand+" branding":""].filter(Boolean).join(" · ")||prep.analysis.description}</p><p className="mt-3 text-xs leading-relaxed text-mute">{prep.analysis.usage_confidence==="observed"?prep.analysis.use_case:"Use, dimensions and hidden details need your confirmation."}</p></>:<p className="mt-3 text-sm text-warn">We could not confidently read this product. Confirm its details below; no generation has started.</p>}</div>
+   <label className="block text-sm font-medium">Industry<select className="studio-input" value={industry} onChange={e=>{setIndustry(e.target.value as CategoryId);setProfile(null);setLookId(null);}}>{Object.values(CATEGORIES).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+   <label className="block text-sm font-medium">Product type<select className="studio-input" value={profile?.type??""} onChange={e=>{setProfile(profileDefault(e.target.value as CollectionId));setLookId(null);}}><option value="" disabled>Choose the closest product type</option>{PRODUCT_COLLECTIONS.filter(c=>c.category===industry).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>{industry==="other"&&<p className="text-sm text-mute">Choose the closest supported industry to see relevant directions.</p>}
+   {industry==="fashion"&&profile&&<><label className="block text-sm font-medium">Construction<select className="studio-input" value={profile.construction} onChange={e=>setProfile({...profile,construction:e.target.value as ShootProfile["construction"]})}><option value="unknown">Not yet confirmed</option><option value="stitched">Finished / stitched</option><option value="unstitched">Unstitched fabric</option><option value="semi_stitched">Semi-stitched</option><option value="not_applicable">Footwear or accessory</option></select></label><label className="block text-sm font-medium">Your reference shows<select className="studio-input" value={profile.referenceForm} onChange={e=>setProfile({...profile,referenceForm:e.target.value as ShootProfile["referenceForm"]})}><option value="unknown">Choose reference type</option><option value="worn">The garment already being worn</option><option value="flat">Flat fabric / garment</option><option value="object">A bag, shoe or other accessory</option></select></label></>}
+   <details className="rounded-xl border border-line p-4"><summary className="cursor-pointer text-sm font-medium">References & product details</summary><p className="mt-3 text-xs leading-relaxed text-mute">{collection?.references??"Add a clear front view and useful detail."}</p><p className="my-3 text-xs text-mute">{references.length} reference photo{references.length===1?"":"s"} saved</p><label className="text-xs">Next reference<select className="studio-input" value={viewType} onChange={e=>setViewType(e.target.value)}><option value="angle">Another angle</option><option value="back">Back view</option><option value="detail">Sharp detail / actual contents</option></select></label><button className="mt-2 min-h-11 text-sm font-medium underline" disabled={!!busy||references.length>=5} onClick={()=>extra.current?.click()}>Add reference photo</button>{profile&&["beauty","food"].includes(industry)&&<label className="mt-3 flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 size-4" checked={!!profile.contentsConfirmed} onChange={e=>setProfile({...profile,contentsConfirmed:e.target.checked})}/>My references show the actual contents, shade or application used in the shoot.</label>}</details>
+  </section>}</div>}
+  {step==="looks"&&collection&&profile&&<><div className="mb-5 flex items-center justify-between gap-3"><span className="text-sm font-medium">{collection.label}</span><button onClick={()=>move("product")} className="min-h-11 text-sm underline underline-offset-4">Product details</button></div><div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-5">{visible.map(l=>{const gate=lookEligibility(l,profile,references);return <button key={l.id} type="button" aria-pressed={lookId===l.id} className="text-left" onClick={()=>{if(gate){setError(gate);return;}setLookId(l.id);setError(null);}}><div className={clsx("relative aspect-square overflow-hidden rounded-2xl bg-paper-2 ring-offset-4 ring-offset-paper",lookId===l.id&&"ring-2 ring-ink")}><div role="img" aria-label={l.title+": "+l.brief} className="size-full" style={{backgroundImage:'url("'+l.atlas+'")',backgroundSize:"300% 200%",backgroundPosition:["0% 0%","50% 0%","100% 0%","0% 100%","50% 100%"][l.tile]}}/>{lookId===l.id&&<span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-white text-ink"><Check size={16}/></span>}{gate&&<span className="absolute inset-x-0 bottom-0 bg-black/65 px-2 py-2 text-[11px] text-white">Needs another reference</span>}</div><strong className="mt-3 block text-sm font-semibold">{l.title}</strong><small className="mt-1 block text-xs text-mute">{l.subtitle}</small></button>;})}</div>{eligible.length===0&&<div className="rounded-2xl border border-line p-5"><p className="text-sm">Add the references needed for this collection, or choose another product type.</p><button className="mt-3 min-h-11 font-medium underline" onClick={()=>move("product")}>Check product references</button></div>}<button onClick={()=>setAllLooks(!allLooks)} className="mt-5 min-h-11 text-sm font-medium underline underline-offset-4">{allLooks?"Show recommendations":"More looks for this product"}</button><p className="mt-2 text-xs leading-relaxed text-mute">Illustrative style references; adult models shown are synthetic. Browsing starts no image generation.</p>{chosen&&<p className="mt-4 text-sm leading-relaxed text-ink-2">{chosen.brief.split(" Eligibility:")[0]}</p>}</>}
+  {step==="review"&&chosen&&prep&&<div className="max-w-xl space-y-5"><button onClick={()=>move("product")} className="flex w-full items-center gap-4 rounded-2xl border border-line bg-card p-4 text-left">{photo&&<img src={photo} alt="Your reference" className="size-16 rounded-xl object-contain"/>}<span className="flex-1"><strong className="block text-sm">{name}</strong><small className="text-mute">{collection?.label}</small></span><span className="text-xs underline">Edit</span></button><button onClick={()=>move("looks")} className="flex min-h-12 w-full justify-between border-b border-line py-3 text-sm"><span>Direction</span><strong>{chosen.title} →</strong></button><fieldset><legend className="text-sm font-semibold">Image shape</legend><div className="mt-3 grid grid-cols-3 gap-2">{([['square','Square','1:1'],['portrait','Portrait','4:5'],['story','Story','9:16']] as const).map(([id,label,ratio])=><button key={id} type="button" aria-pressed={output===id} onClick={()=>setOutput(id)} className={clsx("min-h-16 rounded-xl border text-sm",output===id?"border-ink bg-ink text-paper":"border-line bg-card")}><strong className="block">{label}</strong><small>{ratio}</small></button>)}</div></fieldset><div className="flex items-center justify-between"><span className="text-sm font-semibold">Photos</span><div className="flex items-center gap-4"><button className="grid size-11 place-items-center rounded-full border border-line" aria-label="Fewer photos" disabled={count<=1} onClick={()=>setCount(count-1)}><Minus size={16}/></button><span>{count}</span><button className="grid size-11 place-items-center rounded-full border border-line" aria-label="More photos" disabled={count>=maxCount} onClick={()=>setCount(count+1)}><Plus size={16}/></button></div></div><details className="border-t border-line pt-4"><summary className="cursor-pointer text-sm">Add a creative note</summary><label className="sr-only" htmlFor="creative-note">Creative note</label><textarea id="creative-note" className="studio-input mt-3 min-h-24" value={brief} maxLength={600} onChange={e=>setBrief(e.target.value)} placeholder="Optional. Product design and selected direction stay protected."/></details><div className="rounded-2xl bg-paper-2 p-5"><div className="flex justify-between text-sm"><span>Total</span><strong>{quoteBusy?"Checking price…":quote?quote.credits+" credit"+(quote.credits===1?"":"s"):"Price unavailable"}</strong></div><p className="mt-3 text-xs leading-relaxed text-mute">No automatic preview charge. Failed images release their reserved credits. {props.isTrial?"Trial images have no watermark.":""}</p></div>{quote&&quote.credits>props.balance&&<p className="text-sm text-warn">You need {quote.credits-props.balance} more credits. Your draft stays saved. <Link className="underline" href="/app/wallet?returnTo=%2Fapp%2Fnew">Get credits</Link></p>}</div>}
+  {step==="saved"&&accepted.current&&<Link className={button} href={"/app/jobs/"+accepted.current}>Open saved shoot <ArrowRight size={16}/></Link>}
+  {step!=="source"&&step!=="saved"&&<div className="shoot-action-bar"><div className="mx-auto flex w-full max-w-[920px] items-center justify-end gap-4">{busy&&<span role="status" className="mr-auto flex items-center gap-2 text-xs text-mute"><Loader2 size={15} className="animate-spin"/>{busy}…</span>}{step==="product"&&<button className={button} disabled={!prep||!profile||!name.trim()||!!busy||disabled} onClick={confirmProduct}>Choose a look <ArrowRight size={17}/></button>}{step==="looks"&&<button className={button} disabled={!chosen||!!issue||!!busy||disabled} onClick={()=>move("review")}>Continue{chosen?" with "+chosen.title:""} <ArrowRight size={17}/></button>}{step==="review"&&<button className={button} disabled={!quote||quoteBusy||!!busy||!!issue||disabled||quote.credits>props.balance} onClick={generate}>{busy?"Saving…":quote?"Create "+count+" photo"+(count===1?"":"s")+" · "+quote.credits+" credit"+(quote.credits===1?"":"s"):"Check price before creating"}</button>}</div></div>}
+ </div>;
 }

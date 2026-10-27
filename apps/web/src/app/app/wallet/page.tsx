@@ -31,7 +31,8 @@ export default async function Wallet({ searchParams }: { searchParams: Promise<{
   return (
     <div>
       <PageHeader eyebrow="Pay as you go" title="Credits">One credit makes one delivered image. No subscription. Paid credits last 12 months.</PageHeader>
-      {sp.paid && <Notice tone="good" className="mb-6">Payment received. Your credits are ready to use.</Notice>}
+      {sp.paid && <Notice tone="good" className="mb-6">Check the balance and history below for your payment status.</Notice>}
+      <Link href="/app/new" className="mb-6 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">Continue your saved shoot →</Link>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Available" value={wallet.available} accent />
         <Stat label="Paid" value={wallet.paidAvailable} sub={wallet.promoAvailable ? `+${wallet.promoAvailable} free/bonus` : undefined} />

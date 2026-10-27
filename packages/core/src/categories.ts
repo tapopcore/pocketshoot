@@ -152,6 +152,7 @@ export const CATEGORIES: Record<CategoryId, Category> = {
     difficulty: "standard",
     preserve: [
       "Stitching, hardware (buckles, zips, clasps) and logos keep their exact design and position.",
+      "Garment print registration, motif scale, embroidery placement, border and pallu layout, necklines, sleeve cut, seams, hems, panels and included set pieces are immutable product identity. Never invent a finished design from unstitched or semi-stitched material.",
       "Fabric or leather texture, weave and colour match the reference.",
       "Prints and patterns keep their exact layout; do not invent new patterns.",
     ],

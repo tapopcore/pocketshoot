@@ -1,12 +1,12 @@
 import { requireWeb } from "@/lib/auth";
-import { getWallet } from "@/lib/credits";
+import { walletSummary } from "@/lib/credits";
 import { AppShell } from "@/components/app-shell";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireWeb();
-  const wallet = await getWallet(ctx.orgId);
+  const wallet = await walletSummary(ctx.orgId);
   return (
     <AppShell
       locale={ctx.locale}

@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { after } from "next/server";
-import { CATEGORIES, LOCKS, OUTPUTS, STYLES, SHOOT_STYLE_IDS, shootRecipe, isFreeRemake, isCategoryId, type LockId, type ShootStyleId } from "@packshot/core";
+import { CATEGORIES, LOCKS, OUTPUTS, STYLES, SHOOT_STYLE_IDS, shootRecipe, isFreeRemake, isCategoryId, COLLECTION_IDS, RECIPE_VERSION, categoryLook, collectionById, lookEligibility, type ShootProfile, type LockId, type ShootStyleId } from "@packshot/core";
 import { admin } from "./supabase";
 import { getFlag, getSettings } from "./settings";
 import { isTrialOrg } from "./credits";
@@ -21,6 +21,9 @@ export const createJobSchema = z.object({
   /** AI campaign ideas picked in the studio: each becomes its own shot. */
   ideas: z.array(z.object({ title: z.string().max(60), description: z.string().max(300), human_presence: z.enum(["none", "hands", "model"]).default("none"), base_scene: z.string().refine((s) => s in STYLES) })).max(4).nullish(),
   shootStyle: z.enum(SHOOT_STYLE_IDS).nullish(),
+  recipeId: z.string().max(80).nullish(),
+  recipeVersion: z.string().max(80).nullish(),
+  quotedCredits: z.number().int().positive().nullish(),
   output: z.string().refine((s) => s in OUTPUTS, "Unknown output size"),
   count: z.number().int().min(1).max(20),
   customBrief: z.string().max(600).nullish(),
@@ -35,6 +38,7 @@ export const productSchema = z.object({
   sku: z.string().trim().max(80).nullish(),
   locks: z.array(z.string().refine((l) => l in LOCKS)).max(10).default([]),
   mustNotChange: z.string().trim().max(400).nullish(),
+  shootProfile: z.object({ type: z.enum(COLLECTION_IDS), construction: z.enum(["stitched", "unstitched", "semi_stitched", "not_applicable", "unknown"]), referenceForm: z.enum(["worn", "flat", "object", "unknown"]), contentsConfirmed: z.boolean().optional() }).optional(),
 });
 
 export interface JobOptions {
@@ -61,12 +65,23 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   const { data: existing } = await db.from("generation_jobs").select("id,status").eq("organization_id", ctx.orgId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (existing) return { jobId: existing.id, duplicate: true };
 
-  const { data: product } = await db.from("products").select("id, name, category, locks, must_not_change, archived_at").eq("id", input.productId).eq("organization_id", ctx.orgId).maybeSingle();
+  const { data: product } = await db.from("products").select("id, name, category, locks, must_not_change, archived_at, attributes").eq("id", input.productId).eq("organization_id", ctx.orgId).maybeSingle();
   if (!product || product.archived_at) throw new ApiError(404, "Product not found");
   const { count: assetCount } = await db.from("product_assets").select("id", { count: "exact", head: true }).eq("product_id", product.id);
   if (!assetCount) throw new ApiError(400, "Add at least one photo of the product first");
 
-  const chosenLook = input.shootStyle ? shootRecipe(input.shootStyle, isCategoryId(product.category) ? product.category : "other") : null;
+  const recipe = input.recipeId ? categoryLook(input.recipeId) : null;
+  if (input.recipeId) {
+    if (!recipe || input.recipeVersion !== RECIPE_VERSION) throw new ApiError(409, "The shoot collection has changed. Please choose your look again.", "recipe_changed");
+    const profile = (product.attributes as { shootProfile?: ShootProfile } | null)?.shootProfile;
+    if (!profile || collectionById(profile.type)?.category !== product.category) throw new ApiError(400, "Confirm the product type before choosing a look.");
+    const { data: views } = await db.from("product_assets").select("view_type").eq("product_id", product.id);
+    const issue = lookEligibility(recipe, profile, views ?? []);
+    if (issue) throw new ApiError(400, issue, "reference_required");
+    if (input.quotedCredits !== input.count * policy.creditsPerImage) throw new ApiError(409, "The price changed. Review the new total before creating.", "quote_changed");
+  }
+
+  const chosenLook = recipe ? { ...recipe, brief: recipe.brief + " Product details that must not change: " + collectionById(recipe.collection)!.preserve } : input.shootStyle ? shootRecipe(input.shootStyle, isCategoryId(product.category) ? product.category : "other") : null;
   let palette: string[] = [];
   if (input.brandKitId) {
     const { data: kit } = await db.from("brand_kits").select("palette").eq("id", input.brandKitId).eq("organization_id", ctx.orgId).maybeSingle();
@@ -88,7 +103,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
       output: input.output,
       requested_count: input.count,
       custom_brief: input.customBrief ?? null,
-      settings: { palette, shootStyle: input.shootStyle ?? null, brandKitId: input.brandKitId ?? null, category: product.category, styles: chosenLook ? [chosenLook.scene] : input.styles ?? [input.style], ...(opts.edit ? { edit: opts.edit } : {}) },
+      settings: { palette, shootStyle: input.shootStyle ?? null, recipeId: recipe?.id ?? null, recipeVersion: recipe ? RECIPE_VERSION : null, recipe: recipe ? chosenLook : null, creditsPerImage: policy.creditsPerImage, brandKitId: input.brandKitId ?? null, category: product.category, styles: chosenLook ? [chosenLook.scene] : input.styles ?? [input.style], ...(opts.edit ? { edit: opts.edit } : {}) },
       idempotency_key: input.idempotencyKey,
       is_trial: isTrial,
       parent_asset_id: opts.parentAssetId ?? null,
@@ -111,7 +126,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   ];
   await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => {
     const slot = slots[idx % slots.length];
-    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: slot.params };
+    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: slot.params, ...(recipe ? { max_attempts: 1 } : {}) };
   }));
 
   if (!opts.freeRemake && !opts.internal) {
@@ -156,14 +171,17 @@ export async function remakeAsset(ctx: AuthContext, assetId: string, idempotency
   const free = isFreeRemake(asset.remakes_used, asset.delivered_at, policy);
   const res = await createJob(
     ctx,
-    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style: itemStyle, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, idempotencyKey },
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style: itemStyle, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, ...(await inheritedRecipe(job)), idempotencyKey },
     { parentAssetId: asset.id, freeRemake: free },
   );
   if (!res.duplicate) await db.from("generated_assets").update({ remakes_used: asset.remakes_used + 1 }).eq("id", asset.id);
   return { ...res, free };
 }
 
-interface ParentJob { mode: "preserve" | "creative"; style: string; output: string; custom_brief: string | null; project_id: string | null; settings: { brandKitId?: string; shootStyle?: ShootStyleId } }
+interface ParentJob { mode: "preserve" | "creative"; style: string; output: string; custom_brief: string | null; project_id: string | null; settings: { brandKitId?: string; shootStyle?: ShootStyleId; recipeId?:string; recipeVersion?:string } }
+async function inheritedRecipe(job: ParentJob) {
+  return job.settings?.recipeId ? { recipeId:job.settings.recipeId, recipeVersion:job.settings.recipeVersion, quotedCredits:(await getSettings()).credit_policy.creditsPerImage } : {};
+}
 
 async function parentOf(ctx: AuthContext, assetId: string) {
   const { data: asset } = await admin()
@@ -184,7 +202,7 @@ export async function editAsset(ctx: AuthContext, assetId: string, instruction: 
   if (text.length < 3) throw new ApiError(400, "Describe the change you want");
   return createJob(
     ctx,
-    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output: job.output, count: 1, customBrief: text.slice(0, 500), brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, idempotencyKey },
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output: job.output, count: 1, customBrief: text.slice(0, 500), brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, ...(await inheritedRecipe(job)), idempotencyKey },
     { parentAssetId: asset.id, edit: { assetId: asset.id, instruction: text.slice(0, 500) } },
   );
 }
@@ -195,7 +213,7 @@ export async function resizeAsset(ctx: AuthContext, assetId: string, output: str
   if (!(output in OUTPUTS)) throw new ApiError(400, "Unknown size");
   return createJob(
     ctx,
-    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, idempotencyKey },
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, ...(await inheritedRecipe(job)), idempotencyKey },
     { parentAssetId: asset.id },
   );
 }

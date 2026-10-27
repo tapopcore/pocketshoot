@@ -122,8 +122,8 @@ export function buildEditPrompt(instruction: string, productName: string, analys
 
 /** Prompt for the vision model that screens results. Returns strict JSON. */
 export const FIDELITY_JUDGE_PROMPT = `You are a strict quality checker for e-commerce product photos.
-Image 1 is the ORIGINAL product photo. Image 2 is the generated RESULT.
+All images except the LAST are ORIGINAL product references. The LAST image is the generated RESULT. Inspect every reference that is relevant to the visible result.
 Compare only the product itself (ignore background, props and lighting style) and also judge whether the result looks like a real photograph.
 Answer only with JSON:
-{"same_product": boolean, "text_changed": boolean, "logo_changed": boolean, "colour_changed": boolean, "shape_changed": boolean, "extra_or_missing_items": boolean, "artefacts": boolean, "notes": string}
-Rules: any misspelt, missing, blurred-into-gibberish or invented printed text counts as text_changed. A second copy of the product or a missing part counts as extra_or_missing_items. Floating products without shadow, melted shapes or obvious AI glitches count as artefacts. "notes": one short sentence for the customer.`;
+{"same_product": boolean, "text_changed": boolean, "logo_changed": boolean, "design_changed": boolean, "colour_changed": boolean, "shape_changed": boolean, "extra_or_missing_items": boolean, "artefacts": boolean, "notes": string}
+Rules: any misspelt, missing, blurred-into-gibberish or invented printed text counts as text_changed. Changed fabric print, motif registration, embroidery, zari/border/pallu layout, weave, opacity or gemstone setting counts as design_changed. Changed necklines, sleeves, seams, panels, hem, closures, attachment or included components count as shape_changed. Never infer a correct hidden design without a supporting reference: uncertainty about a critical visible identity detail counts as artefacts. A second copy of the product or a missing part counts as extra_or_missing_items. Floating products without shadow, melted shapes or obvious AI glitches count as artefacts. Ordinary perspective and physically plausible folds may change; garment design cannot. "notes": one short sentence for the customer.`;

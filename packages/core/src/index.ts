@@ -12,3 +12,5 @@ export * from "./i18n";
 export const APP_DEFAULT_NAME = "PocketShoot";
 
 export * from "./shoots";
+
+export * from "./product-looks";
