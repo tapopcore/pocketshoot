@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserRound } from "lucide-react";
 import { t, type Locale, type MessageKey } from "@packshot/core";
 import { NavLinks } from "./nav-links";
 import { Toaster } from "./toaster";
@@ -43,7 +44,10 @@ function Mark() {
 }
 
 export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatform, children }: ShellProps) {
-  const items = NAV.map((n) => ({ ...n, label: n.href === "/app" ? "Studio" : t(locale, n.key) }));
+  const items = [
+    ...NAV.map((n) => ({ ...n, label: n.href === "/app" ? "Studio" : t(locale, n.key) })),
+    { href: "/app/account", label: "Account", icon: "user", mobile: true },
+  ];
   return (
     <div className="darkroom min-h-dvh lg:grid lg:grid-cols-[236px_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line px-3 py-5 lg:flex">
@@ -70,14 +74,21 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
         </form>
       </aside>
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-paper/85 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <Link href="/app"><Mark /></Link>
-        <Link href="/app/wallet" className="rounded-full border border-line bg-card px-3 py-1.5 text-sm"><b className="tabular-nums">{credits}</b> <span className="text-mute">{t(locale, "common.credits")}</span></Link>
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-line bg-paper/90 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <Link href="/app" aria-label="Pocket Shoot Studio" className="min-w-0 shrink"><Mark /></Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href="/app/wallet" className="rounded-full border border-line bg-card px-3 py-2 text-xs font-medium" aria-label={`${credits} credits available; open wallet`}>
+            <b className="tabular-nums">{credits}</b> <span className="text-mute">credits</span>
+          </Link>
+          <Link href="/app/account" aria-label="Account, workspace and sign out" title="Account" className="grid size-10 place-items-center rounded-full border border-line bg-card transition-colors hover:border-accent">
+            <UserRound size={19} aria-hidden="true" />
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-[1440px] px-4 pb-28 pt-5 sm:px-8 lg:pb-12 lg:pt-7">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Main">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Main">
         <NavLinks items={items.filter((i) => i.mobile)} compact />
       </nav>
       <Toaster />
