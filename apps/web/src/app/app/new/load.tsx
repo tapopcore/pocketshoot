@@ -1,5 +1,5 @@
-import { clientIp, requireWeb } from "@/lib/auth";
-import { getWallet, grantTrialIfEligible, isTrialOrg } from "@/lib/credits";
+import { requireWeb } from "@/lib/auth";
+import { walletSummary, isTrialOrg } from "@/lib/credits";
 import { getFlag, getSettings } from "@/lib/settings";
 import { admin } from "@/lib/supabase";
 import { productList, recentJobs } from "@/lib/views";
@@ -9,9 +9,8 @@ import { Studio } from "./studio";
 /** The studio is the home of the app: /app and /app/new both render it. */
 export async function StudioPage({ productId, denied, industry, look }: { productId?: string; denied?: boolean; industry?: string; look?: string }) {
   const ctx = await requireWeb();
-  const granted = await grantTrialIfEligible(ctx, await clientIp());
   const [wallet, trial, creative, settings, { data: kits }, recent, jobs] = await Promise.all([
-    getWallet(ctx.orgId),
+    walletSummary(ctx.orgId),
     isTrialOrg(ctx.orgId),
     getFlag("creative_mode", ctx.orgId),
     getSettings(),
@@ -19,11 +18,18 @@ export async function StudioPage({ productId, denied, industry, look }: { produc
     productList(ctx.orgId, { limit: 12 }),
     recentJobs(ctx.orgId, 10),
   ]);
-  const existing = productId ? recent.products.find((p) => p.id === productId) ?? (await productList(ctx.orgId, { limit: 200 })).products.find((p) => p.id === productId) : null;
-  const toLite = (p: (typeof recent.products)[number]) => ({ id: p.id, name: p.name, category: categoryOrOther(p.category), coverUrl: p.coverUrl });
+  const existing = productId ? recent.products.find((p) => p.id === productId) ?? await (async () => {
+    const { data: p } = await admin().from("products").select("id,name,category,product_assets(storage_key,view_type)").eq("id", productId).eq("organization_id", ctx.orgId).is("archived_at", null).maybeSingle();
+    if (!p) return null;
+    const cover = p.product_assets.find((r: {view_type:string}) => r.view_type === "front") ?? p.product_assets[0];
+    const { signedUrl } = await import("@/lib/storage");
+    return { id:p.id, name:p.name, category:p.category, coverUrl:cover ? await signedUrl("originals",cover.storage_key,3600) : null };
+  })() : null;
+  const toLite = (p: {id:string;name:string;category:string;coverUrl:string|null}) => ({ id: p.id, name: p.name, category: categoryOrOther(p.category), coverUrl: p.coverUrl });
   return (
     <Studio
       key={productId ?? "new"}
+      draftScope={ctx.orgId}
       locale={ctx.locale}
       balance={wallet.available}
       isTrial={trial}
@@ -36,7 +42,7 @@ export async function StudioPage({ productId, denied, industry, look }: { produc
       creditsPerImage={settings.credit_policy.creditsPerImage}
       recentProducts={recent.products.filter((p) => p.photoCount > 0).map(toLite)}
       recentJobs={jobs}
-      notice={denied ? "You don't have permission for that page. Ask a workspace admin." : granted > 0 ? `${granted} free credits added.` : null}
+      notice={denied ? "You don't have permission for that page. Ask a workspace admin." : null}
       canEdit={ctx.role !== "viewer"}
     />
   );

@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { CATEGORIES, isCategoryId, type CategoryId } from "@packshot/core";
+import { CATEGORIES, isCategoryId, collectionById, type CategoryId } from "@packshot/core";
 import { admin } from "./supabase";
 import { getObject, putObject, removeObjects, signedUpload } from "./storage";
 import { normalizeUpload, ImageRejected } from "./images";
@@ -100,6 +100,12 @@ export async function addProductPhotos(ctx: AuthContext, productId: string, uplo
 export async function updateProduct(ctx: AuthContext, productId: string, input: Partial<z.infer<typeof productSchema>> & { archived?: boolean }) {
   assertRole(ctx, "editor");
   const patch: Record<string, unknown> = {};
+  if (input.shootProfile) {
+    const { data: current } = await admin().from("products").select("attributes, category").eq("id", productId).eq("organization_id", ctx.orgId).maybeSingle();
+    if (!current) throw new ApiError(404, "Product not found");
+    if (collectionById(input.shootProfile.type)?.category !== (input.category ?? current.category)) throw new ApiError(400, "Choose a product type in this industry.");
+    patch.attributes = { ...(current.attributes ?? {}), shootProfile: input.shootProfile };
+  }
   if (input.name !== undefined) patch.name = input.name;
   if (input.category !== undefined) patch.category = input.category;
   if (input.sku !== undefined) patch.sku = input.sku;

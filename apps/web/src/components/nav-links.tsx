@@ -11,12 +11,12 @@ export function NavLinks({ items, compact }: { items: { href: string; label: str
   return (
     <>
       {items.map((i) => {
-        const active = i.href === "/app" ? path === "/app" || path.startsWith("/app/new") || path.startsWith("/app/jobs") : i.href === "/admin" ? path === i.href : path.startsWith(i.href);
+        const active = i.href === "/app" ? path === "/app" : i.href === "/app/shoots" ? path.startsWith("/app/shoots") || path.startsWith("/app/jobs") : i.href === "/admin" ? path === i.href : path.startsWith(i.href);
         const Icon = ICONS[i.icon as keyof typeof ICONS] ?? Home;
         if (compact) {
           return (
             <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium", active ? "text-ink" : "text-mute")}>
-              <Icon size={20} strokeWidth={active ? 2.2 : 1.7} className={clsx(active && i.icon === "aperture" && "text-accent")} />
+              <span className={clsx("grid size-7 place-items-center",i.icon === "plus" && "rounded-full bg-accent text-white")}><Icon size={20} strokeWidth={active ? 2.2 : 1.7} /></span>
               <span className="truncate">{i.label}</span>
             </Link>
           );

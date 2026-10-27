@@ -4,6 +4,14 @@ import { getSettings } from "./settings";
 import { sha256 } from "./crypto";
 import { track } from "./observe";
 import type { AuthContext } from "./auth";
+import { cache } from "react";
+
+/** Request-scoped summary: navigation never loads the transaction lots. */
+export const walletSummary = cache(async (orgId: string) => {
+  const { data, error } = await admin().from("wallet_balances").select("available, reserved, consumed").eq("organization_id", orgId).single();
+  if (error || !data) throw new Error("Wallet not found");
+  return data as { available: number; reserved: number; consumed: number };
+});
 
 export interface WalletView {
   walletId: string;
@@ -59,6 +67,8 @@ export async function grantTrialIfEligible(ctx: AuthContext, ip: string): Promis
   if (DISPOSABLE.some((d) => email.endsWith("@" + d))) return 0;
   const db = admin();
   const ipHash = sha256(`trial:${ip}`);
+  const { data: prior } = await db.from("trial_grants").select("id").eq("email_normalized", email).maybeSingle();
+  if (prior) return 0;
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const { count } = await db.from("trial_grants").select("id", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", since);
   if ((count ?? 0) >= 3) {

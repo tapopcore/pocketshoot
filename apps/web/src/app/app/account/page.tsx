@@ -51,6 +51,16 @@ export default async function AccountPage() {
         </Link>
       </div>
 
+      <section className="mt-7 rounded-2xl border border-line bg-card p-5" aria-label="Workspace tools">
+        <h2 className="text-lg font-semibold">Workspace tools</h2>
+        <div className="mt-3 divide-y divide-line">{[
+          ["/app/library", "Image library"], ["/app/brand", "Brand preferences"], ["/app/projects", "Projects"],
+          ...(ctx.role !== "viewer" ? [["/app/batch", "Batch shoots"]] : []),
+          ...(["owner","admin"].includes(ctx.role) ? [["/app/team", "Workspace & team"]] : []),
+          ["/app/support", "Help & support"],
+        ].map(([href,label]) => <Link key={href} href={href} className="flex min-h-12 items-center justify-between gap-3 py-3 text-sm"><span>{label}</span><ArrowRight size={16}/></Link>)}</div>
+      </section>
+
       <div className="mt-7 rounded-3xl border border-line bg-card p-5 sm:p-7">
         <div className="flex items-center gap-2"><UserRound size={18} aria-hidden="true" /><h2 className="text-lg font-semibold">Not the right account?</h2></div>
         <p className="mt-2 text-sm leading-relaxed text-mute">Sign out and use the email address that owns your Pocket Shoot workspace. This will not delete your photos or credits.</p>

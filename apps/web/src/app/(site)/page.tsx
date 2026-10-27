@@ -27,16 +27,16 @@ export default async function Home() {
     </section>
     <section id="styles" className="scroll-mt-24 border-y border-line bg-card">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
-        <div className="mb-8 flex items-end justify-between gap-5"><div><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">Choose a point of view</p><h2 className="text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">One product.<br /><span className="serif-i font-normal">A whole world of possibilities.</span></h2></div><span className="hidden pb-1 text-xs text-mute sm:block">06 photographic styles</span></div>
+        <div className="mb-8"><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">Made for what you sell</p><h2 className="text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">The right direction.<br /><span className="serif-i font-normal">For your kind of product.</span></h2></div>
         <StyleGallery />
       </div>
     </section>
     <section className="mx-auto max-w-7xl px-4 py-14 sm:px-8 sm:py-20">
       <div className="mb-9"><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">A little input. A clear direction.</p><h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">You bring the product.<br />We direct the scene.</h2></div>
       <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4">{[
-        ["01", "Your industry", "A serum is not a sneaker. Start with what you sell."],
-        ["02", "Your style", "See a real visual example. Choose one look."],
-        ["03", "Your photo", "Upload a clear reference. We study its visible details."],
+        ["01", "Your photo", "Take or choose a clear photo. Keep it visible as we understand it."],
+        ["02", "Your product", "Confirm its type, visible details and useful references."],
+        ["03", "Your direction", "Choose from photographic looks compatible with your product."],
         ["04", "Your shoot", "Check the credit cost, create, review and download."],
       ].map(([n,t,d]) => <div key={n} className="border-t border-ink/20 pt-4"><span className="font-mono text-xs text-accent-ink">{n}</span><h3 className="mt-3 text-lg font-semibold">{t}</h3><p className="mt-2 text-sm leading-relaxed text-ink-2">{d}</p></div>)}</div>
     </section>
@@ -59,7 +59,7 @@ export default async function Home() {
     <section className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-8 sm:py-20 md:grid-cols-[0.8fr_1.2fr]">
       <h2 className="text-3xl font-semibold tracking-tight">A few good questions.</h2>
       <div>{[
-        ["Do I need to write prompts?", "No. Choose your industry and a photographic style. You can add a short note if you have something specific in mind."],
+        ["Do I need to write prompts?", "No. Start with a product photo and choose a compatible visual direction. A creative note is optional."],
         ["Are the style images my final result?", "They are reusable AI-created examples that explain each look. Your own image is generated from your product photo after you press Create."],
         ["Can the product details change?", "AI can change fine details. We run automatic checks, and you should review labels, logos, jewellery settings and human interactions before publishing."],
         ["When do I spend credits?", "You see the total before pressing Create. Credits are reserved for the shoot and captured for delivered images. See the pricing and refunds pages for the full policy."],

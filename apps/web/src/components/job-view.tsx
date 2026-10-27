@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import {
@@ -26,11 +27,12 @@ interface JobData {
 
 const STAGE: Record<string, string[]> = {
   queued: ["In the queue"],
-  preparing: ["Studying your product", "Directing the shot"],
-  generating: ["Building the set", "Lighting the scene", "Placing your product"],
-  checking: ["Restoring your label detail", "Checking every letter"],
+  preparing: ["Preparing your shoot"],
+  generating: ["Creating your image"],
+  checking: ["Reviewing product details and direction"],
 };
 const REASONS: [string, string][] = [
+  ["wrong_style", "The selected style or setting is wrong"], ["unrealistic_interaction", "The person or handling looks wrong"], ["design_changed", "Fabric, embroidery or design changed"],
   ["logo_changed", "The logo changed"], ["text_changed", "Label text changed or is wrong"], ["wrong_product", "It's a different product"],
   ["missing_product", "The product is missing"], ["extra_items", "Extra or duplicate products"], ["colour_wrong", "Product colour is wrong"],
   ["shape_wrong", "Product shape is wrong"], ["corrupt_image", "Image is broken"], ["other", "Something else"],
@@ -46,23 +48,32 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   const [open, setOpen] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alive = useRef(false);
+  const request = useRef<AbortController | null>(null);
   const base = surface === "shopify" ? "/shopify" : "/app";
 
   const load = useCallback(async () => {
+    if (!alive.current) return;
+    if (timer.current) clearTimeout(timer.current);
+    if (document.hidden) { timer.current=setTimeout(load,10000); return; }
+    request.current?.abort();
+    const controller = new AbortController(); request.current=controller;
     try {
-      const d = await api<JobData>(`/api/jobs/${jobId}`);
+      const d = await api<JobData>(`/api/jobs/${jobId}`, { signal: controller.signal });
+      if (!alive.current || controller.signal.aborted) return;
       setData(d);
       setError(null);
       const done = ["completed", "review_needed", "failed", "cancelled"].includes(d.job.status);
-      if (!done) timer.current = setTimeout(load, 2000);
+      if (!done) timer.current = setTimeout(load, 5000);
     } catch (e) {
+      if (!alive.current || controller.signal.aborted) return;
       setError(e instanceof ClientApiError ? e.message : "Couldn't load this shoot.");
-      timer.current = setTimeout(load, 5000);
+      timer.current = setTimeout(load, 10000);
     }
   }, [jobId]);
 
-  useEffect(() => { load(); return () => { if (timer.current) clearTimeout(timer.current); }; }, [load]);
-  useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 2200); return () => clearInterval(t); }, []);
+  useEffect(() => { alive.current=true;void load();const visible=()=>{if(!document.hidden)void load();};document.addEventListener("visibilitychange",visible);return () => {alive.current=false;request.current?.abort();if(timer.current)clearTimeout(timer.current);document.removeEventListener("visibilitychange",visible);}; }, [load]);
+  useEffect(() => { if(!data||["completed","review_needed","failed","cancelled"].includes(data.job.status))return;const t = setInterval(() => setTick((n) => n + 1), 1000); return () => clearInterval(t); }, [data?.job.status]);
 
   const byId = useMemo(() => new Map((data?.assets ?? []).map((a) => [a.id, a])), [data]);
   if (!data) {
@@ -107,12 +118,12 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
         {active.length > 0 && (
           <div className="mt-5">
             <div className="h-1.5 overflow-hidden rounded-full bg-paper-2"><div className="h-full rounded-full bg-gradient-to-r from-[#ffc27a] via-accent to-[#ff4f7b] transition-all duration-700" style={{ width: `${Math.max(6, pct)}%` }} /></div>
-            <div className="mt-2 text-xs text-mute">{delivered.length} of {items.length} ready · about 30 to 60 seconds per image · you can leave this page</div>
+            <div role="status" className="mt-2 text-xs text-mute">{delivered.length} of {items.length} ready · {Math.max(0,Math.floor((Date.now()-new Date(job.created_at).getTime())/1000))}s elapsed · saved in Shoots; you can leave this page</div>
           </div>
         )}
       </header>
 
-      <div className={clsx("grid gap-3 sm:gap-4", output && output.width > output.height * 1.3 ? "sm:grid-cols-2" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
+      <div className={clsx("grid gap-3 sm:gap-4", items.length === 1 ? "mx-auto w-full max-w-2xl grid-cols-1" : output && output.width > output.height * 1.3 ? "sm:grid-cols-2" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
         {items.map((it, i) => {
           const a = it.delivered_asset_id ? byId.get(it.delivered_asset_id) : undefined;
           const stages = STAGE[it.status] ?? [it.status];
@@ -216,6 +227,9 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
   const [reason, setReason] = useState("text_changed");
   const [details, setDetails] = useState("");
   const [format, setFormat] = useState<"png" | "jpg" | "webp">("jpg");
+  const dialog = useRef<HTMLDialogElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
   const keys = useRef({ remake: newKey(), edit: newKey(), resize: newKey() });
   const reported = Array.isArray(asset.refund_requests) ? asset.refund_requests[0] : asset.refund_requests;
   const freeLeft = asset.remakes_used < freeRemakes && Date.now() - new Date(asset.delivered_at).getTime() < 7 * 86_400_000;
@@ -224,17 +238,24 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
   const warnings = asset.quality_checks.filter((c) => c.decision !== "pass" && c.details?.note).map((c) => String(c.details.note));
 
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const d = dialog.current;
+    d?.showModal();
+    return () => { d?.close(); previous?.focus(); };
+  }, []);
+
+  useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "Escape") onClose();
+      if (reporting) return;
       if (e.key === "ArrowRight" && pos < order.length - 1) onNavigate(order[pos + 1]);
       if (e.key === "ArrowLeft" && pos > 0) onNavigate(order[pos - 1]);
     };
     window.addEventListener("keydown", k);
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", k); document.body.style.overflow = ""; };
-  }, [onClose, onNavigate, order, pos]);
+  }, [onClose, onNavigate, order, pos, reporting]);
   useEffect(() => { setZoom(null); setView("result"); keys.current = { remake: newKey(), edit: newKey(), resize: newKey() }; }, [asset.id]);
 
   async function run<T>(label: string, fn: () => Promise<T>, ok?: (r: T) => void) {
@@ -246,9 +267,9 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
   const fileBase = productName.replace(/\W+/g, "-").toLowerCase();
   const panelBtn = "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-paper-2 disabled:opacity-40";
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0c0c0e] lg:flex-row" role="dialog" aria-modal="true" aria-label="Image viewer">
-      <div className="relative min-h-0 flex-1">
+  return createPortal(
+    <dialog ref={dialog} onCancel={e=>{e.preventDefault();if(reporting)setReporting(false);else close.current();}} className="image-viewer fixed inset-0 z-50 m-0 h-dvh max-h-none w-screen max-w-none flex-col border-0 bg-[#0c0c0e] p-0 text-ink open:flex lg:flex-row" aria-label="Image viewer">
+      <div inert={reporting} className="relative min-h-0 flex-1">
         <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between p-3">
           <div className="flex rounded-full bg-white/10 p-1 text-xs font-medium text-white backdrop-blur">
             <button type="button" onClick={() => setView("result")} className={clsx("rounded-full px-3 py-1.5", view === "result" && "bg-white text-ink")}>Result</button>
@@ -302,10 +323,10 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         {pos < order.length - 1 && <button type="button" onClick={() => onNavigate(order[pos + 1])} aria-label="Next" className="absolute right-3 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"><ChevronRight /></button>}
       </div>
 
-      <aside className="max-h-[52vh] w-full shrink-0 overflow-y-auto rounded-t-3xl bg-card p-4 lg:max-h-none lg:w-[380px] lg:rounded-none lg:p-5">
+      <aside inert={reporting} className="max-h-[52dvh] w-full shrink-0 overflow-y-auto rounded-t-3xl bg-card p-4 lg:max-h-none lg:w-[380px] lg:rounded-none lg:p-5">
         <div className="text-xs font-medium text-mute">{sceneName} · {asset.width}×{asset.height}</div>
         {exact ? (
-          <div className="mt-2 flex items-start gap-2 rounded-xl bg-good/10 px-3 py-2 text-sm text-good"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><span><b>Real product pixels.</b> Your label and logo come straight from your photo.</span></div>
+          <div className="mt-2 flex items-start gap-2 rounded-xl bg-good/10 px-3 py-2 text-sm text-good"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><span>Product alignment checked. Inspect fine details before publishing.</span></div>
         ) : warnings.length ? (
           <div className="mt-2 flex items-start gap-2 rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn"><AlertTriangle size={16} className="mt-0.5 shrink-0" /><span>{warnings[0]}</span></div>
         ) : null}
@@ -324,20 +345,23 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
           </Button>
         )}
 
-        <div className="mt-5 rounded-2xl border border-line p-3">
+        <button type="button" className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 text-sm" onClick={()=>setReporting(true)}><Flag size={15}/>Report a product, style or realism issue</button>
+        <details className="mt-3 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Edit, variations & export sizes</summary>
+        <div className="mt-3 rounded-2xl border border-line p-3">
           <div className="flex items-center gap-1.5 text-sm font-semibold"><Wand2 size={15} className="text-accent" /> Edit with words</div>
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={2} maxLength={500}
-            placeholder="Tell us what to change. Your product stays exact."
+            placeholder="Describe the change. Review product details in the new result."
             className="mt-2 w-full resize-none rounded-xl bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30" />
           <div className="no-scrollbar mt-1 flex gap-1.5 overflow-x-auto">
             {EDIT_IDEAS.map((idea) => (
               <button key={idea} type="button" onClick={() => setInstruction(idea)} className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-[11px] font-medium text-ink-2 hover:bg-line">{idea}</button>
             ))}
           </div>
-          <Button size="sm" className="mt-2.5 w-full" disabled={!!busy || instruction.trim().length < 3}
+          <Button size="sm" className="mt-2.5 w-full" disabled={!!busy || asset.watermarked || instruction.trim().length < 3}
             onClick={() => run("edit", () => api<{ jobId: string }>(`/api/assets/${asset.id}/edit`, { method: "POST", json: { instruction: instruction.trim(), idempotencyKey: keys.current.edit } }), (r) => onNewJob(r.jobId))}>
             {busy === "edit" ? <Spinner /> : "Apply edit · 1 credit"}
           </Button>
+          {asset.watermarked&&<p className="mt-2 text-xs text-mute">This older file contains a watermark. Start a new shoot from the original product photo for a clean result.</p>}
         </div>
 
         <div className="mt-3 space-y-0.5">
@@ -353,11 +377,12 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         </div>
 
         <div className="mt-3">
-          <div className="px-1 text-xs font-medium text-mute">Same scene, other size · 1 credit</div>
+          <div className="px-1 text-xs font-medium text-mute">Fit this photo to another size · free</div>
+          <p className="mt-1 px-1 text-xs text-mute">Keeps the whole photo with white margins. No new image generation.</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {OUTPUT_LIST.filter((o) => o.id !== currentOutput && !o.forceStyle).map((o) => (
               <button key={o.id} type="button" disabled={!!busy}
-                onClick={() => run(`resize-${o.id}`, () => api<{ jobId: string }>(`/api/assets/${asset.id}/resize`, { method: "POST", json: { output: o.id, idempotencyKey: `${keys.current.resize}-${o.id}` } }), (r) => onNewJob(r.jobId))}
+                onClick={() => run(`resize-${o.id}`, async () => saveBlob(await api<Blob>(`/api/assets/${asset.id}/download?format=${format}&fit=${o.id}`), `${fileBase}-${o.id}.${format}`))}
                 className="rounded-full border border-line px-3 py-1.5 text-xs font-medium hover:border-ink disabled:opacity-40">
                 {busy === `resize-${o.id}` ? <Spinner className="size-3" /> : `${o.name} ${o.ratio}`}
               </button>
@@ -367,26 +392,27 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
 
         <div className="mt-5 border-t border-line pt-3">
           {!reported ? (
-            <button type="button" className={clsx(panelBtn, "text-mute")} onClick={() => setReporting(true)}><Flag size={15} /> Product looks wrong? Get your credit back</button>
+            <button type="button" className={clsx(panelBtn, "text-mute")} onClick={() => setReporting(true)}><Flag size={15} /> Report an issue for review</button>
           ) : (
             <div className="px-3 text-xs text-mute">Report {reported.status.replace("_", " ")}</div>
           )}
         </div>
+        </details>
       </aside>
 
       {reporting && (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-card p-6 text-ink shadow-[var(--shadow-pop)]">
-            <h2 className="display text-2xl">What&apos;s wrong with the product?</h2>
-            <p className="mt-1 text-sm text-mute">If your product changed, you get the credit back. If you just want a different look, use a free variation.</p>
+        <div className="absolute inset-0 z-20 grid items-center justify-items-center overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Report an image issue">
+          <div className="my-auto max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card p-6 text-ink shadow-[var(--shadow-pop)]">
+            <h2 className="display text-2xl">What needs fixing?</h2>
+            <p className="mt-1 text-sm text-mute">Report a product change, wrong direction or unrealistic interaction. We show the review outcome and credit status.</p>
             <div className="mt-4 space-y-1.5">
               {REASONS.map(([id, label]) => (
                 <label key={id} className={clsx("flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm", reason === id ? "border-ink" : "border-line")}>
-                  <input type="radio" name="reason" value={id} checked={reason === id} onChange={() => setReason(id)} className="accent-[#0f0f12]" /> {label}
+                  <input type="radio" autoFocus={reason === id} name="reason" value={id} checked={reason === id} onChange={() => setReason(id)} className="accent-[#0f0f12]" /> {label}
                 </label>
               ))}
             </div>
-            <textarea className="mt-3 w-full rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-ink" rows={2} placeholder="What do you see? (optional)" value={details} onChange={(e) => setDetails(e.target.value)} maxLength={1000} />
+            <textarea aria-label="Issue details" className="mt-3 w-full rounded-xl border border-line px-3 py-2 text-base outline-none focus:border-ink" rows={2} placeholder="What do you see? (optional)" value={details} onChange={(e) => setDetails(e.target.value)} maxLength={1000} />
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setReporting(false)}>Cancel</Button>
               <Button disabled={!!busy} onClick={() => run("report", () => api<{ status: string }>(`/api/assets/${asset.id}/report`, { method: "POST", json: { reason, details: details || null } }), (r) => {
@@ -397,6 +423,6 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
           </div>
         </div>
       )}
-    </div>
+    </dialog>, document.body
   );
 }

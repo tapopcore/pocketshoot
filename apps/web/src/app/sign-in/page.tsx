@@ -8,7 +8,8 @@ export const metadata = { title: "Sign in" };
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const sp = await searchParams;
-  if (await getWebContext()) redirect(sp.next?.startsWith("/") ? sp.next : "/app");
+  const next = sp.next?.startsWith("/") && !sp.next.startsWith("//") && !sp.next.includes("\\") ? sp.next : "/app";
+  if (await getWebContext()) redirect(next);
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
       <section className="relative hidden overflow-hidden bg-ink p-12 text-paper lg:flex lg:flex-col lg:justify-between">
@@ -32,7 +33,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           <h1 className="display text-5xl">Sign in</h1>
           <p className="mt-2 text-ink-2">Your products, shoots and credits in one place. New here? Signing in creates your account.</p>
           {sp.error && <p className="mt-4 rounded-xl bg-bad/10 px-4 py-3 text-sm text-bad">That sign-in link didn&apos;t work or has expired. Try again.</p>}
-          <SignInForm next={sp.next?.startsWith("/") ? sp.next : "/app"} />
+          <SignInForm next={next} />
           <p className="mt-8 text-xs text-mute">
             By continuing you agree to our <Link className="underline" href="/legal/terms">Terms</Link> and <Link className="underline" href="/legal/privacy">Privacy Policy</Link>.
           </p>

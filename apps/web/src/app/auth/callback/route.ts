@@ -5,7 +5,8 @@ import { track } from "@/lib/observe";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next")?.startsWith("/") ? url.searchParams.get("next")! : "/app";
+  const target = url.searchParams.get("next");
+  const next = target?.startsWith("/") && !target.startsWith("//") && !target.includes("\\") ? target : "/app";
   if (code) {
     const supabase = await userClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);

@@ -17,13 +17,14 @@ export interface ShellProps {
 }
 
 const NAV: { href: string; key: MessageKey; icon: string; mobile?: boolean }[] = [
-  { href: "/app", key: "nav.dashboard", icon: "aperture", mobile: true },
-  { href: "/app/library", key: "nav.library", icon: "grid", mobile: true },
+  { href: "/app", key: "nav.dashboard", icon: "home", mobile: true },
+  { href: "/app/shoots", key: "nav.library", icon: "grid", mobile: true },
+  { href: "/app/new", key: "nav.dashboard", icon: "plus", mobile: true },
   { href: "/app/products", key: "nav.products", icon: "box", mobile: true },
   { href: "/app/batch", key: "nav.batch", icon: "layers" },
   { href: "/app/projects", key: "nav.projects", icon: "folder" },
   { href: "/app/brand", key: "nav.brand", icon: "palette" },
-  { href: "/app/wallet", key: "nav.wallet", icon: "coins", mobile: true },
+  { href: "/app/wallet", key: "nav.wallet", icon: "coins" },
   { href: "/app/team", key: "nav.team", icon: "users" },
   { href: "/app/settings", key: "nav.settings", icon: "settings" },
   { href: "/app/support", key: "nav.support", icon: "help" },
@@ -45,7 +46,7 @@ function Mark() {
 
 export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatform, children }: ShellProps) {
   const items = [
-    ...NAV.map((n) => ({ ...n, label: n.href === "/app" ? "Studio" : t(locale, n.key) })),
+    ...NAV.map((n) => ({ ...n, label: n.href === "/app" ? "Home" : n.href === "/app/new" ? "Create" : n.href === "/app/shoots" ? "Shoots" : t(locale, n.key) })),
     { href: "/app/account", label: "Account", icon: "user", mobile: true },
   ];
   return (
@@ -62,7 +63,7 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
           <div className="tracked text-mute">{t(locale, "wallet.available")}</div>
           <div className="mt-1.5 flex items-baseline justify-between">
             <span className="serif-i text-4xl leading-none tabular-nums">{credits}</span>
-            <span className="text-xs font-medium text-accent opacity-80 group-hover:opacity-100">Top up →</span>
+            <span className="text-xs font-medium text-accent-ink">Top up →</span>
           </div>
         </Link>
         <form action="/auth/sign-out" method="post" className="mt-3 flex items-center justify-between gap-2 px-2 text-xs text-mute">
@@ -72,7 +73,7 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
       </aside>
 
       <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-line bg-paper/90 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <Link href="/app" aria-label="Pocket Shoot Studio" className="min-w-0 shrink"><Mark /></Link>
+        <Link href="/app" aria-label="PocketShoot Studio" className="min-w-0 shrink"><Mark /></Link>
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/app/wallet" className="rounded-full border border-line bg-card px-3 py-2 text-xs font-medium" aria-label={`${credits} credits available; open wallet`}>
             <b className="tabular-nums">{credits}</b> <span className="text-mute">credits</span>
@@ -85,7 +86,7 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
 
       <main className="mx-auto w-full max-w-[1440px] px-4 pb-28 pt-5 sm:px-8 lg:pb-12 lg:pt-7">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Main">
+      <nav className="mobile-main-nav fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Main">
         <NavLinks items={items.filter((i) => i.mobile)} compact />
       </nav>
       <Toaster />

@@ -64,12 +64,13 @@ export interface JudgeVerdict {
   shape_changed: boolean;
   extra_or_missing_items: boolean;
   artefacts: boolean;
+  design_changed?: boolean;
   notes?: string;
 }
 
 export function judgeDecision(v: JudgeVerdict, mode: "preserve" | "creative"): Decision {
   if (!v.same_product) return "fail";
-  const serious = [v.text_changed, v.logo_changed, v.extra_or_missing_items].filter(Boolean).length;
+  const serious = [v.text_changed, v.logo_changed, v.design_changed, v.extra_or_missing_items].filter(Boolean).length;
   const minor = [v.colour_changed, v.shape_changed, v.artefacts].filter(Boolean).length;
   if (mode === "preserve" && serious > 0) return "review";
   if (serious + minor > 0) return "review";

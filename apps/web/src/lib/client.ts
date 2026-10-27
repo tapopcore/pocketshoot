@@ -21,13 +21,17 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
     headers.set("authorization", `Bearer ${await window.shopify.idToken()}`);
     headers.set("x-client", "shopify");
   }
-  const res = await fetch(path, { ...init, headers, body: init.json !== undefined ? JSON.stringify(init.json) : init.body });
+  const timeout = AbortSignal.timeout(120_000);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  let res: Response;
+  try { res = await fetch(path, { ...init, signal, headers, body: init.json !== undefined ? JSON.stringify(init.json) : init.body }); }
+  catch (e) { if (init.signal?.aborted) throw e; throw new ClientApiError(0, "The connection was interrupted. Your saved work is safe. Retry to check the same request.", "connection_interrupted"); }
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     let code: string | undefined;
     try {
       const j = await res.json();
-      msg = j.error ?? msg;
+      msg = j.issues?.length ? j.issues.map((i: {path:string;message:string}) => `${i.path}: ${i.message}`).join(". ") : j.error ?? msg;
       code = j.code;
     } catch {
       // not JSON
