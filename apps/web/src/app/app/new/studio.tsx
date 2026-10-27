@@ -307,7 +307,7 @@ export function Studio(props: {
             )}
             {heroReady && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={hero!.cutoutUrl!} alt="Your product, retouched"
+              <img src={hero!.cutoutUrl!} alt="Prepared product preview, inspect before approval"
                 className={clsx("absolute inset-0 size-full object-contain p-[11%] drop-shadow-[0_40px_40px_rgba(0,0,0,0.55)] transition-all duration-1000 ease-out",
                   showRetouched ? "scale-100 opacity-100" : "scale-[1.04] opacity-0")} />
             )}
@@ -334,7 +334,7 @@ export function Studio(props: {
                   {(["retouched", "original"] as const).map((v) => (
                     <button key={v} type="button" onClick={() => setView(v)} disabled={v === "retouched" && !heroReady && hero?.status !== "processing"}
                       className={clsx("rounded-full px-3 py-1.5 transition-colors disabled:opacity-40", view === v ? "bg-ink text-paper" : "text-ink-2")}>
-                      {v === "retouched" ? "Retouched" : "Original"}
+                      {v === "retouched" ? "Prepared" : "Original"}
                     </button>
                   ))}
                 </div>
