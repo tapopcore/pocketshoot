@@ -16,7 +16,7 @@ import { JobCard, type JobSummary } from "@/components/job-card";
 import { Spinner } from "@/components/ui";
 
 export interface StudioProduct { id: string; name: string; category: CategoryId; coverUrl: string | null }
-interface Hero { status: "pending" | "processing" | "ready" | "failed"; previewUrl: string | null; cutoutUrl: string | null; originalUrl: string | null; method: string | null }
+interface Hero { status: "pending" | "processing" | "ready" | "failed"; previewUrl: string | null; cutoutUrl: string | null; originalUrl: string | null; method: string | null; approved: boolean; preparation: "retouched" | "cutout_only" | "original" | "pending" }
 interface Prepared { product: { id: string; name: string; category: CategoryId }; analysis: ProductAnalysis | null; ideas: SceneIdea[]; suggestedScenes: StyleId[]; hero: Hero }
 type Shot = { key: string; kind: "idea" | "scene" | "custom"; title: string; description?: string; style: StyleId };
 type Phase = "empty" | "reading" | "ready";
@@ -50,6 +50,7 @@ export function Studio(props: {
   const [kit, setKit] = useState<string | null>(brandKits[0]?.id ?? null);
   const [more, setMore] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -85,9 +86,9 @@ export function Studio(props: {
       setHero(p.hero);
       setName(p.product.name);
       setCategory(p.product.category);
-      // Pre-select the first two AI ideas: the fastest path to a great first shoot.
-      const firstIdeas = p.ideas.slice(0, 2).map((i, k) => ideaShot(i, k));
-      setShots(firstIdeas.length ? firstIdeas : p.suggestedScenes.slice(0, 2).map((s) => sceneShot(s)));
+      // A single image is the default. Additional scenes require an explicit user choice.
+      const firstIdeas = p.ideas.slice(0, 1).map((i, k) => ideaShot(i, k));
+      setShots(firstIdeas.length ? firstIdeas : p.suggestedScenes.slice(0, 1).map((s) => sceneShot(s)));
       setTab(p.ideas.length ? "ideas" : "library");
       setPhase("ready");
     } catch (e) {
@@ -149,12 +150,28 @@ export function Studio(props: {
     setShots((cur) => cur.some((x) => x.key === s.key) ? cur.filter((x) => x.key !== s.key) : cur.length >= MAX_SHOTS ? [...cur.slice(1), s] : [...cur, s]);
   }
 
+  async function approvePreparation() {
+    if (!productId || !hero || (hero.status !== "ready" && hero.status !== "failed")) return;
+    setApproving(true); setError(null);
+    try {
+      await api(`/api/products/${productId}/approve-preparation`, { method: "POST" });
+      setHero((h) => h ? { ...h, approved: true } : h);
+    } catch (e) {
+      setError(e instanceof ClientApiError ? e.message : "Couldn't save your approval. Try again.");
+    } finally {
+      setApproving(false);
+    }
+  }
+
   const forced = OUTPUTS[output].forceStyle;
   const total = forced ? perShot : Math.min(maxImages, shots.length * perShot);
   const short = total > balance;
 
   async function generate() {
-    if (!productId) return;
+    if (!productId || !hero?.approved) {
+      setError("Review and approve the product photo before generating.");
+      return;
+    }
     setStarting(true); setError(null);
     try {
       const styles = shots.filter((s) => s.kind === "scene").map((s) => s.style);
@@ -183,6 +200,7 @@ export function Studio(props: {
 
   const a = prep?.analysis;
   const heroReady = hero?.status === "ready" && !!hero.cutoutUrl;
+  const canShoot = !!hero?.approved;
   const showRetouched = phase === "ready" && view === "retouched" && heroReady;
 
   // ---------------------------------------------------------------- empty
@@ -203,7 +221,7 @@ export function Studio(props: {
               <h1 className="mt-5 max-w-xl text-[44px] font-semibold leading-[0.98] tracking-[-0.04em] sm:text-[64px] lg:text-[76px]">
                 Drop a product.<br /><span className="serif-i text-[1.12em] font-normal text-accent">Get the shoot.</span>
               </h1>
-              <p className="mt-5 max-w-md text-[15px] leading-relaxed text-ink-2">Any photo works, even in your hand. We retouch it, read the label, and art-direct campaign shots made for it.</p>
+              <p className="mt-5 max-w-md text-[15px] leading-relaxed text-ink-2">Upload a product photo. We read its details, prepare a preview for your approval and build a commercial scene around it.</p>
             </div>
             <div className="reveal" style={{ animationDelay: "120ms" }}>
               <div className="flex flex-wrap items-center gap-3">
@@ -224,9 +242,9 @@ export function Studio(props: {
             <ProofCollage previews={previews} />
             <ol className="space-y-4">
               {[
-                ["Retouch", "Hands, dust, glare and background removed. Your label stays exact."],
-                ["Direct", "AI writes campaign ideas for your product, not generic templates."],
-                ["Shoot", "Studio-grade images in under a minute, ready for your store and ads."],
+                ["Prepare", "Review a real product preview. Photo defects may need another reference."],
+                ["Choose", "Pick one product-specific photoshoot concept or describe your own."],
+                ["Create", "Generate one image first and review the result before making more."],
               ].map(([t, d], i) => (
                 <li key={t} className="reveal flex gap-4" style={{ animationDelay: `${200 + i * 100}ms` }}>
                   <span className="serif-i w-8 shrink-0 text-3xl leading-none text-accent">{i + 1}</span>
@@ -326,12 +344,12 @@ export function Studio(props: {
                 {hero && hero.status !== "ready" && hero.status !== "failed" && (
                   <div className="absolute inset-x-0 bottom-5 flex justify-center">
                     <div className="glass inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm">
-                      <Spinner className="size-3.5 text-accent" /> Retouching your photo · about 40 s · pick ideas meanwhile
+                      <Spinner className="size-3.5 text-accent" /> Preparing a product preview · review it before generating
                     </div>
                   </div>
                 )}
                 {hero?.status === "failed" && (
-                  <div className="absolute inset-x-4 bottom-5 rounded-2xl border border-warn/30 bg-paper/80 px-4 py-2.5 text-sm text-warn backdrop-blur">We couldn&apos;t retouch this photo, so the AI will work from the original.</div>
+                  <div className="absolute inset-x-4 bottom-5 rounded-2xl border border-warn/30 bg-paper/80 px-4 py-2.5 text-sm text-warn backdrop-blur">Preparation failed. You can approve the original photo, but its existing defects may remain.</div>
                 )}
               </>
             )}
@@ -355,10 +373,27 @@ export function Studio(props: {
                   </div>
                 ) : null}
                 <div className="flex items-start gap-2.5 text-ink-2"><Lock size={15} className="mt-0.5 shrink-0 text-good" />
-                  <span>Your label and logo detail are restored from your photo in every shot.</span></div>
+                  <span>Your reference guides the label and logo. Verify the final output carefully, especially fine print.</span></div>
                 {a?.photo_issues.length ? (
-                  <div className="flex items-start gap-2.5 text-mute"><Wand2 size={15} className="mt-0.5 shrink-0" /><span>Fixed in retouch: {a.photo_issues.slice(0, 3).join(", ")}.</span></div>
+                  <div className="flex items-start gap-2.5 text-mute"><Wand2 size={15} className="mt-0.5 shrink-0" /><span>Detected in source photo: {a.photo_issues.slice(0, 3).join(", ")}. Check whether these improved in the preview.</span></div>
                 ) : null}
+                {hero?.status === "ready" || hero?.status === "failed" ? (
+                  <div className="rounded-2xl border border-line bg-card p-4">
+                    <p className="text-sm font-semibold">{hero.approved ? "Product approved" : "Review your product before generating"}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-mute">
+                      {hero.preparation === "retouched" ? "AI retouched this photo. Check the label, colours, geometry and whether defects are genuinely removed." :
+                       hero.preparation === "cutout_only" ? "Only the background was removed. Dust, fingerprints and photo defects may remain." :
+                       "No cleaned cutout was produced. Generation from the original may change printed details."}
+                    </p>
+                    {!hero.approved && <button type="button" onClick={approvePreparation} disabled={approving}
+                      className="mt-3 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper disabled:opacity-50">
+                      {approving ? "Saving approval..." : hero.status === "failed" ? "Use original photo anyway" : "Approve this product"}
+                    </button>}
+                    {hero.approved && <div className="mt-2 inline-flex items-center gap-2 text-sm text-good"><Check size={15} /> Ready for your photoshoot</div>}
+                  </div>
+                ) : (
+                  <p className="text-sm text-mute">Preparing your product. You can choose a concept now, then approve the preview.</p>
+                )}
               </div>
             </div>
           )}
@@ -502,9 +537,9 @@ export function Studio(props: {
             {short ? (
               <Link href="/app/wallet" className="cta-strobe flex h-14 w-full items-center justify-center gap-2 rounded-full text-[16px] font-semibold">Buy credits to shoot {total} images</Link>
             ) : (
-              <button type="button" onClick={generate} disabled={starting || phase !== "ready" || (!forced && shots.length === 0)}
+              <button type="button" onClick={generate} disabled={starting || phase !== "ready" || !canShoot || (!forced && shots.length === 0)}
                 className="cta-strobe flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-[16px] font-semibold">
-                {starting ? <Spinner /> : <><Sparkles size={18} /> Shoot {total} image{total === 1 ? "" : "s"} <span className="font-normal opacity-80">· {total} credit{total === 1 ? "" : "s"}</span> <ArrowRight size={17} /></>}
+                {starting ? <Spinner /> : <><Sparkles size={18} /> {canShoot ? "Generate" : "Approve product to generate"} {total} image{total === 1 ? "" : "s"} <span className="font-normal opacity-80">· {total} credit{total === 1 ? "" : "s"}</span> <ArrowRight size={17} /></>}
               </button>
             )}
             <div className="mt-2 text-center text-xs text-mute">{balance} credits available{isTrial ? " · trial images carry a watermark" : ""}</div>
