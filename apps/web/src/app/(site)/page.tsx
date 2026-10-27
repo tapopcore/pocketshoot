@@ -77,14 +77,14 @@ export default async function Home() {
       <section className="bg-ink text-paper">
         <div className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
           <div className="eyebrow !text-paper/50">Tuned for</div>
-          <h2 className="display mt-3 max-w-3xl text-5xl">Four kinds of product, each with its own rules.</h2>
+          <h2 className="display mt-3 max-w-3xl text-5xl">Different products. Different photographic decisions.</h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {CATEGORY_LIST.filter((c) => c.id !== "other").map((c) => (
-              <Link key={c.id} href={`/use-cases/${NICHE_SLUG[c.id]}`} className="group rounded-xl border border-paper/15 p-6 transition-colors hover:border-accent">
+              <Link key={c.id} href={NICHE_SLUG[c.id] ? `/use-cases/${NICHE_SLUG[c.id]}` : "/app/new"} className="group rounded-xl border border-paper/15 p-6 transition-colors hover:border-accent">
                 <div className="display text-3xl">{c.label}</div>
                 <p className="mt-2 text-sm text-paper/60">{c.short}</p>
                 <p className="mt-4 text-sm text-paper/80">{c.preserve[0]}</p>
-                <div className="mt-6 flex items-center gap-1 text-sm text-accent">See examples <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" /></div>
+                <div className="mt-6 flex items-center gap-1 text-sm text-accent">{NICHE_SLUG[c.id] ? "See examples" : "Plan your shoot"} <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" /></div>
               </Link>
             ))}
           </div>
