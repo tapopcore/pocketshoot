@@ -16,7 +16,7 @@ import { JobCard, type JobSummary } from "@/components/job-card";
 import { Spinner } from "@/components/ui";
 
 export interface StudioProduct { id: string; name: string; category: CategoryId; coverUrl: string | null }
-interface Hero { status: "pending" | "processing" | "ready" | "failed"; previewUrl: string | null; cutoutUrl: string | null; originalUrl: string | null; method: string | null }
+interface Hero { status: "original" | "pending" | "processing" | "ready" | "failed"; previewUrl: string | null; cutoutUrl: string | null; originalUrl: string | null; method: string | null }
 interface Prepared { product: { id: string; name: string; category: CategoryId }; analysis: ProductAnalysis | null; ideas: SceneIdea[]; suggestedScenes: StyleId[]; hero: Hero }
 type Shot = { human_presence?: "none" | "hands" | "model"; key: string; kind: "idea" | "scene" | "custom"; title: string; description?: string; style: StyleId };
 type Phase = "empty" | "reading" | "ready";
@@ -52,8 +52,6 @@ export function Studio(props: {
   const [more, setMore] = useState(false);
   const [multipleShots, setMultipleShots] = useState(false);
   const [alternatives, setAlternatives] = useState(false);
-  const [directionPreviews, setDirectionPreviews] = useState<{ state: string; urls: (string | null)[] }>({ state: "idle", urls: [] });
-  const [previewRetry, setPreviewRetry] = useState(0);
   const [starting, setStarting] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +65,7 @@ export function Studio(props: {
 
   // ---- hero (retouched packshot) polling
   useEffect(() => {
-    if (!productId || !hero || hero.status === "ready" || hero.status === "failed") return;
+    if (!productId || !hero || hero.status === "original" || hero.status === "ready" || hero.status === "failed") return;
     let stop = false;
     const tick = async () => {
       try {
@@ -103,28 +101,6 @@ export function Studio(props: {
     }
   }, []);
 
-  useEffect(() => {
-    if (props.fixture) return;
-    if (!productId || phase !== "ready" || !prep?.ideas.length) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    let polls = 0;
-    setDirectionPreviews({ state: "pending", urls: [] });
-    const request = async (first: boolean) => {
-      try {
-        const result = await api<{ state: string; urls: (string | null)[] }>(`/api/products/${productId}/directions`, first ? { method: "POST" } : undefined);
-        if (stopped) return;
-        setDirectionPreviews(result);
-        if (result.state === "pending" && polls++ < 65) timer = setTimeout(() => request(false), 3500);
-        else if (result.state === "pending") setDirectionPreviews({ state: "failed", urls: [] });
-      } catch {
-        if (!stopped) setDirectionPreviews({ state: "failed", urls: [] });
-      }
-    };
-    request(true);
-    return () => { stopped = true; clearTimeout(timer); };
-  }, [productId, phase, prep?.ideas, previewRetry, props.fixture]);
-
   const start = useCallback(async (files: File[]) => {
     setError(null);
     const file = files[0];
@@ -151,7 +127,6 @@ export function Studio(props: {
     if (props.fixture) {
       setPrep(props.fixture); setHero(props.fixture.hero); setName(props.fixture.product.name); setCategory(props.fixture.product.category); setPhase("ready");
       setShots(props.fixture.ideas.slice(0, 1).map(ideaShot));
-      setDirectionPreviews({ state: "ready", urls: ["/directions/hero.webp", "/directions/human.webp", "/directions/detail.webp"] });
       return;
     }
     if (existing) { prepare(existing.id); return; }
@@ -169,7 +144,7 @@ export function Studio(props: {
   }, [phase, start]);
 
   function reset() {
-    setDirectionPreviews({ state: "idle", urls: [] }); setAlternatives(false); setPhase("empty"); setPrep(null); setHero(null); setLocalPreview(null); setShots([]); setJobId(null); setError(null);
+    setAlternatives(false); setPhase("empty"); setPrep(null); setHero(null); setLocalPreview(null); setShots([]); setJobId(null); setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -357,7 +332,7 @@ export function Studio(props: {
                 <button type="button" onClick={reset} className="absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-line bg-paper/70 backdrop-blur-md hover:bg-paper" aria-label="New product">
                   <X size={16} />
                 </button>
-                {hero && hero.status !== "ready" && hero.status !== "failed" && (
+                {hero && (hero.status === "pending" || hero.status === "processing") && (
                   <div className="absolute inset-x-0 bottom-5 flex justify-center">
                     <div className="glass inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm">
                       <Spinner className="size-3.5 text-accent" /> Preparing your product photo · explore directions while we work
@@ -427,7 +402,7 @@ export function Studio(props: {
                   {prep.ideas.map((idea, i) => {
                     const s = ideaShot(idea, i);
                     const on = shots.some((x) => x.key === s.key);
-                    return <IdeaCard key={s.key} idea={idea} index={i} selected={on} order={shots.findIndex((x) => x.key === s.key) + 1} preview={directionPreviews.urls[i] ?? undefined} reference={hero?.originalUrl ?? localPreview ?? undefined} pending={directionPreviews.state === "pending"} onClick={() => toggle(s)} />;
+                    return <IdeaCard key={s.key} idea={idea} index={i} selected={on} order={shots.findIndex((x) => x.key === s.key) + 1} preview={previews[idea.base_scene]} reference={hero?.originalUrl ?? localPreview ?? undefined} onClick={() => toggle(s)} />;
                   })}
                 </div>
               ) : (
@@ -457,9 +432,7 @@ export function Studio(props: {
             )}
           </div>
 
-          {prep?.ideas.length ? <div className="mt-3 text-xs leading-relaxed text-mute" role="status" aria-live="polite">
-            {directionPreviews.state === "pending" ? "Creating visual studies with your product. No credits used; you can choose while we work." : directionPreviews.state === "ready" ? "Concept previews show the intended direction. Your final image is generated separately and checked for product accuracy." : <>Concept previews are unavailable. The cards show your original photo. <button type="button" onClick={() => setPreviewRetry(n => n + 1)} className="min-h-11 underline underline-offset-4">Try previews again</button></>}
-          </div> : null}
+          <p className="mt-3 text-xs leading-relaxed text-mute">Photos are references, not generated previews. Your shot is created after you press Create.</p>
           {/* Shot list */}
           {shots.length > 0 && (
             <div className="mt-5 flex flex-wrap gap-2">
@@ -587,7 +560,7 @@ function SectionHead({ title, href, link }: { title: string; href?: string; link
   );
 }
 
-function IdeaCard({ idea, index, selected, order, preview, reference, pending, onClick }: { idea: SceneIdea; index: number; selected: boolean; order: number; preview?: string; reference?: string; pending?: boolean; onClick: () => void }) {
+function IdeaCard({ idea, index, selected, order, preview, reference, onClick }: { idea: SceneIdea; index: number; selected: boolean; order: number; preview?: string; reference?: string; onClick: () => void }) {
   const purposes = { hero: "Campaign hero", human: "In real life", detail: "Material story" };
   const label = idea.purpose ? purposes[idea.purpose] : "Direction " + (index + 1);
   return (
@@ -595,8 +568,8 @@ function IdeaCard({ idea, index, selected, order, preview, reference, pending, o
       className={clsx("group grid grid-cols-[112px_minmax(0,1fr)] overflow-hidden rounded-2xl border bg-card text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:grid-cols-[152px_minmax(0,1fr)]", selected ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]" : "border-line hover:border-ink/30")}>
       <div className="relative min-h-44 overflow-hidden bg-paper-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {(preview || reference) && <img src={preview || reference} alt={preview ? idea.title + ": concept preview using your product" : "Your original product photo"} className={clsx("absolute inset-0 size-full", preview ? "object-cover" : "object-contain p-3")} />}
-        <span className="absolute inset-x-0 bottom-0 bg-black/65 px-2 py-1.5 text-center text-[10px] font-medium text-white">{preview ? "Concept preview" : pending ? "Preview in progress" : "Your original photo"}</span>
+        {(preview || reference) && <img src={preview || reference} alt={preview ? "Scene reference; not your product" : "Your original product photo"} className={clsx("absolute inset-0 size-full", preview ? "object-cover" : "object-contain p-3")} />}
+        <span className="absolute inset-x-0 bottom-0 bg-black/65 px-2 py-1.5 text-center text-[10px] font-medium text-white">{preview ? "Scene reference" : "Your original photo"}</span>
       </div>
       <span className="flex min-w-0 flex-col p-4">
         <span className="flex flex-wrap items-center justify-between gap-2">

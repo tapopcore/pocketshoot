@@ -1,17 +1,15 @@
-import { after } from "next/server";
 import { CATEGORIES, STYLES, scenesFor, type ProductAnalysis } from "@packshot/core";
 import { ApiError, handler } from "@/lib/api";
 import { assertRole } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
-import { analyzeProduct, getCutout } from "@/lib/prep";
+import { analyzeProduct } from "@/lib/prep";
 import { heroState } from "@/lib/hero";
-import { logError } from "@/lib/observe";
 
 export const maxDuration = 300;
 
 /**
  * Runs right after upload. Returns the AI's read of the product (name, category, label text,
- * campaign ideas) in a few seconds, and starts the retouched packshot in the background.
+ * campaign ideas). Image generation is deferred until the customer creates a paid job.
  */
 export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   assertRole(ctx, "editor");
@@ -23,11 +21,6 @@ export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   const primary = refs.find((r) => r.view_type === "front") ?? refs[0];
 
   const analysis = (await analyzeProduct(id)) as ProductAnalysis | null;
-  if (!primary.cutout_key) {
-    after(async () => {
-      try { await getCutout(primary, { allowModel: true, wait: true }); } catch (e) { await logError("prepare.hero", (e as Error).message, { product: id }); }
-    });
-  }
 
   // Fill in what the user hasn't: a clean name and the right category.
   const patch: Record<string, string | string[]> = {};
