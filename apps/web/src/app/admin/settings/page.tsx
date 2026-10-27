@@ -6,7 +6,7 @@ import { ActionForm } from "@/components/action-form";
 import { saveFlagAction, saveSettingsAction, setPlatformRoleAction } from "../actions";
 
 const HELP: Record<string, string> = {
-  credit_policy: "Trial credits, watermark, free remakes, expiry months and max images per shoot.",
+  credit_policy: "Trial credits, free remakes, expiry months and max images per shoot.",
   providers: "generation: auto | gemini | openai | fal | mock. Model IDs, cost per image in USD (used when the provider doesn't report cost), concurrency and timeout.",
   quality: "Thresholds for the automatic checks. useJudge turns the Gemini accuracy review on or off.",
   seller: "Your legal entity, GSTIN, address, SAC code and invoice prefix. Confirm with your accountant.",

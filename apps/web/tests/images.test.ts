@@ -5,7 +5,7 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { OUTPUTS } from "@packshot/core";
-import { ImageRejected, encodeFor, localCutout, normalizeUpload, placeOnCanvas, recomposite, watermark, isBlank } from "@/lib/images";
+import { ImageRejected, encodeFor, localCutout, normalizeUpload, placeOnCanvas, recomposite, isBlank } from "@/lib/images";
 import { mock } from "@/lib/providers";
 
 /** A fake product photo: a dark bottle with a red label and white "text" bars on a light grey table. */
@@ -86,12 +86,10 @@ describe("preserve pipeline", () => {
 });
 
 describe("delivery helpers", () => {
-  it("watermarks, detects blanks and encodes formats", async () => {
+  it("detects blanks and encodes formats", async () => {
     const img = await sharp({ create: { width: 600, height: 600, channels: 3, background: "#336699" } }).png().toBuffer();
     expect(await isBlank(img)).toBe(true);
-    const wm = await watermark(img, "PocketShoot trial");
-    expect(await isBlank(wm)).toBe(false);
-    const jpg = await encodeFor(wm, "jpg", 300);
+    const jpg = await encodeFor(img, "jpg", 300);
     expect(jpg.type).toBe("image/jpeg");
     expect((await sharp(jpg.data).metadata()).width).toBe(300);
   });

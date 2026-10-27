@@ -40,7 +40,7 @@ export default async function Pricing() {
         <section>
           <h2 className="display text-4xl">Good to know</h2>
           <dl className="mt-5 space-y-5 text-sm">
-            <div><dt className="font-medium">Free trial</dt><dd className="mt-1 text-ink-2">2 free images when you sign up with a verified email. Trial images have a small watermark and are up to 1024px.</dd></div>
+            <div><dt className="font-medium">Free trial</dt><dd className="mt-1 text-ink-2">2 free images when you sign up with a verified email. Trial images are watermark-free and are up to 1024px.</dd></div>
             <div><dt className="font-medium">On Shopify</dt><dd className="mt-1 text-ink-2">The Shopify app bills through your Shopify invoice in USD, as Shopify requires.</dd></div>
             <div><dt className="font-medium">On iPhone and Android</dt><dd className="mt-1 text-ink-2">In-app purchases go through Apple and Google, so app prices are a little higher. Credits bought here on the website work in the apps too.</dd></div>
             <div><dt className="font-medium">Need thousands of images?</dt><dd className="mt-1 text-ink-2">Talk to us about a custom pack and invoicing. <a className="underline" href="/contact">Contact</a></dd></div>
@@ -50,3 +50,4 @@ export default async function Pricing() {
     </div>
   );
 }
+

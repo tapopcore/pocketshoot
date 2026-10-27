@@ -147,7 +147,7 @@ export async function pushToShopify(ctx: AuthContext, id: string) {
   if (!ctx.shop) throw new ApiError(400, "Open this from the Shopify app to add images to your store");
   const asset = await loadAsset(ctx, id);
   if (!asset.products.shopify_product_id) throw new ApiError(400, "This product isn't linked to a Shopify product");
-  if (asset.watermarked) throw new ApiError(400, "Trial images have a watermark. Buy credits to add images to your store.");
+  if (asset.watermarked) throw new ApiError(400, "This older image contains a watermark. Use a clean replacement for your store.");
   if (asset.pushed_to_shopify_at) return { mediaId: asset.shopify_media_id, already: true };
   const url = await signedUrl("outputs", asset.storage_key, 3600);
   const mediaId = await addProductImage(ctx.shop, asset.products.shopify_product_id, url, `${asset.products.name} product photo`);

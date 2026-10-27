@@ -5,6 +5,7 @@
  *  2. Shot direction: turns a scene (or an idea) into concrete, tasteful shot briefs.
  * Both return strict JSON. Anything a user typed is passed as quoted data, never as instructions.
  */
+import { styleRequirement, type ShootStyleId } from "./shoots";
 import { CATEGORY_LIST, type CategoryId } from "./categories";
 import type { OutputPreset, StylePreset } from "./presets";
 
@@ -194,6 +195,7 @@ export const DIRECTION_SCHEMA = {
 } as const;
 
 export interface DirectionInput {
+  shootStyle?: ShootStyleId;
   framing?: "full" | "close" | "macro";
   humanPresence?: HumanPresence;
   style: StylePreset;
@@ -230,6 +232,8 @@ CREATIVE STRATEGY: ${a?.visual_strategy || "Find a distinctive visual story in t
 HUMAN DIRECTION: ${i.humanPresence || "none"}
 FRAMING: ${i.framing || "full"}. Full means the complete product. Close means a tight crop with product context. Macro means a highly magnified visible detail with a deliberate focus plane.
 The product photo was taken from ${view}; every shot must use a compatible camera angle so product identity remains clear; a requested adult interaction may use a natural pose.
+
+${i.shootStyle ? "CUSTOMER SELECTED STYLE (non-negotiable, above any inferred campaign strategy or scene recipe): " + i.shootStyle + ". " + styleRequirement(i.shootStyle) : ""}
 
 SCENE RECIPE (lighting reference; the chosen campaign brief takes priority over generic props):
 - Set: ${i.style.scene || "as described in the brief"}

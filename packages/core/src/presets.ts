@@ -32,6 +32,7 @@ const META: Record<StyleId, { name: string; nameHi: string; description: string;
   desk_workspace: { name: "Workspace", nameHi: "वर्कस्पेस", description: "Clean desk with laptop and plant", swatch: ["#EEF0EC", "#C1B49B"] },
   living_room: { name: "Living Room", nameHi: "लिविंग रूम", description: "Styled Indian living room", swatch: ["#E7D6C3", "#8E6C50"] },
   dining_spread: { name: "Dining Spread", nameHi: "डाइनिंग", description: "Plated food spread around the product", swatch: ["#F1DFC3", "#A1532C"] },
+  outdoor_location: { name: "Open Air", nameHi: "खुली हवा", description: "An open-air location with landscape, sky and natural daylight", swatch: ["#B9D2DA", "#7F9085"] },
   natural_sunlight: { name: "Morning Sun", nameHi: "सुबह की धूप", description: "Linen, window light and leaf shadows", swatch: ["#F4E6C8", "#D9B98A"] },
   botanical: { name: "Botanical", nameHi: "बोटैनिकल", description: "Lush leaves, ferns and flowers", swatch: ["#DCE8D2", "#6E8F5E"] },
   water_splash: { name: "Water Splash", nameHi: "पानी", description: "Ripples, splash and droplets", swatch: ["#D4ECF4", "#5FA8C6"] },
