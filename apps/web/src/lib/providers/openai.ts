@@ -2,6 +2,7 @@ import "server-only";
 import { toFile } from "openai";
 import { openai } from "../llm";
 import { env } from "../env";
+import { assertAiBudget } from "../ai-budget";
 import { classifyHttpError, ProviderError, type EditRequest, type EditResult, type ImageProvider } from "./types";
 
 export type OpenAIQuality = "low" | "medium" | "high" | "xhigh" | "max" | "auto";
@@ -87,6 +88,7 @@ async function callEdit(req: EditRequest, model: string, cfg: OpenAIImageSetting
   };
   if (req.mask) params.mask = await toFile(req.mask, "mask.png", { type: "image/png" });
   if (req.transparent) params.background = "transparent";
+  await assertAiBudget();
   const res = await openai().images.edit(params as never, { timeout: req.timeoutMs });
   const out = res as unknown as { data?: { b64_json?: string }[]; usage?: { input_tokens?: number; output_tokens?: number } };
   const b64 = out.data?.[0]?.b64_json;
