@@ -1,162 +1,70 @@
+/* eslint-disable @next/next/no-img-element -- Catalogue images are pre-sized and compressed. */
 import Link from "next/link";
-import { ArrowRight, Check, Smartphone, Store, Monitor } from "lucide-react";
-import { CATEGORY_LIST } from "@packshot/core";
-import { DemoSlider } from "@/components/demo-slider";
-import { LinkButton } from "@/components/ui";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { StyleGallery } from "@/components/style-gallery";
+import { INDUSTRIES, signInToShoot } from "@/lib/shoot-catalog";
 import { webPacks } from "@/lib/public";
-
 export const revalidate = 300;
-
-const STEPS = [
-  { n: "01", t: "Upload the photo you have", d: "Shoot your product on any plain surface with your phone. Add a second angle if you like. That's the only photo you need." },
-  { n: "02", t: "Choose a visual direction", d: "See three concepts made for your product: a campaign hero, a human moment and a material story. Start with one. No prompts to write." },
-  { n: "03", t: "Check, approve, download", d: "Compare every result against your photo at full size. Keep what works. If your product changed, you get the credit back." },
-];
-
-const NICHE_SLUG: Record<string, string> = { beauty: "beauty", home_kitchen: "home-kitchen", food: "food", jewellery: "jewellery" };
-
 export default async function Home() {
   const packs = await webPacks();
-  const cheapest = packs.length ? Math.min(...packs.map((p) => p.price_minor / p.credits)) / 100 : 50;
-  const entry = packs[0];
-  return (
-    <>
-      <section className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-20 pt-12 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:pt-20">
-        <div className="animate-rise">
-          <div className="eyebrow">AI product photography for Indian brands and makers</div>
-          <h1 className="display mt-5 text-[2.9rem] leading-[0.92] sm:text-7xl lg:text-[4.9rem]">
-            Your product.<br /><em className="text-accent">A point of view.</em><br />A whole new shoot.
-          </h1>
-          <p className="mt-6 max-w-xl text-lg text-ink-2">
-            Upload a product photo. See three creative directions built around what it is, what makes it distinctive and how people use it. Choose the look; we direct the shoot and check the product details.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <LinkButton href="/sign-in" variant="accent" size="lg">Try 2 images free <ArrowRight size={18} /></LinkButton>
-            <LinkButton href="/how-it-works" variant="ghost" size="lg">See how it works</LinkButton>
-          </div>
-          <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-2">
-            {["No subscription", `From ₹${Math.round(cheapest)} per image`, "GST invoice", "Credit back if your product changes"].map((x) => (
-              <li key={x} className="flex items-center gap-1.5"><Check size={15} className="text-accent" /> {x}</li>
-            ))}
-          </ul>
+  return <>
+    <section className="mx-auto grid max-w-7xl items-center gap-8 px-4 pb-12 pt-9 sm:px-8 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:py-20">
+      <div>
+        <div className="mb-5 flex items-center gap-2 text-xs font-medium text-ink-2"><span className="size-1.5 rounded-full bg-accent" /> The creative studio in your pocket</div>
+        <h1 className="text-[45px] font-semibold leading-[0.99] tracking-[-0.055em] sm:text-[68px] lg:text-[76px]">Your product.<br />Worth a<br /><span className="serif-i text-accent-ink">second look.</span></h1>
+        <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-2 sm:text-lg">Turn a simple product photo into a considered campaign. Real-world settings, human moments and details worth getting closer to.</p>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row"><Link href={signInToShoot()} className="inline-flex min-h-13 items-center justify-center gap-3 rounded-full bg-accent px-7 text-sm font-semibold text-white hover:bg-accent-ink">Create your first shoot <ArrowRight size={18} /></Link><a href="#styles" className="inline-flex min-h-13 items-center justify-center gap-2 px-5 text-sm font-medium">Explore the styles <ArrowUpRight size={16} /></a></div>
+        <p className="mt-4 text-xs text-mute">No prompt writing. No subscription. Credit cost shown before you create.</p>
+      </div>
+      <div className="relative">
+        <div className="grid grid-cols-[1.15fr_0.85fr] gap-2.5 sm:gap-4">
+          <figure className="row-span-2 overflow-hidden rounded-2xl bg-paper-2"><img src="/catalog/model.webp" alt="AI-created editorial example: an adult model holding a cosmetic bottle in natural light" width={512} height={512} fetchPriority="high" className="h-full min-h-[310px] w-full object-cover object-[58%_center] sm:min-h-[470px]" /></figure>
+          <figure className="overflow-hidden rounded-2xl bg-paper-2"><img src="/catalog/graphic.webp" alt="AI-created graphic campaign example with a coral sneaker" width={512} height={512} className="aspect-square size-full object-cover" /></figure>
+          <figure className="overflow-hidden rounded-2xl bg-paper-2"><img src="/catalog/outdoor.webp" alt="AI-created outdoor bottle photography example" width={512} height={512} className="aspect-square size-full object-cover" /></figure>
         </div>
-        <div className="animate-rise [animation-delay:150ms]"><DemoSlider /></div>
-      </section>
-
-      <section className="border-y border-line bg-paper-2/50">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
-          <div className="eyebrow">Three steps</div>
-          <h2 className="display mt-3 max-w-2xl text-5xl">No studio. No retoucher. No prompt writing.</h2>
-          <div className="mt-12 grid gap-10 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="border-t border-ink pt-5">
-                <div className="frame-no">{s.n}</div>
-                <h3 className="display mt-2 text-3xl">{s.t}</h3>
-                <p className="mt-3 text-ink-2">{s.d}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto grid max-w-7xl gap-12 px-4 py-24 sm:px-8 lg:grid-cols-2">
-        <div>
-          <div className="eyebrow">Direction, with product discipline</div>
-          <h2 className="display mt-3 text-5xl">A photographer&apos;s decisions. Your product&apos;s identity.</h2>
-          <p className="mt-5 text-ink-2">The creative work starts before generation: understanding use, choosing a visual story, and directing composition, light, materials and a meaningful human gesture.</p>
-          <p className="mt-4 text-ink-2">For still lifes, we restore product detail from your reference when possible. Human interactions use reference-guided generation so hands and the product can meet naturally. Every result needs review for fine details.</p>
-          <p className="mt-4 text-sm text-mute">Every image then goes through automatic checks. They catch most problems, not all, so you always review before publishing. If your product changed, report it and the credit comes back.</p>
-        </div>
-        <figure className="self-center overflow-hidden rounded-3xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/directions/human.webp" alt="AI-created example of a natural adult skincare interaction" width={512} height={1024} className="aspect-[4/3] w-full object-cover object-[center_38%]" />
-          <figcaption className="mt-3 text-xs text-mute">AI-created example · Natural skin, a purposeful gesture, believable light.</figcaption>
-        </figure>
-      </section>
-
-      <section className="bg-ink text-paper">
-        <div className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
-          <div className="eyebrow !text-paper/50">Tuned for</div>
-          <h2 className="display mt-3 max-w-3xl text-5xl">Different products. Different photographic decisions.</h2>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {CATEGORY_LIST.filter((c) => c.id !== "other").map((c) => (
-              <Link key={c.id} href={NICHE_SLUG[c.id] ? `/use-cases/${NICHE_SLUG[c.id]}` : "/app/new"} className="group rounded-xl border border-paper/15 p-6 transition-colors hover:border-accent">
-                <div className="display text-3xl">{c.label}</div>
-                <p className="mt-2 text-sm text-paper/60">{c.short}</p>
-                <p className="mt-4 text-sm text-paper/80">{c.preserve[0]}</p>
-                <div className="mt-6 flex items-center gap-1 text-sm text-accent">{NICHE_SLUG[c.id] ? "See examples" : "Plan your shoot"} <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" /></div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
-        <div className="eyebrow">Three directions. One product.</div>
-        <h2 className="display mt-3 text-5xl">See the idea before you choose.</h2>
-        <div className="mt-10 grid gap-5 sm:grid-cols-3">
-          {[
-            ["hero", "Campaign hero", "A distinct visual signature built from the product’s form and materials."],
-            ["human", "In real life", "A believable adult interaction that shows scale, utility and a moment worth owning."],
-            ["detail", "Material story", "A tactile editorial study of what makes the product different."]
-          ].map(([id, title, description]) => <figure key={id}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={"/directions/" + id + ".webp"} alt={description} width={512} height={1024} loading="lazy" className="aspect-[4/5] w-full rounded-2xl object-cover" />
-            <figcaption className="mt-4"><h3 className="text-xl font-semibold">{title}</h3><p className="mt-2 text-sm text-mute">{description}</p></figcaption>
-          </figure>)}
-        </div>
-        <p className="mt-5 text-xs text-mute">AI-created example photography. Your concepts are made from your own uploaded product.</p>
-      </section>
-
-      <section className="border-y border-line bg-paper-2/50">
-        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-24 sm:px-8 lg:grid-cols-[1fr_1.2fr]">
-          <div>
-            <div className="eyebrow">Pay for images, not months</div>
-            <h2 className="display mt-3 text-5xl">One credit is one image. Buy when you need them.</h2>
-            <p className="mt-5 text-ink-2">Credits only get used for images we deliver. Failed images cost nothing. Each image includes one free remake. Paid credits last 12 months.</p>
-            <LinkButton href="/pricing" className="mt-8" variant="outline">See all packs</LinkButton>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {packs.slice(0, 3).map((p, i) => (
-              <div key={p.id} className={`rounded-xl border p-5 ${i === 2 ? "border-ink bg-ink text-paper" : "border-line bg-card"}`}>
-                <div className={`eyebrow ${i === 2 ? "!text-paper/60" : ""}`}>{p.name}</div>
-                <div className="display mt-2 text-5xl">{p.credits}</div>
-                <div className={`text-sm ${i === 2 ? "text-paper/60" : "text-mute"}`}>images</div>
-                <div className="mt-4 font-medium">₹{(p.price_minor / 100).toLocaleString("en-IN")}</div>
-                <div className={`frame-no ${i === 2 ? "!text-paper/60" : ""}`}>₹{(p.price_minor / 100 / p.credits).toFixed(0)} per image + GST</div>
-              </div>
-            ))}
-          </div>
-          {entry && <p className="text-xs text-mute lg:col-span-2">Launch prices. We&apos;ll adjust them as we learn, and we&apos;ll always tell you before you pay.</p>}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
-        <div className="eyebrow">Wherever you work</div>
-        <h2 className="display mt-3 max-w-3xl text-5xl">Website, Shopify admin, or the phone in your pocket.</h2>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {[
-            { icon: Monitor, t: "On the web", d: "Upload, batch-shoot hundreds of SKUs with a CSV, and download ZIPs. Works on any browser.", href: "/sign-in", cta: "Start free" },
-            { icon: Store, t: "Inside Shopify", d: "See every product in your store, reshoot in bulk, and push approved photos straight to the product page.", href: "/shopify-app", cta: "About the Shopify app" },
-            { icon: Smartphone, t: "iPhone & Android", d: "Shoot the product on your desk and get studio images back on the same phone. Same account, same credits.", href: "/mobile", cta: "About the apps" },
-          ].map((c) => (
-            <Link key={c.t} href={c.href} className="group rounded-xl border border-line bg-card p-6 transition-colors hover:border-ink">
-              <c.icon size={22} strokeWidth={1.6} />
-              <div className="display mt-4 text-3xl">{c.t}</div>
-              <p className="mt-2 text-sm text-ink-2">{c.d}</p>
-              <div className="mt-5 flex items-center gap-1 text-sm">{c.cta} <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" /></div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 sm:px-8">
-        <div className="cropmarks rounded-[22px] bg-accent px-6 py-16 text-center text-white sm:px-16">
-          <h2 className="display text-5xl sm:text-6xl">Shoot your first product free.</h2>
-          <p className="mx-auto mt-4 max-w-xl text-white/85">Two free images when you sign up. No card needed. If you don&apos;t like what you get, you&apos;ve lost two minutes.</p>
-          <LinkButton href="/sign-in" size="lg" className="mt-8 !bg-ink hover:!bg-ink-2">Start with a photo</LinkButton>
-        </div>
-      </section>
-    </>
-  );
+        <p className="mt-3 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-mute"><span>Art direction, in every frame</span><span>AI-created examples</span></p>
+      </div>
+    </section>
+    <section id="styles" className="scroll-mt-24 border-y border-line bg-card">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
+        <div className="mb-8 flex items-end justify-between gap-5"><div><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">Choose a point of view</p><h2 className="text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">One product.<br /><span className="serif-i font-normal">A whole world of possibilities.</span></h2></div><span className="hidden pb-1 text-xs text-mute sm:block">06 photographic styles</span></div>
+        <StyleGallery />
+      </div>
+    </section>
+    <section className="mx-auto max-w-7xl px-4 py-14 sm:px-8 sm:py-20">
+      <div className="mb-9"><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">A little input. A clear direction.</p><h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">You bring the product.<br />We direct the scene.</h2></div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4">{[
+        ["01", "Your industry", "A serum is not a sneaker. Start with what you sell."],
+        ["02", "Your style", "See a real visual example. Choose one look."],
+        ["03", "Your photo", "Upload a clear reference. We study its visible details."],
+        ["04", "Your shoot", "Check the credit cost, create, review and download."],
+      ].map(([n,t,d]) => <div key={n} className="border-t border-ink/20 pt-4"><span className="font-mono text-xs text-accent-ink">{n}</span><h3 className="mt-3 text-lg font-semibold">{t}</h3><p className="mt-2 text-sm leading-relaxed text-ink-2">{d}</p></div>)}</div>
+    </section>
+    <section className="bg-[#20251f] text-[#f6f4ec]">
+      <div className="mx-auto grid max-w-7xl gap-9 px-4 py-12 sm:px-8 sm:py-20 md:grid-cols-2 md:gap-16">
+        <img src="/catalog/closeup.webp" alt="AI-created close-up example showing leather grain and stitching" width={512} height={512} loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" />
+        <div className="self-center"><p className="text-xs uppercase tracking-[0.14em] text-[#c5ccbf]">The details make the difference</p><h2 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">Less AI gloss.<br /><span className="serif-i font-normal">More photographic intent.</span></h2><p className="mt-5 max-w-md text-sm leading-relaxed text-[#d9ded4]">Light with a source. Materials with texture. Human poses that make sense. Each style has a specific direction, while your reference guides the product&apos;s identity.</p><p className="mt-4 max-w-md text-sm leading-relaxed text-[#c5ccbf]">Automatic checks flag product changes and visual issues. You review the result before it goes anywhere.</p><Link href="/how-it-works" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium underline underline-offset-4">See how we make a shoot <ArrowRight size={16} /></Link></div>
+      </div>
+    </section>
+    <section className="mx-auto max-w-7xl px-4 py-14 sm:px-8 sm:py-20">
+      <div className="mb-7 flex items-end justify-between"><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Made for what you make.</h2></div>
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6 sm:gap-5">{INDUSTRIES.map(i => <Link href={signInToShoot(i.id)} key={i.id} className="group"><img src={i.image} alt={i.title + " industry example"} width={512} height={512} loading="lazy" className="aspect-square w-full rounded-xl object-cover" /><span className="mt-2 block text-xs font-semibold leading-relaxed sm:text-sm">{i.title}</span></Link>)}</div>
+    </section>
+    <section className="border-y border-line bg-card">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-8 sm:py-16 lg:grid-cols-[0.85fr_1.15fr]">
+        <div><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">Pay when you create</p><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Your next campaign.<br />At your own pace.</h2><p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-2">Browse every style before spending credits. The total is visible before you create a shoot.</p><Link href="/pricing" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-medium underline underline-offset-4">View packs and terms <ArrowRight size={15} /></Link></div>
+        <div className="grid gap-3 sm:grid-cols-3">{packs.slice(0,3).map(p => <Link key={p.id} href="/pricing" className="rounded-2xl border border-line p-5"><div className="text-xs text-mute">{p.name}</div><div className="mt-4 text-3xl font-semibold tracking-tight">₹{(p.price_minor/100).toLocaleString("en-IN")}</div><div className="mt-2 text-sm text-ink-2">{p.credits} credits</div><div className="mt-4 text-xs text-mute">+ GST · no subscription</div></Link>)}</div>
+      </div>
+    </section>
+    <section className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-8 sm:py-20 md:grid-cols-[0.8fr_1.2fr]">
+      <h2 className="text-3xl font-semibold tracking-tight">A few good questions.</h2>
+      <div>{[
+        ["Do I need to write prompts?", "No. Choose your industry and a photographic style. You can add a short note if you have something specific in mind."],
+        ["Are the style images my final result?", "They are reusable AI-created examples that explain each look. Your own image is generated from your product photo after you press Create."],
+        ["Can the product details change?", "AI can change fine details. We run automatic checks, and you should review labels, logos, jewellery settings and human interactions before publishing."],
+        ["When do I spend credits?", "You see the total before pressing Create. Credits are reserved for the shoot and captured for delivered images. See the pricing and refunds pages for the full policy."],
+      ].map(([q,a]) => <details key={q} className="border-t border-line py-1"><summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-5 text-sm font-semibold">{q}<span className="text-lg font-normal text-mute">+</span></summary><p className="pb-5 text-sm leading-relaxed text-ink-2">{a}</p></details>)}</div>
+    </section>
+    <section className="mx-auto max-w-7xl px-4 sm:px-8"><div className="rounded-3xl bg-[#e9e5da] px-6 py-12 text-center sm:py-16"><h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Give your product<br /><span className="serif-i font-normal">its next great photograph.</span></h2><Link href={signInToShoot()} className="mt-6 inline-flex min-h-13 items-center gap-3 rounded-full bg-ink px-7 text-sm font-semibold text-paper">Find your style <ArrowRight size={17} /></Link></div></section>
+  </>;
 }

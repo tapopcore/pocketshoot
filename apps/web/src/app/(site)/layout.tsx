@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Logo, LinkButton } from "@/components/ui";
 import { getWebContext } from "@/lib/auth";
 
-const NAV = [["/how-it-works", "How it works"], ["/examples", "Examples"], ["/pricing", "Pricing"], ["/faq", "FAQ"]];
+const NAV = [["/#styles", "Styles"], ["/how-it-works", "How it works"], ["/examples", "Examples"], ["/pricing", "Pricing"]];
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getWebContext().catch(() => null);
@@ -13,13 +13,12 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <Link href="/" aria-label="Home"><Logo /></Link>
           <nav className="hidden items-center gap-7 text-[15px] text-ink-2 md:flex">
             {NAV.map(([h, l]) => <Link key={h} href={h} className="hover:text-ink">{l}</Link>)}
-            <Link href="/shopify-app" className="hover:text-ink">Shopify app</Link>
           </nav>
           <div className="flex items-center gap-2">
             {ctx ? <LinkButton href="/app" size="sm">Open app</LinkButton> : (
               <>
                 <Link href="/sign-in" className="hidden px-3 text-sm sm:block">Sign in</Link>
-                <LinkButton href="/sign-in" size="sm" variant="accent">Try 2 free images</LinkButton>
+                <LinkButton href="/sign-in" size="sm" variant="accent">Start a shoot</LinkButton>
               </>
             )}
           </div>

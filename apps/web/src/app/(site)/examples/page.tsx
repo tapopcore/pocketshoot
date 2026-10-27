@@ -1,36 +1,17 @@
-import { CATEGORIES, isCategoryId } from "@packshot/core";
-import { showcase } from "@/lib/public";
-import { DemoSlider } from "@/components/demo-slider";
+/* eslint-disable @next/next/no-img-element -- Catalogue images are pre-sized and compressed. */
+import { StyleGallery } from "@/components/style-gallery";
 import { LinkButton } from "@/components/ui";
-
-export const metadata = { title: "Examples" };
+import { showcase } from "@/lib/public";
+export const metadata = { title: "Photographic styles" };
 export const revalidate = 600;
-
 export default async function Examples() {
   const items = await showcase();
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8">
-      <div className="eyebrow">Examples</div>
-      <h1 className="display mt-4 max-w-3xl text-6xl">A product. Three ways to see it.</h1>
-      <p className="mt-4 max-w-2xl text-ink-2">Explore AI-created photographic examples of a campaign hero, a human moment and a material story. Customer work, when shown below, is published only with permission.</p>
-      {items.length > 0 ? (
-        <div className="mt-12 columns-2 gap-4 sm:columns-3 lg:columns-4">
-          {items.map((i) => (
-            <figure key={i.assetId} className="mb-4 break-inside-avoid">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={i.url} alt={i.caption} loading="lazy" className="w-full rounded-lg" />
-              <figcaption className="mt-1.5 text-xs text-mute">{i.caption}{isCategoryId(i.category) ? ` · ${CATEGORIES[i.category].label}` : ""}</figcaption>
-            </figure>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-12 max-w-2xl"><DemoSlider /></div>
-      )}
-      <div className="mt-16 rounded-xl border border-line p-8 text-center">
-        <h2 className="display text-4xl">The best example is your own product.</h2>
-        <p className="mt-2 text-ink-2">Two free images, no card needed.</p>
-        <LinkButton href="/sign-in" variant="accent" className="mt-6">Try it now</LinkButton>
-      </div>
-    </div>
-  );
+  return <div className="mx-auto max-w-7xl px-4 py-10 sm:px-8 sm:py-16">
+    <p className="text-xs font-semibold uppercase tracking-widest text-accent-ink">Find your direction</p>
+    <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">A style for your next story.</h1>
+    <p className="mb-9 mt-4 max-w-xl text-sm leading-relaxed text-ink-2">Indoor light. Outdoor drama. A human moment. Explore six photographic approaches, then make one your own.</p>
+    <StyleGallery />
+    {items.length > 0 && <section className="mt-14"><h2 className="mb-6 text-2xl font-semibold">Published with permission</h2><div className="grid grid-cols-2 gap-4 md:grid-cols-4">{items.map(i => <figure key={i.assetId}><img src={i.url} alt={i.caption} loading="lazy" className="aspect-square w-full rounded-xl object-cover" /><figcaption className="mt-2 text-xs text-mute">{i.caption}</figcaption></figure>)}</div></section>}
+    <div className="mt-12 border-t border-line pt-8"><LinkButton href="/sign-in?next=%2Fapp%2Fnew" variant="accent">Create your first shoot</LinkButton></div>
+  </div>;
 }

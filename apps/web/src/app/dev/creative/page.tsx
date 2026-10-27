@@ -3,7 +3,8 @@ import { AppShell } from "@/components/app-shell";
 import { Studio } from "@/app/app/new/studio";
 import type { ProductAnalysis } from "@packshot/core";
 
-export default function CreativePreview() {
+export default async function CreativePreview({ searchParams }: { searchParams: Promise<{ live?: string }> }) {
+  const live = (await searchParams).live === "1";
   if (process.env.PREVIEW_UI !== "1") notFound();
   const analysis: ProductAnalysis = {
     name: "Amber facial serum", brand: null, category: "beauty", description: "Amber glass dropper bottle with a cream paper label.",
@@ -19,7 +20,7 @@ export default function CreativePreview() {
   };
   return <AppShell locale="en" orgName="Preview workspace" orgs={[]} orgId="preview" credits={12} email="preview@example.com" isPlatform={false}>
     <p className="mb-5 rounded-xl border border-line p-3 text-sm">Design preview with AI-created example photography. Upload and billing are not connected here.</p>
-    <Studio locale="en" balance={12} isTrial={false} creativeEnabled maxImages={8} brandKits={[]} existing={null} recentProducts={[]} recentJobs={[]}
-      fixture={{ product: { id: "preview", name: analysis.name, category: "beauty" }, analysis, ideas: analysis.ideas, suggestedScenes: ["neutral_studio"], hero: { status: "ready", originalUrl: "/directions/hero.webp", previewUrl: "/directions/hero.webp", cutoutUrl: "/directions/hero.webp", method: "example" } }} />
+    <Studio locale="en" balance={12} creditsPerImage={2} isTrial={false} creativeEnabled maxImages={8} brandKits={[]} existing={null} recentProducts={[]} recentJobs={[]}
+      fixture={live ? undefined : { product: { id: "preview", name: analysis.name, category: "beauty" }, analysis, ideas: analysis.ideas, suggestedScenes: ["neutral_studio"], hero: { status: "ready", originalUrl: "/directions/hero.webp", previewUrl: "/directions/hero.webp", cutoutUrl: "/directions/hero.webp", method: "example" } }} />
   </AppShell>;
 }

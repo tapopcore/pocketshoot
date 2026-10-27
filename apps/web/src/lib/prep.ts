@@ -182,7 +182,7 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
       timeoutMs: 45_000,
     });
     const shots = parseDirections(res.data, input.count);
-    return shots ? { shots: shots.map(shot => ({ ...shot, human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
+    return shots ? { shots: shots.map(shot => ({ ...shot, framing: input.framing ?? "full", human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
   } catch (e) {
     await logError("prep.direction", (e as Error).message, {});
     return fallback();

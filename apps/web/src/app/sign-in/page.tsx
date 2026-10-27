@@ -15,13 +15,13 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <Link href="/"><Logo className="text-paper" /></Link>
         <div>
           <div className="eyebrow !text-paper/60">Frame 01 / Your product</div>
-          <p className="display mt-4 text-6xl leading-[0.95]">Your product.<br /><em className="text-accent">A point of view.</em><br />A new shoot.</p>
+          <p className="display mt-4 text-6xl leading-[0.95]">Your next shoot.<br /><em className="text-accent">A fresh perspective.</em></p>
         </div>
         <div className="grid grid-cols-3 gap-3 opacity-80">
-          {["hero", "human", "detail"].map((c, i) => (
+          {["indoor", "model", "graphic"].map((c, i) => (
             <div key={c} className="cropmarks relative aspect-[4/5] overflow-hidden rounded-md" >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={"/directions/" + c + ".webp"} alt="AI-created product photography example" className="size-full object-cover" /><div className="frame-no absolute bottom-2 left-2 !text-white/70">{String(i + 1).padStart(2, "0")}A</div>
+              <img src={"/catalog/" + c + ".webp"} alt="AI-created product photography example" className="size-full object-cover" /><div className="frame-no absolute bottom-2 left-2 !text-white/70">{String(i + 1).padStart(2, "0")}A</div>
             </div>
           ))}
         </div>
@@ -30,7 +30,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <Link href="/" className="mb-12 lg:hidden"><Logo /></Link>
         <div className="mx-auto w-full max-w-sm animate-rise">
           <h1 className="display text-5xl">Sign in</h1>
-          <p className="mt-2 text-ink-2">New here? Signing in creates your account. You get 2 free images to try it.</p>
+          <p className="mt-2 text-ink-2">Your products, shoots and credits in one place. New here? Signing in creates your account.</p>
           {sp.error && <p className="mt-4 rounded-xl bg-bad/10 px-4 py-3 text-sm text-bad">That sign-in link didn&apos;t work or has expired. Try again.</p>}
           <SignInForm next={sp.next?.startsWith("/") ? sp.next : "/app"} />
           <p className="mt-8 text-xs text-mute">

@@ -23,7 +23,7 @@ export function NavLinks({ items, compact }: { items: { href: string; label: str
         }
         return (
           <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined}
-            className={clsx("group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium transition-colors", active ? "bg-paper-2 text-ink" : "text-mute hover:text-ink")}>
+            className={clsx("group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium transition-colors", active ? "bg-paper-2 text-ink" : "text-mute hover:text-ink")}>
             {active && <span className="absolute -left-3 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />}
             <Icon size={17} strokeWidth={active ? 2.2 : 1.7} />
             {i.label}
