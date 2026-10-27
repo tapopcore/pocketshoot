@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { Aperture, Box, Coins, Folder, Grid3x3, House as Home, LifeBuoy as HelpCircle, Layers, Palette, Plus, Settings, Shield, Users } from "lucide-react";
+import { Aperture, Box, Coins, Folder, Grid3x3, House as Home, LifeBuoy as HelpCircle, Layers, Palette, Plus, Settings, Shield, UserRound, Users } from "lucide-react";
 
-const ICONS = { aperture: Aperture, home: Home, plus: Plus, box: Box, grid: Grid3x3, layers: Layers, folder: Folder, palette: Palette, coins: Coins, users: Users, settings: Settings, help: HelpCircle, shield: Shield };
+const ICONS = { aperture: Aperture, home: Home, plus: Plus, box: Box, grid: Grid3x3, layers: Layers, folder: Folder, palette: Palette, coins: Coins, users: Users, settings: Settings, help: HelpCircle, shield: Shield, user: UserRound };
 
 export function NavLinks({ items, compact }: { items: { href: string; label: string; icon: string }[]; compact?: boolean }) {
   const path = usePathname();
