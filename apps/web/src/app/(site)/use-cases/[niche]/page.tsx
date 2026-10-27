@@ -73,19 +73,14 @@ export default async function UseCase({ params }: { params: Promise<{ niche: str
       </div>
 
       <section className="mt-16">
-        <h2 className="display text-4xl">Looks that suit {cat.label.toLowerCase()}</h2>
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {cat.recommendedPresets.map((id) => {
-            const s = STYLES[id as StyleId];
-            return (
-              <div key={id} className="overflow-hidden rounded-xl border border-line">
-                <div className="relative h-28" style={{ background: `radial-gradient(120% 90% at 50% 30%, ${s.swatch[0]}, ${s.swatch[1]})` }}>
-                  <span className="absolute bottom-3 left-1/2 h-12 w-7 -translate-x-1/2 rounded-[4px] bg-[#2f5a41] shadow-[0_8px_10px_-4px_rgba(0,0,0,.45)]" />
-                </div>
-                <div className="bg-card p-2.5 text-sm"><div className="font-medium">{s.name}</div><div className="text-xs text-mute">{s.description}</div></div>
-              </div>
-            );
-          })}
+        <h2 className="display text-4xl">A direction made for your product</h2>
+        <p className="mt-3 max-w-xl text-ink-2">Your product gets its own concepts after upload. These AI-created skincare examples show the three photographic approaches.</p>
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          {["hero", "human", "detail"].map((id, i) => <figure key={id}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={"/directions/" + id + ".webp"} alt={["Campaign hero example", "Human interaction example", "Material detail example"][i]} width={512} height={1024} loading="lazy" className="aspect-[4/5] w-full rounded-xl object-cover" />
+            <figcaption className="mt-2 text-sm">{["Campaign hero", "In real life", "Material story"][i]}</figcaption>
+          </figure>)}
         </div>
       </section>
     </div>

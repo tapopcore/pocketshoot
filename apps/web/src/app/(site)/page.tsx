@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Check, Smartphone, Store, Monitor } from "lucide-react";
-import { CATEGORY_LIST, STYLE_LIST } from "@packshot/core";
+import { CATEGORY_LIST } from "@packshot/core";
 import { DemoSlider } from "@/components/demo-slider";
 import { LinkButton } from "@/components/ui";
 import { webPacks } from "@/lib/public";
@@ -9,7 +9,7 @@ export const revalidate = 300;
 
 const STEPS = [
   { n: "01", t: "Upload the photo you have", d: "Shoot your product on any plain surface with your phone. Add a second angle if you like. That's the only photo you need." },
-  { n: "02", t: "Pick where it should sell", d: "Marketplace white, Instagram, a website banner, a festive campaign. Choose a style and size. No prompts to write." },
+  { n: "02", t: "Choose a visual direction", d: "See three concepts made for your product: a campaign hero, a human moment and a material story. Start with one. No prompts to write." },
   { n: "03", t: "Check, approve, download", d: "Compare every result against your photo at full size. Keep what works. If your product changed, you get the credit back." },
 ];
 
@@ -25,10 +25,10 @@ export default async function Home() {
         <div className="animate-rise">
           <div className="eyebrow">AI product photography for Indian brands and makers</div>
           <h1 className="display mt-5 text-[2.9rem] leading-[0.92] sm:text-7xl lg:text-[4.9rem]">
-            Your phone photo in.<br /><em className="text-accent">Studio shot</em> out.<br />Label untouched.
+            Your product.<br /><em className="text-accent">A point of view.</em><br />A whole new shoot.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-ink-2">
-            Upload a plain photo of your product and get catalogue, marketplace and lifestyle images in about a minute. We keep the real pixels of your product, so the logo, label and colours stay exactly as they are.
+            Upload a product photo. See three creative directions built around what it is, what makes it distinctive and how people use it. Choose the look; we direct the shoot and check the product details.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <LinkButton href="/sign-in" variant="accent" size="lg">Try 2 images free <ArrowRight size={18} /></LinkButton>
@@ -61,27 +61,17 @@ export default async function Home() {
 
       <section className="mx-auto grid max-w-7xl gap-12 px-4 py-24 sm:px-8 lg:grid-cols-2">
         <div>
-          <div className="eyebrow">Why labels stay readable</div>
-          <h2 className="display mt-3 text-5xl">Most AI tools redraw your product. We don&apos;t.</h2>
-          <p className="mt-5 text-ink-2">General AI image tools paint the whole picture from scratch, product included. That&apos;s why brand names come out misspelt and logos drift. For packaging, that&apos;s not usable.</p>
-          <p className="mt-4 text-ink-2">In our default mode, we cut your product out of your photo, build the new scene around it, and then place your original product pixels back on top. The AI only creates the background, the surface and the shadows.</p>
+          <div className="eyebrow">Direction, with product discipline</div>
+          <h2 className="display mt-3 text-5xl">A photographer&apos;s decisions. Your product&apos;s identity.</h2>
+          <p className="mt-5 text-ink-2">The creative work starts before generation: understanding use, choosing a visual story, and directing composition, light, materials and a meaningful human gesture.</p>
+          <p className="mt-4 text-ink-2">For still lifes, we restore product detail from your reference when possible. Human interactions use reference-guided generation so hands and the product can meet naturally. Every result needs review for fine details.</p>
           <p className="mt-4 text-sm text-mute">Every image then goes through automatic checks. They catch most problems, not all, so you always review before publishing. If your product changed, report it and the credit comes back.</p>
         </div>
-        <ol className="grid gap-3 self-center">
-          {[
-            ["Your photo", "Plain surface, any phone", "#d9d2c4"],
-            ["Product cut out", "Background removed, edges kept", "checker"],
-            ["New scene made around it", "AI creates the set, light and shadows", "#e7efdf"],
-            ["Your real pixels placed back", "Label, logo and colour are from your photo", "#141310"],
-          ].map(([t, d, bg], i) => (
-            <li key={t} className="flex items-center gap-4 rounded-xl border border-line bg-card p-3">
-              <span className={`grid size-14 shrink-0 place-items-center rounded-lg ${bg === "checker" ? "checker" : ""}`} style={bg !== "checker" ? { background: bg } : undefined}>
-                <span className="h-8 w-5 rounded-[3px] bg-[#2f5a41] ring-2 ring-[#f3ece0]" />
-              </span>
-              <div><div className="frame-no">STEP {i + 1}</div><div className="font-medium">{t}</div><div className="text-sm text-mute">{d}</div></div>
-            </li>
-          ))}
-        </ol>
+        <figure className="self-center overflow-hidden rounded-3xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/directions/human.webp" alt="AI-created example of a natural adult skincare interaction" width={512} height={1024} className="aspect-[4/3] w-full object-cover object-[center_38%]" />
+          <figcaption className="mt-3 text-xs text-mute">AI-created example · Natural skin, a purposeful gesture, believable light.</figcaption>
+        </figure>
       </section>
 
       <section className="bg-ink text-paper">
@@ -102,21 +92,20 @@ export default async function Home() {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div><div className="eyebrow">{STYLE_LIST.length - 1} ready-made looks</div><h2 className="display mt-3 text-5xl">Pick a look. Or describe your own.</h2></div>
-          <LinkButton href="/sign-in" variant="outline">Try one now</LinkButton>
+        <div className="eyebrow">Three directions. One product.</div>
+        <h2 className="display mt-3 text-5xl">See the idea before you choose.</h2>
+        <div className="mt-10 grid gap-5 sm:grid-cols-3">
+          {[
+            ["hero", "Campaign hero", "A distinct visual signature built from the product’s form and materials."],
+            ["human", "In real life", "A believable adult interaction that shows scale, utility and a moment worth owning."],
+            ["detail", "Material story", "A tactile editorial study of what makes the product different."]
+          ].map(([id, title, description]) => <figure key={id}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={"/directions/" + id + ".webp"} alt={description} width={512} height={1024} loading="lazy" className="aspect-[4/5] w-full rounded-2xl object-cover" />
+            <figcaption className="mt-4"><h3 className="text-xl font-semibold">{title}</h3><p className="mt-2 text-sm text-mute">{description}</p></figcaption>
+          </figure>)}
         </div>
-        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          {STYLE_LIST.map((s, i) => (
-            <div key={s.id} className="overflow-hidden rounded-xl border border-line">
-              <div className="relative h-28" style={{ background: `radial-gradient(120% 90% at 50% 30%, ${s.swatch[0]}, ${s.swatch[1]})` }}>
-                <span className="frame-no absolute left-2 top-1.5" style={{ color: s.id === "luxury_dark" ? "#fff8" : undefined }}>{String(i + 1).padStart(2, "0")}</span>
-                <span className="absolute bottom-3 left-1/2 h-12 w-7 -translate-x-1/2 rounded-[4px] bg-[#2f5a41] shadow-[0_8px_10px_-4px_rgba(0,0,0,.45)]" />
-              </div>
-              <div className="bg-card p-2.5"><div className="text-sm font-medium">{s.name}</div><div className="line-clamp-2 text-xs text-mute">{s.description}</div></div>
-            </div>
-          ))}
-        </div>
+        <p className="mt-5 text-xs text-mute">AI-created example photography. Your concepts are made from your own uploaded product.</p>
       </section>
 
       <section className="border-y border-line bg-paper-2/50">

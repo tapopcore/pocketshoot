@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import {
-  ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
+  CREATIVE_VERSION, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
   sanitizeUserText, type DirectionInput, type ProductAnalysis, type ShotDirection,
 } from "@packshot/core";
 import { admin } from "./supabase";
@@ -138,7 +138,7 @@ Answer with JSON. Be strict about text and logo.`,
     images: [source, flat], detail: "high", schemaName: "fidelity", schema: FIDELITY_SCHEMA, timeoutMs: 60_000,
   });
   const v = check.data as { same_product: boolean; text_changed: boolean; logo_changed: boolean; shape_changed: boolean; colour_changed: boolean; notes: string };
-  const ok = v.same_product && !v.text_changed && !v.logo_changed && !v.shape_changed;
+  const ok = v.same_product && !v.text_changed && !v.logo_changed && !v.shape_changed && !v.colour_changed;
   return { cut, ok, verdict: { ...v, strict } };
 }
 
@@ -149,7 +149,7 @@ export async function analyzeProduct(productId: string, force = false): Promise<
   if (!product) return null;
   const attrs = (product.attributes ?? {}) as { analysis?: ProductAnalysis };
   // Re-run analyses made by older versions (no campaign ideas or camera angle).
-  if (attrs.analysis && !force && Array.isArray(attrs.analysis.ideas) && attrs.analysis.viewpoint) return attrs.analysis;
+  if (attrs.analysis && !force && Array.isArray(attrs.analysis.ideas) && attrs.analysis.viewpoint && attrs.analysis.creative_version === CREATIVE_VERSION) return attrs.analysis;
   if (!integrations.openai) return null;
   const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(3);
   if (!refs?.length) return null;
@@ -182,7 +182,7 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
       timeoutMs: 45_000,
     });
     const shots = parseDirections(res.data, input.count);
-    return shots ? { shots, source: "ai" } : fallback();
+    return shots ? { shots: shots.map(shot => ({ ...shot, human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
   } catch (e) {
     await logError("prep.direction", (e as Error).message, {});
     return fallback();

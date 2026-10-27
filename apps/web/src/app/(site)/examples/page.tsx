@@ -11,8 +11,8 @@ export default async function Examples() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8">
       <div className="eyebrow">Examples</div>
-      <h1 className="display mt-4 max-w-3xl text-6xl">Real products, real results.</h1>
-      <p className="mt-4 max-w-2xl text-ink-2">We only show images made for real customers who agreed to share them, without retouching. Until we have enough of those, here&apos;s an illustration of how it works.</p>
+      <h1 className="display mt-4 max-w-3xl text-6xl">A product. Three ways to see it.</h1>
+      <p className="mt-4 max-w-2xl text-ink-2">Explore AI-created photographic examples of a campaign hero, a human moment and a material story. Customer work, when shown below, is published only with permission.</p>
       {items.length > 0 ? (
         <div className="mt-12 columns-2 gap-4 sm:columns-3 lg:columns-4">
           {items.map((i) => (

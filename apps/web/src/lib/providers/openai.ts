@@ -81,7 +81,7 @@ async function callEdit(req: EditRequest, model: string, cfg: OpenAIImageSetting
     prompt: req.prompt,
     image: files,
     size: size ? `${size.width}x${size.height}` : legacySize(req.width, req.height),
-    quality: is25(model) ? (req.quality ?? cfg.quality) : cfg.legacyQuality,
+    quality: is25(model) ? (req.quality ?? cfg.quality) : req.quality && ["low", "medium", "high"].includes(req.quality) ? req.quality : cfg.legacyQuality,
     output_format: "png",
     n: 1,
   };
