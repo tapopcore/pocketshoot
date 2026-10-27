@@ -232,7 +232,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   if (!result) {
     const err = lastError!;
     if (err.userFacing) return failItem(item, job, err.code, "The AI service declined this image. Try a different scene or photo.");
-    if (err.retryable && attemptNo < item.max_attempts) return retryLater(item, attemptNo, err.code);
+    if (err.retryable && attemptNo < Math.min(2, item.max_attempts)) return retryLater(item, attemptNo, err.code);
     return failItem(item, job, err.code, "We couldn't create this image. No credit was used.");
   }
 
@@ -270,7 +270,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   if (judgeNeeded && integrations.openai) {
     try {
       const res = await jsonCall({
-        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
+        models: settings.providers.llm.models, task: "scene_quality", orgId: job.organization_id, prompt: FIDELITY_JUDGE_PROMPT + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
         images: [refImages[0], finalImage], detail: "high", schemaName: "fidelity", schema: JUDGE_SCHEMA, timeoutMs: 60_000,
       });
       const verdict = parseJudgeJson(JSON.stringify(res.data));
@@ -282,7 +282,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   }
 
   const decision: Decision = aggregate(checks);
-  if (decision === "fail" && attemptNo < item.max_attempts) {
+  if (decision === "fail" && attemptNo < Math.min(2, item.max_attempts)) {
     await saveFailedOutput(job, item, result.attemptId, finalImage, checks);
     return retryLater(item, attemptNo, "quality_fail", 0);
   }
@@ -401,7 +401,7 @@ export async function runTick(workerId: string, budgetMs = 240_000) {
         await processItem(it);
       } catch (e) {
         await logError("pipeline.item", (e as Error).message, { item: it.id, stack: (e as Error).stack?.slice(0, 1500) });
-        if (it.attempts + 1 < it.max_attempts) await retryLater(it, it.attempts + 1, "internal_error");
+        if (it.attempts + 1 < Math.min(2, it.max_attempts)) await retryLater(it, it.attempts + 1, "internal_error");
         else {
           const { data: job } = await admin().from("generation_jobs").select("*").eq("id", it.job_id).single<JobRow>();
           if (job) await failItem(it, job, "internal_error", "Something went wrong on our side. No credit was used.");
