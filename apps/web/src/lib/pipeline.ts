@@ -206,7 +206,7 @@ export async function processItem(item: ItemRow): Promise<void> {
         mask: provider.supportsMask ? mask : undefined,
         width: renderW,
         height: renderH,
-        quality: job.is_trial ? "medium" : undefined,
+        quality: job.is_trial || (job.mode === "preserve" && ["pure_white", "neutral_studio"].includes(styleId)) ? "medium" : undefined,
         swatch: STYLES[styleId]?.swatch,
         timeoutMs: settings.providers.timeoutMs,
       }, model);
