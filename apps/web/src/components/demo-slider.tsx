@@ -3,7 +3,7 @@ import { useState } from "react";
 import clsx from "clsx";
 
 const DIRECTIONS = [
-  { id: "hero", label: "Campaign hero", title: "Make the material memorable.", description: "Directional morning light reveals amber glass and throws a warm caustic across green stone." },
+  { id: "hero", label: "Campaign hero", title: "Make the material memorable.", description: "Directional morning light reveals amber glass and casts a warm reflection across green stone." },
   { id: "human", label: "In real life", title: "Give the product a human moment.", description: "Natural skin, a believable gesture and window light connect the bottle to a daily ritual." },
   { id: "detail", label: "Material story", title: "Make the details tangible.", description: "A closer view of glass, paper, linen and a droplet brings the textures forward." },
 ];
