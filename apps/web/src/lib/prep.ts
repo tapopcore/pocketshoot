@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import {
-  CREATIVE_VERSION, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
+  CREATIVE_VERSION, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
   sanitizeUserText, type DirectionInput, type ProductAnalysis, type ShotDirection,
 } from "@packshot/core";
 import { admin } from "./supabase";
@@ -182,7 +182,7 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
       timeoutMs: 45_000,
     });
     const shots = parseDirections(res.data, input.count);
-    return shots ? { shots: shots.map(shot => ({ ...shot, framing: input.framing ?? "full", human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
+    return shots && (!input.shootStyle || shots.every(shot => shotMatchesStyle(input.shootStyle!, shot))) ? { shots: shots.map(shot => ({ ...shot, framing: input.framing ?? "full", human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
   } catch (e) {
     await logError("prep.direction", (e as Error).message, {});
     return fallback();

@@ -1,6 +1,6 @@
 import "server-only";
 import {
-  FIDELITY_JUDGE_PROMPT, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt, buildPrompt,
+  SHOOT_STYLE_IDS, shootRecipe, styleRequirement, shotMatchesStyle, passesStyleReview, type ShootStyleId, type StyleReview, FIDELITY_JUDGE_PROMPT, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt, buildPrompt,
   judgeDecision, parseJudgeJson, isCategoryId, type CheckResult, type Decision, type LockId, type OutputId, type ProductAnalysis,
   type ShotDirection, type StyleId,
 } from "@packshot/core";
@@ -8,7 +8,7 @@ import sharp from "sharp";
 import { admin } from "./supabase";
 import { getSettings } from "./settings";
 import { getObject, putObject } from "./storage";
-import { dimensions, isBlank, thumbnail, watermark, type Cutout } from "./images";
+import { dimensions, isBlank, thumbnail, type Cutout } from "./images";
 import { finishComposite, layoutProduct, renderCanvas, type Place } from "./compose";
 import { analyzeProduct, directShots, getCutout } from "./prep";
 import { jsonCall } from "./llm";
@@ -36,7 +36,7 @@ interface JobRow {
   style: StyleId;
   output: OutputId;
   custom_brief: string | null;
-  settings: { palette?: string[]; category?: string; styles?: string[]; edit?: { assetId: string; instruction: string } };
+  settings: { shootStyle?: ShootStyleId; palette?: string[]; category?: string; styles?: string[]; edit?: { assetId: string; instruction: string } };
   is_trial: boolean;
   status: string;
   created_by: string | null;
@@ -70,12 +70,14 @@ async function setItem(id: string, patch: Record<string, unknown>) {
 async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, productName: string): Promise<void> {
   const db = admin();
   const { data: items } = await db.from("generation_items").select("id, idx, style, params").eq("job_id", job.id).order("idx");
-  const missing = (items ?? []).filter((i) => !(i.params as ItemParams)?.shot);
+  const selected = job.settings?.shootStyle && SHOOT_STYLE_IDS.includes(job.settings.shootStyle) ? job.settings.shootStyle : undefined;
+  const canonical = selected ? shootRecipe(selected, "other") : null;
+  const missing = (items ?? []).filter((i) => !(i.params as ItemParams)?.shot || (selected && !shotMatchesStyle(selected, (i.params as ItemParams).shot!)));
   if (!missing.length) return;
   const output = OUTPUTS[job.output];
   const byStyle = new Map<string, typeof missing>();
   for (const it of missing) {
-    const sid = output.forceStyle ?? (it.style && it.style in STYLES ? it.style : job.style);
+    const sid = output.forceStyle ?? canonical?.scene ?? (it.style && it.style in STYLES ? it.style : job.style);
     const key = JSON.stringify([sid, (it.params as ItemParams)?.brief ?? "", (it.params as ItemParams)?.humanPresence ?? "none", (it.params as ItemParams)?.framing ?? "full"]);
     byStyle.set(key, [...(byStyle.get(key) ?? []), it]);
   }
@@ -85,10 +87,10 @@ async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, produc
   await Promise.all([...byStyle.entries()].map(async ([key, list]) => {
     const [sid, ideaBrief, humanPresence, framing] = JSON.parse(key) as [StyleId, string, "none" | "hands" | "model", "full" | "close" | "macro"];
     const { shots, source } = await directShots({
-      humanPresence, framing, style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
+      shootStyle: selected, humanPresence: canonical?.human ?? humanPresence, framing: canonical?.framing ?? framing, style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
       brief: [ideaBrief, job.custom_brief].filter(Boolean).join(". ") || undefined, palette: job.settings?.palette, avoid,
     });
-    await Promise.all(list.map((it, k) => db.from("generation_items").update({ params: { ...((it.params as object) ?? {}), shot: shots[k], shotSource: source } }).eq("id", it.id)));
+    await Promise.all(list.map((it, k) => db.from("generation_items").update({ style: sid, params: { ...((it.params as object) ?? {}), shot: shots[k], shotSource: source } }).eq("id", it.id)));
   }));
 }
 
@@ -101,6 +103,9 @@ export async function processItem(item: ItemRow): Promise<void> {
     await db.rpc("settle_item", { p_item: item.id, p_capture: false });
     return;
   }
+  const selectedStyle = job.settings?.shootStyle && SHOOT_STYLE_IDS.includes(job.settings.shootStyle) ? job.settings.shootStyle : undefined;
+  const chosenLook = selectedStyle ? shootRecipe(selectedStyle, "other") : null;
+  if (chosenLook && !integrations.openai) return failItem(item, job, "style_check_unavailable", "The style check is unavailable. No credit was used.");
   const { data: product } = await db.from("products").select("id, name, category, locks, must_not_change, attributes").eq("id", job.product_id).single();
   const { data: refs } = await db.from("product_assets").select("id, storage_key, cutout_key, view_type, organization_id, product_id, metadata").eq("product_id", job.product_id).order("created_at");
   if (!product || !refs?.length) return failItem(item, job, "missing_reference", "The product photos are missing. Upload them again.");
@@ -123,7 +128,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   if (!edit) await ensureShots(job, analysis, product.name);
   const { data: itemRow } = await db.from("generation_items").select("style, params").eq("id", item.id).single();
   const params = (itemRow?.params ?? {}) as ItemParams;
-  const styleId = (output.forceStyle ?? (itemRow?.style && itemRow.style in STYLES ? itemRow.style : job.style)) as StyleId;
+  const styleId = (output.forceStyle ?? chosenLook?.scene ?? (itemRow?.style && itemRow.style in STYLES ? itemRow.style : job.style)) as StyleId;
 
   const detailShot = params.shot?.framing === "close" || params.shot?.framing === "macro";
   const humanShot = !!params.shot?.human_presence && params.shot.human_presence !== "none";
@@ -155,7 +160,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     const p = buildEditPrompt(edit.instruction, product.name, analysis);
     promptText = p.text; promptVersion = p.version;
   } else {
-    if (job.mode === "preserve" && !detailShot && (!params.shot?.human_presence || params.shot.human_presence === "none")) {
+    if (job.mode === "preserve" && !chosenLook && !detailShot && (!params.shot?.human_presence || params.shot.human_presence === "none")) {
       cut = await getCutout(primary, { allowModel: true, wait: true });
       if (cut) {
         place = layoutProduct(cut, W, H, params.shot ?? { product_scale: output.productScale, offset_x: 0, baseline: output.baseline });
@@ -173,6 +178,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     }
     const p = buildPrompt({
       mode: job.mode,
+      shootStyle: selectedStyle,
       category: isCategoryId(product.category) ? product.category : "other",
       productName: product.name,
       locks: (product.locks ?? []) as LockId[],
@@ -192,7 +198,8 @@ export async function processItem(item: ItemRow): Promise<void> {
 
   // ---- generation, trying providers in order
   await setItem(item.id, { status: "generating" });
-  const chain = providerChain(settings.providers);
+  const chain = providerChain(settings.providers).filter(pid => !chosenLook || pid !== "mock");
+  if (!chain.length) return failItem(item, job, "provider_unavailable", "Image generation is unavailable. No credit was used.");
   let result: { image: Buffer; provider: ProviderId; attemptId: string } | null = null;
   let lastError: ProviderError | null = null;
   const fx = await usdToInr();
@@ -258,7 +265,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     });
   } else {
     finalImage = await sharp(result.image).removeAlpha().resize(W, H, { fit: "cover", kernel: "lanczos3" }).png().toBuffer();
-    if (job.mode === "preserve" && !humanShot && !detailShot) {
+    if (job.mode === "preserve" && !chosenLook && !humanShot && !detailShot) {
       checks.push({ type: "product_alignment", score: null, decision: "review", details: { note: "We couldn't cut the product out of this photo, so the AI re-created it. Check the label closely, or upload a photo on a plain background." } });
     }
   }
@@ -275,22 +282,27 @@ export async function processItem(item: ItemRow): Promise<void> {
   if (judgeNeeded && integrations.openai) {
     try {
       const res = await jsonCall({
-        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + "\nAlso report photographic (credible light, material and photographic realism), natural_anatomy (true when no people; otherwise believable adult hands, faces and physical contact), and brief_followed (the actual action and composition match the direction). Selected direction: " + JSON.stringify(params.shot ?? null) + (detailShot ? "\nThis is an intentional close/macro crop. Do not count parts outside the frame or text outside the frame as missing or changed. Judge the visible product region strictly." : "") + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
+        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + (selectedStyle ? "\nCUSTOMER SELECTED STYLE (judge against this original selection, even if the generated shot brief contradicts it): " + selectedStyle + ". " + styleRequirement(selectedStyle) : "") + "\nReport style_match against the customer selection, environment as indoor/outdoor/studio/unknown, human_visible only if a person or hand is actually visible, and framing_match. Product viewpoint/pose changes are allowed; structural redesign is not." + "\nAlso report photographic (credible light, material and photographic realism), natural_anatomy (true when no people; otherwise believable adult hands, faces and physical contact), and brief_followed (the actual action and composition match the direction). Selected direction: " + JSON.stringify(params.shot ?? null) + (detailShot ? "\nThis is an intentional close/macro crop. Do not count parts outside the frame or text outside the frame as missing or changed. Judge the visible product region strictly." : "") + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
         images: [refImages[0], finalImage], detail: "high", schemaName: "fidelity", schema: JUDGE_SCHEMA, timeoutMs: 60_000,
       });
-      const look = res.data as { photographic?: boolean; natural_anatomy?: boolean; brief_followed?: boolean };
+      const look = res.data as StyleReview & { photographic?: boolean; natural_anatomy?: boolean; brief_followed?: boolean };
+      if (selectedStyle && !passesStyleReview(selectedStyle, look)) checks.push({ type: "style_adherence", score: 0, decision: "fail", details: { note: "The image did not match the selected photographic style.", selectedStyle, observed: look } });
       if (look.natural_anatomy === false) checks.push({ type: "human_realism", score: 0, decision: "fail", details: { note: "The human interaction was not physically believable." } });
-      if (look.photographic === false || look.brief_followed === false) checks.push({ type: "creative_quality", score: 0, decision: "review", details: { note: "Review photographic realism and the selected creative direction." } });
+      if (look.photographic === false || look.brief_followed === false) checks.push({ type: "creative_quality", score: 0, decision: selectedStyle ? "fail" : "review", details: { note: "Review photographic realism and the selected creative direction." } });
       const verdict = parseJudgeJson(JSON.stringify(res.data));
-      if (verdict) checks.push({ type: "vlm_judge", score: verdict.same_product ? 1 : 0, decision: judgeDecision(verdict, job.mode), details: verdict as unknown as Record<string, unknown> });
-      else checks.push({ type: "vlm_judge", score: null, decision: "review", details: { note: "Accuracy check gave an unreadable answer" } });
+      if (verdict) checks.push({ type: "vlm_judge", score: verdict.same_product ? 1 : 0, decision: selectedStyle && (!verdict.same_product || verdict.text_changed || verdict.logo_changed || verdict.shape_changed || verdict.colour_changed || verdict.extra_or_missing_items || verdict.artefacts) ? "fail" : judgeDecision(verdict, job.mode), details: verdict as unknown as Record<string, unknown> });
+      else checks.push({ type: "vlm_judge", score: null, decision: selectedStyle ? "fail" : "review", details: { note: "Accuracy check gave an unreadable answer" } });
     } catch (e) {
-      checks.push({ type: "vlm_judge", score: null, decision: "review", details: { note: "Accuracy check unavailable", error: (e as Error).message.slice(0, 200) } });
+      checks.push({ type: "vlm_judge", score: null, decision: selectedStyle ? "fail" : "review", details: { note: "Accuracy check unavailable", error: (e as Error).message.slice(0, 200) } });
     }
   }
 
   if (humanShot && !checks.some(c => c.type === "vlm_judge")) checks.push({ type: "vlm_judge", score: null, decision: "review", details: { note: "Product accuracy needs your review for this human interaction." } });
   const decision: Decision = aggregate(checks);
+  if (selectedStyle && decision === "fail") {
+    await saveFailedOutput(job, item, result.attemptId, finalImage, checks);
+    return failItem(item, job, "style_or_quality_fail", "This image did not pass the selected style and quality checks. No credit was used.");
+  }
   if (decision === "fail" && attemptNo < item.max_attempts) {
     await saveFailedOutput(job, item, result.attemptId, finalImage, checks);
     return retryLater(item, attemptNo, "quality_fail", 0);
@@ -301,13 +313,13 @@ export async function processItem(item: ItemRow): Promise<void> {
   }
 
   // ---- delivery
-  const delivered = job.is_trial ? await watermark(finalImage, `${env.appName} trial`) : finalImage;
+  const delivered = finalImage;
   const base = `${job.organization_id}/${job.id}/${item.idx}-${attemptNo}`;
   const thumb = await thumbnail(delivered);
   await Promise.all([putObject("outputs", `${base}.png`, delivered, "image/png"), putObject("outputs", `${base}-thumb.webp`, thumb, "image/webp")]);
   const { data: asset, error: aErr } = await db.from("generated_assets").insert({
     job_id: job.id, item_id: item.id, attempt_id: result.attemptId, organization_id: job.organization_id, product_id: job.product_id,
-    storage_key: `${base}.png`, thumb_key: `${base}-thumb.webp`, width: W, height: H, quality_status: decision, watermarked: job.is_trial,
+    storage_key: `${base}.png`, thumb_key: `${base}-thumb.webp`, width: W, height: H, quality_status: decision, watermarked: false,
   }).select("id").single();
   if (aErr) throw aErr;
   await db.from("quality_checks").insert(checks.map((c) => ({ generated_asset_id: asset.id, check_type: c.type, score: c.score, decision: c.decision, details: c.details })));
@@ -384,8 +396,9 @@ async function finishIfDone(job: JobRow) {
 
 const JUDGE_SCHEMA = {
   type: "object", additionalProperties: false,
-  required: ["same_product", "text_changed", "logo_changed", "colour_changed", "shape_changed", "extra_or_missing_items", "artefacts", "notes", "photographic", "natural_anatomy", "brief_followed"],
+  required: ["same_product", "text_changed", "logo_changed", "colour_changed", "shape_changed", "extra_or_missing_items", "artefacts", "notes", "photographic", "natural_anatomy", "brief_followed", "style_match", "environment", "human_visible", "framing_match"],
   properties: {
+    style_match: { type: "boolean" }, environment: { type: "string", enum: ["indoor", "outdoor", "studio", "unknown"] }, human_visible: { type: "boolean" }, framing_match: { type: "boolean" },
     photographic: { type: "boolean" }, natural_anatomy: { type: "boolean" }, brief_followed: { type: "boolean" },
     same_product: { type: "boolean" }, text_changed: { type: "boolean" }, logo_changed: { type: "boolean" }, colour_changed: { type: "boolean" },
     shape_changed: { type: "boolean" }, extra_or_missing_items: { type: "boolean" }, artefacts: { type: "boolean" }, notes: { type: "string" },

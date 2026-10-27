@@ -181,6 +181,17 @@ export const SCENE_RECIPES = {
     art: "linear-gradient(180deg, #f1dfc3 0%, #d79b5f 60%, #a1532c 100%)",
   },
   // ---------------- Nature
+  outdoor_location: {
+    group: "nature",
+    scene: "a real open-air exterior with a visible landscape and sky, no enclosed room or window",
+    surface: "dry natural stone or terrain suited to the product",
+    lighting: "unfiltered daylight from the open sky, coherent sun direction and grounded shadows",
+    camera: "50mm lens at f/5.6, natural perspective with a readable exterior location",
+    props: "at most one location-appropriate natural detail, no indoor furnishings or draped cloth",
+    grade: "natural outdoor colour, believable atmosphere and material reflections",
+    bestFor: ["all"],
+    art: "linear-gradient(180deg, #b9d2da, #7f9085)",
+  },
   natural_sunlight: {
     group: "nature",
     scene: "a pale linen-draped tabletop beside a sunny window with soft out-of-focus greenery outside",

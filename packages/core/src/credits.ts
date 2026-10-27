@@ -136,6 +136,7 @@ export interface CreditPolicy {
   freeRemakes: number;
   remakeWindowDays: number;
   trialCredits: number;
+  /** Deprecated compatibility field. Image delivery never adds watermarks. */
   trialWatermark: boolean;
   paidExpiryMonths: number;
   promoExpiryDays: number;
@@ -147,7 +148,7 @@ export const DEFAULT_POLICY: CreditPolicy = {
   freeRemakes: 1,
   remakeWindowDays: 7,
   trialCredits: 2,
-  trialWatermark: true,
+  trialWatermark: false,
   paidExpiryMonths: 12,
   promoExpiryDays: 60,
   maxImagesPerJob: 8,

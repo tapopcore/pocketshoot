@@ -96,7 +96,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
               {job.settings?.edit ? <span className="rounded-full bg-accent/10 px-2.5 py-1 font-medium text-accent">Edit: “{job.settings.edit.instruction}”</span>
                 : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))].map((s) => <span key={s} className="rounded-full bg-paper-2 px-2.5 py-1 font-medium">{s}</span>)}
               <span className="rounded-full bg-paper-2 px-2.5 py-1">{output?.name} {output?.ratio}</span>
-              {job.mode === "preserve" && <span className="inline-flex items-center gap-1 rounded-full bg-good/10 px-2.5 py-1 font-medium text-good"><ShieldCheck size={12} /> Exact product</span>}
+              {job.mode === "preserve" && <span className="inline-flex items-center gap-1 rounded-full bg-good/10 px-2.5 py-1 font-medium text-good"><ShieldCheck size={12} /> Product reference</span>}
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -108,12 +108,6 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
           <div className="mt-5">
             <div className="h-1.5 overflow-hidden rounded-full bg-paper-2"><div className="h-full rounded-full bg-gradient-to-r from-[#ffc27a] via-accent to-[#ff4f7b] transition-all duration-700" style={{ width: `${Math.max(6, pct)}%` }} /></div>
             <div className="mt-2 text-xs text-mute">{delivered.length} of {items.length} ready · about 30 to 60 seconds per image · you can leave this page</div>
-          </div>
-        )}
-        {job.is_trial && delivered.length > 0 && (
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-3 text-sm">
-            <span className="text-ink-2">Trial images carry a watermark. Buy credits for full-size, clean images.</span>
-            <a href={`${base}/${surface === "shopify" ? "credits" : "wallet"}`} className="cta-strobe shrink-0 rounded-full px-4 py-1.5 font-semibold">Get credits</a>
           </div>
         )}
       </header>

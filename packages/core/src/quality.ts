@@ -13,7 +13,8 @@ export type CheckType =
   | "vlm_judge"
   | "blank_output"
   | "human_realism"
-  | "creative_quality";
+  | "creative_quality"
+  | "style_adherence";
 
 export interface CheckResult {
   type: CheckType;

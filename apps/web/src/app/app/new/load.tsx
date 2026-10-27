@@ -26,7 +26,7 @@ export async function StudioPage({ productId, denied, industry, look }: { produc
       key={productId ?? "new"}
       locale={ctx.locale}
       balance={wallet.available}
-      isTrial={trial && settings.credit_policy.trialWatermark}
+      isTrial={trial}
       creativeEnabled={creative}
       maxImages={settings.credit_policy.maxImagesPerJob}
       brandKits={kits ?? []}

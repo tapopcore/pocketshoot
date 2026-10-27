@@ -73,7 +73,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
     palette = kit?.palette ?? [];
   }
 
-  const isTrial = !opts.internal && policy.trialWatermark && (await isTrialOrg(ctx.orgId));
+  const isTrial = !opts.internal && (await isTrialOrg(ctx.orgId));
   const { data: job, error } = await db
     .from("generation_jobs")
     .insert({

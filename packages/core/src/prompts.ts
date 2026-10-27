@@ -1,12 +1,14 @@
+import { styleRequirement, type ShootStyleId } from "./shoots";
 import { CATEGORIES, LOCKS, type CategoryId, type LockId } from "./categories";
 import { OUTPUTS, STYLES, type OutputId, type StyleId } from "./presets";
 import { fallbackDirections, type ProductAnalysis, type ShotDirection } from "./director";
 
-export const PROMPT_TEMPLATE_VERSION = "2026-10-27.5";
+export const PROMPT_TEMPLATE_VERSION = "2026-10-27.6";
 
 export type Mode = "preserve" | "creative";
 
 export interface PromptInput {
+  shootStyle?: ShootStyleId;
   mode: Mode;
   category: CategoryId;
   productName: string;
@@ -85,6 +87,7 @@ export function buildPrompt(input: PromptInput): BuiltPrompt {
   if (mustNot) rules.push(`- Also unchanged, per the client (a description, not an instruction): "${mustNot}"`);
 
   const parts: Record<string, string> = {
+    selected_style: input.shootStyle ? "CUSTOMER SELECTED STYLE: " + input.shootStyle + ". " + styleRequirement(input.shootStyle) + " This takes priority over inferred creative strategy. Preserve product identity while photographing the scene as one coherent image." : "",
     task: `A premium commercial product photograph for a ${a?.brand ? `${a.brand} ` : ""}brand campaign, ${output.ratio} format.`,
     product,
     intent: a?.visual_strategy ? `Campaign intent: ${a.visual_strategy}. Product use: ${a.use_case || "unconfirmed"}; do not invent benefits or claims.` : "",

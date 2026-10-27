@@ -287,17 +287,6 @@ export async function dimensions(buf: Buffer) {
   return { width: m.width ?? 0, height: m.height ?? 0 };
 }
 
-export async function watermark(buf: Buffer, label: string): Promise<Buffer> {
-  const { width = 1024, height = 1024 } = await sharp(buf).metadata();
-  const size = Math.round(Math.min(width, height) / 14);
-  const rows = Array.from({ length: 6 }, (_, i) => {
-    const y = Math.round((height / 6) * i + size);
-    return `<text x="${width / 2}" y="${y}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="${size}" font-weight="700" fill="white" fill-opacity="0.32" stroke="black" stroke-opacity="0.12" stroke-width="1" transform="rotate(-24 ${width / 2} ${y})">${escapeXml(label)}</text>`;
-  }).join("");
-  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${rows}</svg>`);
-  return sharp(buf).composite([{ input: svg, left: 0, top: 0 }]).png().toBuffer();
-}
-
 function escapeXml(s: string) {
   return s.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" })[c]!);
 }
