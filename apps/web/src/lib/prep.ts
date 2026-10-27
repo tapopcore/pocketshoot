@@ -38,7 +38,8 @@ const HERO_LOCK_MS = 4 * 60_000;
 export async function getCutout(asset: ProductAssetRow, opts: { allowModel?: boolean; wait?: boolean } = {}): Promise<Cutout | null> {
   const meta = (asset.metadata ?? {}) as Record<string, unknown>;
   if (asset.cutout_key && asset.cutout_key !== "none") return cutoutFromRgba(await getObject("originals", asset.cutout_key));
-  if (asset.cutout_key === "none" && !opts.allowModel) return null;
+  // A failed preparation is terminal until explicitly reset. Never buy more image calls on every shoot.
+  if (asset.cutout_key === "none") return null;
 
   // Another request is already retouching this photo: wait for it instead of paying twice.
   const startedAt = typeof meta.heroStartedAt === "number" ? meta.heroStartedAt : 0;
@@ -132,6 +133,7 @@ async function retouch(asset: ProductAssetRow, source: Buffer, analysis: Product
   const flat = await sharp(res.image).flatten({ background: "#ffffff" }).png().toBuffer();
   const check = await jsonCall({
     models: settings.providers.llm.models,
+    task: "preparation_fidelity", orgId: asset.organization_id,
     prompt: `Image 1 is a customer's phone photo of a product. Image 2 is a retouched packshot of it. Ignore background, hands, lighting, dust, glare, angle straightening and cleanup: those are wanted.
 Check only whether the product itself changed: any printed word, letter or number different, missing or added; logo different; shape or proportions different; product colour different; a different product.${analysis?.visible_text.length ? ` The real printed text is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""}
 Answer with JSON. Be strict about text and logo.`,
@@ -156,7 +158,7 @@ export async function analyzeProduct(productId: string, force = false): Promise<
   try {
     const settings = await getSettings();
     const images = await Promise.all(refs.map((r) => getObject("originals", r.storage_key)));
-    const res = await jsonCall({ models: settings.providers.llm.models, prompt: analysisPrompt(SCENE_IDS), images, detail: "high", schemaName: "product_analysis", schema: ANALYSIS_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 60_000 });
+    const res = await jsonCall({ models: settings.providers.llm.models, task: "product_analysis", orgId: product.organization_id, prompt: analysisPrompt(SCENE_IDS), images, detail: "high", schemaName: "product_analysis", schema: ANALYSIS_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 60_000 });
     const analysis = parseAnalysis(res.data, SCENE_IDS);
     if (!analysis) return null;
     await db.from("products").update({ attributes: { ...attrs, analysis, analysisModel: res.model, analysedAt: new Date().toISOString() } }).eq("id", productId);
@@ -176,11 +178,13 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
     const settings = await getSettings();
     const res = await jsonCall({
       models: settings.providers.llm.models,
+      task: "shot_direction",
       prompt: directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined }),
       schemaName: "shot_briefs",
       schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>,
       timeoutMs: 45_000,
     });
+    await recordCost("system", "shot_direction", res.model, (res.inputTokens * 0.25 + res.outputTokens * 2) / 1_000_000);
     const shots = parseDirections(res.data, input.count);
     return shots ? { shots, source: "ai" } : fallback();
   } catch (e) {
