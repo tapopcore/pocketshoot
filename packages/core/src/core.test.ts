@@ -111,6 +111,15 @@ describe("quality and status", () => {
     expect(judgeDecision(v!, "preserve")).toBe("fail");
     expect(parseJudgeJson("nope")).toBeNull();
   });
+  it("does not pass an accurate product if the scene is commercially weak", () => {
+    const verdict = {
+      same_product: true, text_changed: false, logo_changed: false, colour_changed: false,
+      shape_changed: false, extra_or_missing_items: false, artefacts: false,
+      commercially_usable: false, lighting_consistent: false, shadow_plausible: false, product_clean: true,
+    };
+    expect(judgeDecision(verdict, "preserve")).toBe("review");
+    expect(judgeDecision({ ...verdict, commercially_usable: true, lighting_consistent: true, shadow_plausible: true }, "preserve")).toBe("pass");
+  });
   it("rolls up job status honestly", () => {
     expect(rollupJobStatus([{ status: "delivered", decision: "pass" }, { status: "failed" }])).toBe("completed");
     expect(rollupJobStatus([{ status: "failed" }, { status: "failed" }])).toBe("failed");
