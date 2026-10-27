@@ -160,7 +160,16 @@ body {
 .darkroom .skeleton { background: linear-gradient(90deg, rgb(0 0 0 / 0.035) 25%, rgb(0 0 0 / 0.065) 50%, rgb(0 0 0 / 0.035) 75%); background-size: 200% 100%; }
 .darkroom ::selection { background: var(--color-accent); color: #fff; }
 .darkroom aside { background: #f1efea; }
-.darkroom .set-light { color: #f8f4ed; }
+.darkroom .set-light {
+  --color-ink: #f3eee6;
+  --color-ink-2: #d2cabf;
+  --color-mute: #ada497;
+  --color-line: rgb(243 238 230 / 0.18);
+  --color-card: #211d19;
+  --color-paper: #0e0d0c;
+  --color-paper-2: #27221e;
+  color: var(--color-ink);
+}
 
 
 /* Studio set: a soft key light falling on a dark sweep */
