@@ -178,13 +178,12 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
     const settings = await getSettings();
     const res = await jsonCall({
       models: settings.providers.llm.models,
-      task: "shot_direction",
+      task: "shot_direction", orgId: input.orgId,
       prompt: directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined }),
       schemaName: "shot_briefs",
       schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>,
       timeoutMs: 45_000,
     });
-    await recordCost("system", "shot_direction", res.model, (res.inputTokens * 0.25 + res.outputTokens * 2) / 1_000_000);
     const shots = parseDirections(res.data, input.count);
     return shots ? { shots, source: "ai" } : fallback();
   } catch (e) {
