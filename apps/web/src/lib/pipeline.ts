@@ -83,7 +83,7 @@ async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, produc
   await Promise.all([...byStyle.entries()].map(async ([key, list]) => {
     const [sid, ideaBrief] = key.split("|");
     const { shots, source } = await directShots({
-      style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
+      style: STYLES[sid as StyleId], output, count: list.length, analysis, productName, orgId: job.organization_id,
       brief: [ideaBrief, job.custom_brief].filter(Boolean).join(". ") || undefined, palette: job.settings?.palette, avoid,
     });
     await Promise.all(list.map((it, k) => db.from("generation_items").update({ params: { ...((it.params as object) ?? {}), shot: shots[k], shotSource: source } }).eq("id", it.id)));
