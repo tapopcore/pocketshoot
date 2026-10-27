@@ -61,7 +61,8 @@ export async function getCutout(asset: ProductAssetRow, opts: { allowModel?: boo
 
   if (opts.allowModel !== false && integrations.openai) {
     const analysis = await analyzeProduct(asset.product_id);
-    for (const strict of [false, true]) {
+    // One retouch attempt per upload by default; repeated paid attempts need explicit approval.
+    for (const strict of [false]) {
       try {
         const r = await retouch(asset, source, analysis, strict);
         if (!r) continue;
