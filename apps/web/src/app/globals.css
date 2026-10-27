@@ -192,3 +192,7 @@ body {
 .shoot-flow button, .shoot-flow a { -webkit-tap-highlight-color: transparent; }
 html { scroll-padding-top: 90px; }
 @media (prefers-reduced-motion: no-preference) { .shoot-flow section { animation: rise 180ms ease-out both; } }
+
+/* Shared primary buttons use the daylight studio colour and contrast. */
+.cta-strobe { background: var(--color-accent); color: #fff; box-shadow: none; }
+.cta-strobe:hover { background: var(--color-accent-ink); box-shadow: none; transform: none; }
