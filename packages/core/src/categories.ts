@@ -138,7 +138,7 @@ export const CATEGORIES: Record<CategoryId, Category> = {
     preserve: [
       "Stone count, stone colour, setting style and metal colour stay exactly as in the reference.",
       "Engravings, hallmarks and clasp types are not altered.",
-      "Do not place the piece on a human model unless the user chose a lifestyle preset that allows it.",
+      "Do not place the piece on a human model unless the user chose a direction explicitly requesting a human interaction.",
     ],
     recommendedPresets: ["velvet_gold", "silk_satin", "luxury_dark", "marble_stone", "wedding", "dressing_table"],
     defaultLocks: ["shape", "colour", "material", "item_count", "logo"],

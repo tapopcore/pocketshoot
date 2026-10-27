@@ -15,12 +15,13 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <Link href="/"><Logo className="text-paper" /></Link>
         <div>
           <div className="eyebrow !text-paper/60">Frame 01 / Your product</div>
-          <p className="display mt-4 text-6xl leading-[0.95]">Your phone photo in.<br /><em className="text-accent">Studio shot</em> out.<br />Label untouched.</p>
+          <p className="display mt-4 text-6xl leading-[0.95]">Your product.<br /><em className="text-accent">A point of view.</em><br />A new shoot.</p>
         </div>
         <div className="grid grid-cols-3 gap-3 opacity-80">
-          {["#e8ddd3", "#dce8d2", "#2a2a2c"].map((c, i) => (
-            <div key={c} className="cropmarks aspect-[4/5] rounded-md" style={{ background: c }}>
-              <div className="frame-no p-2 !text-paper/50">{String(i + 1).padStart(2, "0")}A</div>
+          {["hero", "human", "detail"].map((c, i) => (
+            <div key={c} className="cropmarks relative aspect-[4/5] overflow-hidden rounded-md" >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={"/directions/" + c + ".webp"} alt="AI-created product photography example" className="size-full object-cover" /><div className="frame-no absolute bottom-2 left-2 !text-white/70">{String(i + 1).padStart(2, "0")}A</div>
             </div>
           ))}
         </div>

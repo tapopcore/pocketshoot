@@ -11,7 +11,9 @@ export type CheckType =
   | "colour_delta"
   | "edge_coverage"
   | "vlm_judge"
-  | "blank_output";
+  | "blank_output"
+  | "human_realism"
+  | "creative_quality";
 
 export interface CheckResult {
   type: CheckType;

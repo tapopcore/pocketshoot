@@ -18,14 +18,15 @@ import { Spinner } from "@/components/ui";
 export interface StudioProduct { id: string; name: string; category: CategoryId; coverUrl: string | null }
 interface Hero { status: "pending" | "processing" | "ready" | "failed"; previewUrl: string | null; cutoutUrl: string | null; originalUrl: string | null; method: string | null }
 interface Prepared { product: { id: string; name: string; category: CategoryId }; analysis: ProductAnalysis | null; ideas: SceneIdea[]; suggestedScenes: StyleId[]; hero: Hero }
-type Shot = { key: string; kind: "idea" | "scene" | "custom"; title: string; description?: string; style: StyleId };
+type Shot = { human_presence?: "none" | "hands" | "model"; key: string; kind: "idea" | "scene" | "custom"; title: string; description?: string; style: StyleId };
 type Phase = "empty" | "reading" | "ready";
 type Tab = "ideas" | "library" | "describe";
 
 const READ_STEPS = ["Uploading", "Reading the label", "Studying the product", "Writing ideas for it"];
-const MAX_SHOTS = 4;
+const MAX_SHOTS = 3;
 
 export function Studio(props: {
+  fixture?: Prepared;
   locale: Locale; balance: number; isTrial: boolean; creativeEnabled: boolean; maxImages: number;
   brandKits: { id: string; name: string; palette: string[] }[]; existing: StudioProduct | null; recentProducts: StudioProduct[];
   recentJobs: JobSummary[]; previews?: Record<string, string>; notice?: string | null; canEdit?: boolean;
@@ -49,6 +50,10 @@ export function Studio(props: {
   const [extra, setExtra] = useState("");
   const [kit, setKit] = useState<string | null>(brandKits[0]?.id ?? null);
   const [more, setMore] = useState(false);
+  const [multipleShots, setMultipleShots] = useState(false);
+  const [alternatives, setAlternatives] = useState(false);
+  const [directionPreviews, setDirectionPreviews] = useState<{ state: string; urls: (string | null)[] }>({ state: "idle", urls: [] });
+  const [previewRetry, setPreviewRetry] = useState(0);
   const [starting, setStarting] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,9 +90,9 @@ export function Studio(props: {
       setHero(p.hero);
       setName(p.product.name);
       setCategory(p.product.category);
-      // Pre-select the first two AI ideas: the fastest path to a great first shoot.
-      const firstIdeas = p.ideas.slice(0, 2).map((i, k) => ideaShot(i, k));
-      setShots(firstIdeas.length ? firstIdeas : p.suggestedScenes.slice(0, 2).map((s) => sceneShot(s)));
+      // Recommend one direction. Additional shots require an explicit choice.
+      const firstIdeas = p.ideas.slice(0, 1).map((i, k) => ideaShot(i, k));
+      setShots(firstIdeas.length ? firstIdeas : p.suggestedScenes.slice(0, 1).map((s) => sceneShot(s)));
       setTab(p.ideas.length ? "ideas" : "library");
       setPhase("ready");
     } catch (e) {
@@ -97,6 +102,28 @@ export function Studio(props: {
       clearInterval(timer);
     }
   }, []);
+
+  useEffect(() => {
+    if (props.fixture) return;
+    if (!productId || phase !== "ready" || !prep?.ideas.length) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let polls = 0;
+    setDirectionPreviews({ state: "pending", urls: [] });
+    const request = async (first: boolean) => {
+      try {
+        const result = await api<{ state: string; urls: (string | null)[] }>(`/api/products/${productId}/directions`, first ? { method: "POST" } : undefined);
+        if (stopped) return;
+        setDirectionPreviews(result);
+        if (result.state === "pending" && polls++ < 65) timer = setTimeout(() => request(false), 3500);
+        else if (result.state === "pending") setDirectionPreviews({ state: "failed", urls: [] });
+      } catch {
+        if (!stopped) setDirectionPreviews({ state: "failed", urls: [] });
+      }
+    };
+    request(true);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [productId, phase, prep?.ideas, previewRetry, props.fixture]);
 
   const start = useCallback(async (files: File[]) => {
     setError(null);
@@ -121,10 +148,16 @@ export function Studio(props: {
   }, [prepare]);
 
   useEffect(() => {
+    if (props.fixture) {
+      setPrep(props.fixture); setHero(props.fixture.hero); setName(props.fixture.product.name); setCategory(props.fixture.product.category); setPhase("ready");
+      setShots(props.fixture.ideas.slice(0, 1).map(ideaShot));
+      setDirectionPreviews({ state: "ready", urls: ["/directions/hero.webp", "/directions/human.webp", "/directions/detail.webp"] });
+      return;
+    }
     if (existing) { prepare(existing.id); return; }
     const pending = takePendingFiles();
     if (pending.length) start(pending);
-  }, [existing, prepare, start]);
+  }, [existing, prepare, start, props.fixture]);
 
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
@@ -136,7 +169,7 @@ export function Studio(props: {
   }, [phase, start]);
 
   function reset() {
-    setPhase("empty"); setPrep(null); setHero(null); setLocalPreview(null); setShots([]); setJobId(null); setError(null);
+    setDirectionPreviews({ state: "idle", urls: [] }); setAlternatives(false); setPhase("empty"); setPrep(null); setHero(null); setLocalPreview(null); setShots([]); setJobId(null); setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -146,6 +179,7 @@ export function Studio(props: {
   }
 
   function toggle(s: Shot) {
+    if (!multipleShots) { setShots([s]); return; }
     setShots((cur) => cur.some((x) => x.key === s.key) ? cur.filter((x) => x.key !== s.key) : cur.length >= MAX_SHOTS ? [...cur.slice(1), s] : [...cur, s]);
   }
 
@@ -158,7 +192,7 @@ export function Studio(props: {
     setStarting(true); setError(null);
     try {
       const styles = shots.filter((s) => s.kind === "scene").map((s) => s.style);
-      const ideas = shots.filter((s) => s.kind !== "scene").map((s) => ({ title: s.title, description: s.description ?? s.title, base_scene: s.style }));
+      const ideas = shots.filter((s) => s.kind !== "scene").map((s) => ({ title: s.title, description: s.description ?? s.title, human_presence: s.human_presence ?? "none", base_scene: s.style }));
       const first = forced ?? shots[0]?.style ?? "neutral_studio";
       const job = await api<{ jobId: string }>("/api/jobs", {
         method: "POST",
@@ -203,7 +237,7 @@ export function Studio(props: {
               <h1 className="mt-5 max-w-xl text-[44px] font-semibold leading-[0.98] tracking-[-0.04em] sm:text-[64px] lg:text-[76px]">
                 Drop a product.<br /><span className="serif-i text-[1.12em] font-normal text-accent">Get the shoot.</span>
               </h1>
-              <p className="mt-5 max-w-md text-[15px] leading-relaxed text-ink-2">Any photo works, even in your hand. We retouch it, read the label, and art-direct campaign shots made for it.</p>
+              <p className="mt-5 max-w-md text-[15px] leading-relaxed text-ink-2">One clear product photo. We study what it is, plan three distinct directions, and help you choose the right image for your brand.</p>
             </div>
             <div className="reveal" style={{ animationDelay: "120ms" }}>
               <div className="flex flex-wrap items-center gap-3">
@@ -224,9 +258,9 @@ export function Studio(props: {
             <ProofCollage previews={previews} />
             <ol className="space-y-4">
               {[
-                ["Retouch", "Hands, dust, glare and background removed. Your label stays exact."],
-                ["Direct", "AI writes campaign ideas for your product, not generic templates."],
-                ["Shoot", "Studio-grade images in under a minute, ready for your store and ads."],
+                ["Understand", "We study your product, its materials and how people use it."],
+                ["See the direction", "Three visual concepts: a campaign hero, a human moment and a material story."],
+                ["Create", "Choose a look. We direct the lighting, composition and realism, then check product accuracy."],
               ].map(([t, d], i) => (
                 <li key={t} className="reveal flex gap-4" style={{ animationDelay: `${200 + i * 100}ms` }}>
                   <span className="serif-i w-8 shrink-0 text-3xl leading-none text-accent">{i + 1}</span>
@@ -278,7 +312,7 @@ export function Studio(props: {
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => { e.preventDefault(); setDragging(false); if (phase !== "reading") start(Array.from(e.dataTransfer.files)); }}
-            className={clsx("set-light grain relative aspect-[4/5] max-h-[78vh] w-full overflow-hidden rounded-[32px] border", dragging ? "border-accent" : "border-line")}
+            className={clsx("set-light grain relative aspect-square max-h-[34vh] w-full sm:aspect-[4/5] sm:max-h-[62vh] lg:max-h-[78vh] overflow-hidden rounded-[32px] border", dragging ? "border-accent" : "border-line")}
           >
             {(hero?.originalUrl ?? localPreview) && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -326,7 +360,7 @@ export function Studio(props: {
                 {hero && hero.status !== "ready" && hero.status !== "failed" && (
                   <div className="absolute inset-x-0 bottom-5 flex justify-center">
                     <div className="glass inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm">
-                      <Spinner className="size-3.5 text-accent" /> Retouching your photo · about 40 s · pick ideas meanwhile
+                      <Spinner className="size-3.5 text-accent" /> Preparing your product photo · explore directions while we work
                     </div>
                   </div>
                 )}
@@ -349,15 +383,16 @@ export function Studio(props: {
                 </select>
               </div>
               <div className="mt-3 space-y-2 text-sm">
+                {a?.use_case && <p className="leading-relaxed text-ink-2">{a.use_case}</p>}
                 {a?.visible_text.length ? (
                   <div className="flex items-start gap-2.5"><ScanText size={16} className="mt-0.5 shrink-0 text-accent" />
                     <div className="flex flex-wrap gap-1.5">{a.visible_text.slice(0, 10).map((t, i) => <span key={i} className="rounded-md bg-paper-2 px-2 py-0.5 font-mono text-[12px] text-ink-2">{t}</span>)}</div>
                   </div>
                 ) : null}
                 <div className="flex items-start gap-2.5 text-ink-2"><Lock size={15} className="mt-0.5 shrink-0 text-good" />
-                  <span>Your label and logo detail are restored from your photo in every shot.</span></div>
+                  <span>We check product identity, label and logo against your reference. Review fine details before publishing.</span></div>
                 {a?.photo_issues.length ? (
-                  <div className="flex items-start gap-2.5 text-mute"><Wand2 size={15} className="mt-0.5 shrink-0" /><span>Fixed in retouch: {a.photo_issues.slice(0, 3).join(", ")}.</span></div>
+                  <div className="flex items-start gap-2.5 text-mute"><Wand2 size={15} className="mt-0.5 shrink-0" /><span>Source photo: {a.photo_issues.slice(0, 3).join(", ")}.</span></div>
                 ) : null}
               </div>
             </div>
@@ -370,27 +405,29 @@ export function Studio(props: {
           <div className="flex items-end justify-between gap-3">
             <div>
               <div className="tracked text-mute">Direction</div>
-              <h2 className="mt-2 text-[34px] font-semibold leading-none tracking-[-0.035em]">What should we <span className="serif-i font-normal">shoot?</span></h2>
+              <h2 className="mt-2 text-[34px] font-semibold leading-none tracking-[-0.035em]">Choose your <span className="serif-i font-normal">direction.</span></h2>
             </div>
             <span className="shrink-0 rounded-full border border-line px-3 py-1 text-xs tabular-nums text-ink-2">{shots.length}/{MAX_SHOTS} shots</span>
           </div>
 
-          <div className="mt-5 flex gap-1 rounded-full border border-line bg-card p-1 text-sm font-medium">
+          <p className="mt-3 max-w-lg text-sm leading-relaxed text-mute">{a?.visual_strategy || "A campaign hero, a believable human moment, and a tactile detail story. Start with the recommended direction."}</p>
+          <button type="button" aria-expanded={alternatives} onClick={() => { setAlternatives(v => !v); setTab("ideas"); }} className="mt-4 min-h-11 text-sm text-ink-2 underline underline-offset-4">Explore other scenes or describe an idea</button>
+          {alternatives && <div className="mt-2 flex gap-1 rounded-full border border-line bg-card p-1 text-sm font-medium">
             {([["ideas", "Made for you"], ["library", "Scene library"], ["describe", "Describe"]] as const).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setTab(id)} className={clsx("flex-1 rounded-full px-3 py-2 transition-colors", tab === id ? "bg-ink text-paper" : "text-mute hover:text-ink")}>
                 {id === "ideas" && <Sparkles size={13} className="-mt-0.5 mr-1.5 inline" />}{id === "ideas" ? <><span className="sm:hidden">For you</span><span className="hidden sm:inline">{label}</span></> : id === "library" ? <><span className="sm:hidden">Scenes</span><span className="hidden sm:inline">{label}</span></> : label}
               </button>
             ))}
-          </div>
+          </div>}
 
           <div className="mt-4">
             {tab === "ideas" && (
               prep?.ideas.length ? (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-4">
                   {prep.ideas.map((idea, i) => {
                     const s = ideaShot(idea, i);
                     const on = shots.some((x) => x.key === s.key);
-                    return <IdeaCard key={s.key} idea={idea} index={i} selected={on} order={shots.findIndex((x) => x.key === s.key) + 1} preview={previews[idea.base_scene]} onClick={() => toggle(s)} />;
+                    return <IdeaCard key={s.key} idea={idea} index={i} selected={on} order={shots.findIndex((x) => x.key === s.key) + 1} preview={directionPreviews.urls[i] ?? undefined} reference={hero?.originalUrl ?? localPreview ?? undefined} pending={directionPreviews.state === "pending"} onClick={() => toggle(s)} />;
                   })}
                 </div>
               ) : (
@@ -420,6 +457,9 @@ export function Studio(props: {
             )}
           </div>
 
+          {prep?.ideas.length ? <div className="mt-3 text-xs leading-relaxed text-mute" role="status" aria-live="polite">
+            {directionPreviews.state === "pending" ? "Creating visual studies with your product. No credits used; you can choose while we work." : directionPreviews.state === "ready" ? "Concept previews show the intended direction. Your final image is generated separately and checked for product accuracy." : <>Concept previews are unavailable. The cards show your original photo. <button type="button" onClick={() => setPreviewRetry(n => n + 1)} className="min-h-11 underline underline-offset-4">Try previews again</button></>}
+          </div> : null}
           {/* Shot list */}
           {shots.length > 0 && (
             <div className="mt-5 flex flex-wrap gap-2">
@@ -437,7 +477,7 @@ export function Studio(props: {
           <div className="mt-7">
             <div className="tracked mb-2.5 text-mute">Format</div>
             <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-              {OUTPUT_LIST.map((o) => {
+              {(more ? OUTPUT_LIST : OUTPUT_LIST.filter(o => ["square", "portrait", "story"].includes(o.id))).map((o) => {
                 const r = o.width / o.height;
                 return (
                   <button key={o.id} type="button" onClick={() => setOutput(o.id)}
@@ -453,10 +493,11 @@ export function Studio(props: {
           </div>
 
           <button type="button" onClick={() => setMore((v) => !v)} className="mt-5 flex items-center gap-1.5 text-sm font-medium text-mute hover:text-ink">
-            More options <ChevronDown size={15} className={clsx("transition-transform", more && "rotate-180")} />
+            Format and creative controls <ChevronDown size={15} className={clsx("transition-transform", more && "rotate-180")} />
           </button>
           {more && (
             <div className="mt-3 space-y-5 rounded-2xl border border-line bg-card p-4 reveal">
+              <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={multipleShots} onChange={e => { setMultipleShots(e.target.checked); if (!e.target.checked) setShots(s => s.slice(0, 1)); }} className="size-4 accent-accent" /> Build a set with multiple directions</label>
               <div className="flex items-center justify-between">
                 <div><div className="text-sm font-semibold">Images per shot</div><div className="text-xs text-mute">Different arrangements of the same idea</div></div>
                 <div className="flex items-center gap-3">
@@ -504,7 +545,7 @@ export function Studio(props: {
             ) : (
               <button type="button" onClick={generate} disabled={starting || phase !== "ready" || (!forced && shots.length === 0)}
                 className="cta-strobe flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-[16px] font-semibold">
-                {starting ? <Spinner /> : <><Sparkles size={18} /> Shoot {total} image{total === 1 ? "" : "s"} <span className="font-normal opacity-80">· {total} credit{total === 1 ? "" : "s"}</span> <ArrowRight size={17} /></>}
+                {starting ? <Spinner /> : <><Sparkles size={18} /> Create {total === 1 ? "this shot" : `${total} images`} <span className="font-normal opacity-80">· {total} credit{total === 1 ? "" : "s"}</span> <ArrowRight size={17} /></>}
               </button>
             )}
             <div className="mt-2 text-center text-xs text-mute">{balance} credits available{isTrial ? " · trial images carry a watermark" : ""}</div>
@@ -531,7 +572,7 @@ export function Studio(props: {
 }
 
 function ideaShot(i: SceneIdea, k: number): Shot {
-  return { key: `idea-${k}-${i.title}`, kind: "idea", title: i.title, description: i.description, style: (i.base_scene in STYLES ? i.base_scene : "neutral_studio") as StyleId };
+  return { key: `idea-${k}-${i.title}`, kind: "idea", title: i.title, description: i.description, human_presence: i.human_presence ?? "none", style: (i.base_scene in STYLES ? i.base_scene : "neutral_studio") as StyleId };
 }
 function sceneShot(id: StyleId): Shot {
   return { key: `scene-${id}`, kind: "scene", title: STYLES[id]?.name ?? id, style: id };
@@ -546,23 +587,26 @@ function SectionHead({ title, href, link }: { title: string; href?: string; link
   );
 }
 
-function IdeaCard({ idea, index, selected, order, preview, onClick }: { idea: SceneIdea; index: number; selected: boolean; order: number; preview?: string; onClick: () => void }) {
-  const base = STYLES[idea.base_scene as StyleId];
+function IdeaCard({ idea, index, selected, order, preview, reference, pending, onClick }: { idea: SceneIdea; index: number; selected: boolean; order: number; preview?: string; reference?: string; pending?: boolean; onClick: () => void }) {
+  const purposes = { hero: "Campaign hero", human: "In real life", detail: "Material story" };
+  const label = idea.purpose ? purposes[idea.purpose] : "Direction " + (index + 1);
   return (
     <button type="button" onClick={onClick} aria-pressed={selected}
-      className={clsx("group relative flex min-h-44 flex-col justify-end overflow-hidden rounded-3xl border p-4 text-left transition-all duration-300 reveal",
-        selected ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]" : "border-line hover:-translate-y-0.5 hover:border-ink/25")}
-      style={{ animationDelay: `${index * 70}ms` }}>
-      <div className="absolute inset-0" style={{ background: base?.art }} />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {preview && <img src={preview} alt="" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10" />
-      <span className="relative tracked text-white/60">Idea {index + 1}</span>
-      <span className="relative mt-1 text-[22px] leading-tight text-white"><span className="serif-i">{idea.title}</span></span>
-      <span className="relative mt-1 line-clamp-2 text-[13px] leading-snug text-white/75">{idea.description}</span>
-      <span className={clsx("absolute right-3 top-3 grid size-7 place-items-center rounded-full text-[12px] font-semibold transition-all",
-        selected ? "bg-accent text-white" : "border border-white/40 bg-black/20 text-transparent group-hover:text-white/70")}>
-        {selected ? order : <Plus size={14} />}
+      className={clsx("group grid grid-cols-[112px_minmax(0,1fr)] overflow-hidden rounded-2xl border bg-card text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:grid-cols-[152px_minmax(0,1fr)]", selected ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]" : "border-line hover:border-ink/30")}>
+      <div className="relative min-h-44 overflow-hidden bg-paper-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {(preview || reference) && <img src={preview || reference} alt={preview ? idea.title + ": concept preview using your product" : "Your original product photo"} className={clsx("absolute inset-0 size-full", preview ? "object-cover" : "object-contain p-3")} />}
+        <span className="absolute inset-x-0 bottom-0 bg-black/65 px-2 py-1.5 text-center text-[10px] font-medium text-white">{preview ? "Concept preview" : pending ? "Preview in progress" : "Your original photo"}</span>
+      </div>
+      <span className="flex min-w-0 flex-col p-4">
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-mute">{label}</span>
+          {index === 0 && <span className="text-[10px] font-semibold text-accent">Recommended</span>}
+        </span>
+        <span className="mt-2 text-xl font-semibold leading-tight tracking-tight">{idea.title}</span>
+        <span className="mt-2 text-[13px] leading-relaxed text-ink-2">{idea.description}</span>
+        {idea.why && <span className="mt-3 text-xs leading-relaxed text-mute">{idea.why}</span>}
+        <span className={clsx("mt-3 inline-flex items-center gap-1.5 text-xs font-semibold", selected ? "text-accent" : "text-ink")}>{selected ? <><Check size={14} /> Selected{order > 1 ? " · " + order : ""}</> : "Choose this direction →"}</span>
       </span>
     </button>
   );
@@ -571,7 +615,7 @@ function IdeaCard({ idea, index, selected, order, preview, onClick }: { idea: Sc
 function SceneLibrary({ group, setGroup, suggested, previews, selected, onToggle }: {
   group: SceneGroup | "for_you"; setGroup: (g: SceneGroup | "for_you") => void; suggested: StyleId[]; previews: Record<string, string>; selected: Shot[]; onToggle: (id: StyleId) => void;
 }) {
-  const list = useMemo(() => group === "for_you" ? suggested.filter((s) => s !== "custom") : Object.values(STYLES).filter((s) => s.group === group && s.id !== "custom").map((s) => s.id), [group, suggested]);
+  const list = useMemo(() => (group === "for_you" ? suggested.filter((s) => s !== "custom") : Object.values(STYLES).filter((s) => s.group === group && s.id !== "custom").map((s) => s.id)).filter(id => !!previews[id]), [group, suggested, previews]);
   return (
     <div>
       <div className="no-scrollbar -mx-1 mb-3 flex gap-1 overflow-x-auto px-1">
@@ -580,6 +624,7 @@ function SceneLibrary({ group, setGroup, suggested, previews, selected, onToggle
             className={clsx("shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors", group === g.id ? "bg-paper-2 text-ink" : "text-mute hover:text-ink")}>{g.name}</button>
         ))}
       </div>
+      {!list.length && <p className="py-4 text-sm leading-relaxed text-mute">No photographed examples are published in this collection yet. Your product directions are available in For you.</p>}
       <div className="grid grid-cols-3 gap-2.5">
         {list.map((id) => {
           const s = STYLES[id];
@@ -603,18 +648,16 @@ function SceneLibrary({ group, setGroup, suggested, previews, selected, onToggle
   );
 }
 
-function ProofCollage({ previews }: { previews: Record<string, string> }) {
-  const picks: StyleId[] = ["pastel_podium", "botanical", "luxury_dark"];
+function ProofCollage({ previews: _previews }: { previews: Record<string, string> }) {
   return (
-    <div className="relative h-[300px] reveal sm:h-[340px]" style={{ animationDelay: "160ms" }}>
-      {picks.map((id, i) => (
-        <div key={id} className="absolute overflow-hidden rounded-3xl border border-line shadow-[var(--shadow-pop)]"
-          style={{ width: "52%", aspectRatio: "4/5", left: `${i * 24}%`, top: `${[14, 0, 18][i]}%`, transform: `rotate(${[-5, 1.5, 6][i]}deg)`, zIndex: i === 1 ? 2 : 1, background: STYLES[id].art }}>
+    <figure className="overflow-hidden rounded-3xl border border-line bg-card">
+      <div className="grid grid-cols-3">
+        {["hero", "human", "detail"].map((kind, i) => <div key={kind} className="relative aspect-[1/2]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {previews[id] && <img src={previews[id]} alt="" className="size-full object-cover" />}
-          <span className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white backdrop-blur">{STYLES[id].name}</span>
-        </div>
-      ))}
-    </div>
+          <img src={"/directions/" + kind + ".webp"} alt={["Amber bottle in sculptural morning light", "An adult holding the bottle in a natural skincare moment", "Glass and serum texture in close detail"][i]} className="absolute inset-0 size-full object-cover" />
+        </div>)}
+      </div>
+      <figcaption className="px-4 py-3 text-xs leading-relaxed text-mute">AI-created examples · Campaign hero / Human moment / Material story. Your directions are made from your product.</figcaption>
+    </figure>
   );
 }

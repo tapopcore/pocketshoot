@@ -45,6 +45,7 @@ interface JobRow {
 
 interface ItemParams {
   /** A campaign idea chosen in the studio (its description acts as the brief). */
+  humanPresence?: "none" | "hands" | "model";
   brief?: string;
   ideaTitle?: string;
   shot?: ShotDirection;
@@ -74,16 +75,16 @@ async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, produc
   const byStyle = new Map<string, typeof missing>();
   for (const it of missing) {
     const sid = output.forceStyle ?? (it.style && it.style in STYLES ? it.style : job.style);
-    const key = `${sid}|${(it.params as ItemParams)?.brief ?? ""}`;
+    const key = JSON.stringify([sid, (it.params as ItemParams)?.brief ?? "", (it.params as ItemParams)?.humanPresence ?? "none"]);
     byStyle.set(key, [...(byStyle.get(key) ?? []), it]);
   }
   // Previous shots of this product, so new ones don't repeat them.
   const { data: prev } = await db.from("generation_items").select("params, generation_jobs!inner(product_id)").eq("generation_jobs.product_id", job.product_id).neq("job_id", job.id).order("created_at", { ascending: false }).limit(6);
   const avoid = (prev ?? []).map((p) => (p.params as ItemParams)?.shot?.scene).filter(Boolean) as string[];
   await Promise.all([...byStyle.entries()].map(async ([key, list]) => {
-    const [sid, ideaBrief] = key.split("|");
+    const [sid, ideaBrief, humanPresence] = JSON.parse(key) as [StyleId, string, "none" | "hands" | "model"];
     const { shots, source } = await directShots({
-      style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
+      humanPresence, style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
       brief: [ideaBrief, job.custom_brief].filter(Boolean).join(". ") || undefined, palette: job.settings?.palette, avoid,
     });
     await Promise.all(list.map((it, k) => db.from("generation_items").update({ params: { ...((it.params as object) ?? {}), shot: shots[k], shotSource: source } }).eq("id", it.id)));
@@ -150,7 +151,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     const p = buildEditPrompt(edit.instruction, product.name, analysis);
     promptText = p.text; promptVersion = p.version;
   } else {
-    if (job.mode === "preserve") {
+    if (job.mode === "preserve" && (!params.shot?.human_presence || params.shot.human_presence === "none")) {
       cut = await getCutout(primary, { allowModel: true, wait: true });
       if (cut) {
         place = layoutProduct(cut, W, H, params.shot ?? { product_scale: output.productScale, offset_x: 0, baseline: output.baseline });
@@ -266,13 +267,17 @@ export async function processItem(item: ItemRow): Promise<void> {
 
   // ---- AI accuracy review when the product wasn't restored from the real photo
   const recomposited = checks.find((c) => c.type === "product_alignment")?.decision === "pass" && !!finalPlace;
-  const judgeNeeded = settings.quality.useJudge && result.provider !== "mock" && (job.mode === "creative" || !recomposited);
+  const humanShot = !!params.shot?.human_presence && params.shot.human_presence !== "none";
+  const judgeNeeded = result.provider !== "mock" && (humanShot || !!params.shot || (settings.quality.useJudge && (job.mode === "creative" || !recomposited)));
   if (judgeNeeded && integrations.openai) {
     try {
       const res = await jsonCall({
-        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
+        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + "\nAlso report photographic (credible light, material and photographic realism), natural_anatomy (true when no people; otherwise believable adult hands, faces and physical contact), and brief_followed (the actual action and composition match the direction). Selected direction: " + JSON.stringify(params.shot ?? null) + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
         images: [refImages[0], finalImage], detail: "high", schemaName: "fidelity", schema: JUDGE_SCHEMA, timeoutMs: 60_000,
       });
+      const look = res.data as { photographic?: boolean; natural_anatomy?: boolean; brief_followed?: boolean };
+      if (look.natural_anatomy === false) checks.push({ type: "human_realism", score: 0, decision: "fail", details: { note: "The human interaction was not physically believable." } });
+      if (look.photographic === false || look.brief_followed === false) checks.push({ type: "creative_quality", score: 0, decision: "review", details: { note: "Review photographic realism and the selected creative direction." } });
       const verdict = parseJudgeJson(JSON.stringify(res.data));
       if (verdict) checks.push({ type: "vlm_judge", score: verdict.same_product ? 1 : 0, decision: judgeDecision(verdict, job.mode), details: verdict as unknown as Record<string, unknown> });
       else checks.push({ type: "vlm_judge", score: null, decision: "review", details: { note: "Accuracy check gave an unreadable answer" } });
@@ -281,6 +286,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     }
   }
 
+  if (humanShot && !checks.some(c => c.type === "vlm_judge")) checks.push({ type: "vlm_judge", score: null, decision: "review", details: { note: "Product accuracy needs your review for this human interaction." } });
   const decision: Decision = aggregate(checks);
   if (decision === "fail" && attemptNo < item.max_attempts) {
     await saveFailedOutput(job, item, result.attemptId, finalImage, checks);
@@ -375,8 +381,9 @@ async function finishIfDone(job: JobRow) {
 
 const JUDGE_SCHEMA = {
   type: "object", additionalProperties: false,
-  required: ["same_product", "text_changed", "logo_changed", "colour_changed", "shape_changed", "extra_or_missing_items", "artefacts", "notes"],
+  required: ["same_product", "text_changed", "logo_changed", "colour_changed", "shape_changed", "extra_or_missing_items", "artefacts", "notes", "photographic", "natural_anatomy", "brief_followed"],
   properties: {
+    photographic: { type: "boolean" }, natural_anatomy: { type: "boolean" }, brief_followed: { type: "boolean" },
     same_product: { type: "boolean" }, text_changed: { type: "boolean" }, logo_changed: { type: "boolean" }, colour_changed: { type: "boolean" },
     shape_changed: { type: "boolean" }, extra_or_missing_items: { type: "boolean" }, artefacts: { type: "boolean" }, notes: { type: "string" },
   },

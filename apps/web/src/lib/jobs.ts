@@ -19,7 +19,7 @@ export const createJobSchema = z.object({
   /** Several scenes in one shoot: images cycle through them. */
   styles: z.array(z.string().refine((s) => s in STYLES, "Unknown style")).min(1).max(8).nullish(),
   /** AI campaign ideas picked in the studio: each becomes its own shot. */
-  ideas: z.array(z.object({ title: z.string().max(60), description: z.string().max(300), base_scene: z.string().refine((s) => s in STYLES) })).max(4).nullish(),
+  ideas: z.array(z.object({ title: z.string().max(60), description: z.string().max(300), human_presence: z.enum(["none", "hands", "model"]).default("none"), base_scene: z.string().refine((s) => s in STYLES) })).max(4).nullish(),
   output: z.string().refine((s) => s in OUTPUTS, "Unknown output size"),
   count: z.number().int().min(1).max(20),
   customBrief: z.string().max(600).nullish(),
@@ -105,7 +105,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   // Each image gets a slot: a scene, or an AI idea (scene + brief). Images cycle through the slots.
   const slots: { style: string; params: Record<string, string> }[] = [
     ...(input.styles?.length ? input.styles : input.ideas?.length ? [] : [input.style]).map((s) => ({ style: s, params: {} })),
-    ...(input.ideas ?? []).map((i) => ({ style: i.base_scene, params: { brief: i.description, ideaTitle: i.title } })),
+    ...(input.ideas ?? []).map((i) => ({ style: i.base_scene, params: { brief: i.description, ideaTitle: i.title, humanPresence: i.human_presence } })),
   ];
   await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => {
     const slot = slots[idx % slots.length];
