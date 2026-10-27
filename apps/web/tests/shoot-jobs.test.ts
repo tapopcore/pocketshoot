@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase",()=>({admin:()=>({
   from:(table:string)=>{
     let inserted=false;
     const chain={
-      select:()=>chain,eq:()=>chain,
+      select:()=>chain,eq:()=>chain,neq:()=>chain,
       maybeSingle:async()=>({data:table==="products"?{id:"p",name:"Bag",category:"fashion",archived_at:null}:table==="generated_assets"?fakes.parent:null}),
       insert:(value:unknown)=>{inserted=true;if(table==="generation_jobs")fakes.job(value);if(table==="generation_items")fakes.items(value);return chain;},
       single:async()=>({data:{id:"job-a"},error:null}),
