@@ -50,7 +50,11 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
         <Link href="/app" className="px-3"><Mark /></Link>
         <OrgSwitcher orgs={orgs} current={orgId} name={orgName} />
         <nav className="mt-5 flex-1 space-y-0.5 overflow-y-auto">
-          <NavLinks items={items} />
+          <NavLinks items={items.filter((i) => ["/app", "/app/library", "/app/products", "/app/wallet"].includes(i.href))} />
+          <details className="group mt-5 border-t border-line pt-4">
+            <summary className="cursor-pointer list-none rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-widest text-mute transition-colors hover:text-ink">More tools <span className="float-right group-open:rotate-180">⌄</span></summary>
+            <div className="mt-1"><NavLinks items={items.filter((i) => !["/app", "/app/library", "/app/products", "/app/wallet"].includes(i.href))} /></div>
+          </details>
           {isPlatform && <NavLinks items={[{ href: "/admin", label: "Admin", icon: "shield" }]} />}
         </nav>
         <Link href="/app/wallet" className="group mx-1 mt-4 rounded-2xl border border-line bg-card p-4 transition-colors hover:border-ink/25">
