@@ -95,6 +95,7 @@ async function callEdit(req: EditRequest, model: string, cfg: OpenAIImageSetting
   return {
     image: Buffer.from(b64, "base64"),
     model,
+    requestId: (res as { _request_id?: string })._request_id,
     inputTokens: input,
     outputTokens: output,
     costUsd: output ? estimateCost(model, input, output, cfg.prices) : undefined,
