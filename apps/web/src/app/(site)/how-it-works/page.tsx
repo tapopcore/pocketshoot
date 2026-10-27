@@ -1,34 +1,16 @@
-import { LinkButton } from "@/components/ui";
-
-export const metadata = { title: "How it works" };
-
-const SECTIONS = [
-  { n: "01", t: "Take a normal photo", body: ["Put the product on a plain surface near a window. A white sheet of paper works well. Shoot straight on, close enough that the label is sharp.", "Add an angle shot or a back shot if you have one. One good front photo is enough for most styles."], tip: "Avoid the phone flash. It creates glare on glossy labels that we can't remove." },
-  { n: "02", t: "We study the product", body: ["We read visible product information, identify materials and consider how the product is used. We propose three visual directions, with a short reason for each. If we cannot identify a use safely, we avoid inventing one."], tip: "These rules are written into every request we send to the AI." },
-  { n: "03", t: "Choose a visual direction", body: ["Compare a campaign hero, a human moment and a material story using visual concept studies. Choose one and a format. Extra scenes and creative controls are available when you want them. Concept previews use no credits; final images are generated separately."], tip: "You see the credit cost before anything starts." },
-  { n: "04", t: "We direct the photograph", body: ["In the default mode, we cut your product out of your photo and place it on the new canvas. The AI creates the set, the surface and the shadows. Then we put your original product pixels back on top, so the label and logo are the ones from your photo, not a redrawing.", "Human directions use reference-guided generation to make the product and adult gesture work together naturally. Fine product details can change, so these images need close review."], tip: null },
-  { n: "05", t: "Every image is checked", body: ["We check that the product stayed where it was put, that its colour didn't shift, that the image isn't blank or the wrong size, and we run a separate AI review comparing your photo with the result. Images that fail are made again automatically. If they still fail, the credit comes back.", "Automatic checks catch most problems, not all. Images that need a closer look are marked so you can check them at 100% zoom."], tip: null },
-  { n: "06", t: "Approve, download, publish", body: ["Compare each result against your photo with the slider, zoom to 100%, and download as JPG, PNG or WebP. Download a whole shoot as a ZIP. On Shopify, add approved photos straight to the product.", "Not happy with the look? Each image has one free remake. Did your product change? Report it and the credit comes back, straight away when our checks agree, or within one working day after a person looks."], tip: null },
+/* eslint-disable @next/next/no-img-element -- Catalogue images are pre-sized and compressed. */
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+export const metadata = { title: "How a shoot works" };
+const STEPS = [
+  { n: "01", title: "Tell us what you sell.", image: "beauty", text: "Choose your industry: beauty, fashion, jewellery, food, home or electronics. Something different? Choose Something else." },
+  { n: "02", title: "Choose a style you can see.", image: "model", text: "Compare six clear photographic examples. Pick indoor, outdoor, with a model, close-up, macro or a graphic campaign. Browsing styles does not generate images." },
+  { n: "03", title: "Add a clear product photo.", image: "indoor", text: "Show the whole product in soft light with a sharp label. We study its visible materials and details. Your photo guides the product; the style guides the scene." },
+  { n: "04", title: "Create, review, make it yours.", image: "graphic", text: "Choose a shape and image count. Check the credit total, then press Create. Review labels, materials and human details before you download or publish." },
 ];
-
-export default function HowItWorks() {
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-8">
-      <div className="eyebrow">How it works</div>
-      <h1 className="display mt-4 text-6xl sm:text-7xl">From a desk photo to a catalogue image.</h1>
-      <div className="mt-16 space-y-16">
-        {SECTIONS.map((s) => (
-          <section key={s.n} className="grid gap-6 border-t border-ink pt-6 md:grid-cols-[120px_1fr]">
-            <div className="display text-5xl text-accent">{s.n}</div>
-            <div>
-              <h2 className="display text-4xl">{s.t}</h2>
-              {s.body.map((p, i) => <p key={i} className="mt-4 max-w-2xl text-ink-2">{p}</p>)}
-              {s.tip && <p className="mt-4 inline-block rounded-lg bg-paper-2 px-3 py-2 text-sm">{s.tip}</p>}
-            </div>
-          </section>
-        ))}
-      </div>
-      <div className="mt-20 text-center"><LinkButton href="/sign-in" variant="accent" size="lg">Try it with 2 free images</LinkButton></div>
-    </div>
-  );
-}
+export default function HowItWorks() { return <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8 sm:py-16">
+  <p className="text-xs font-semibold uppercase tracking-widest text-accent-ink">From product to photograph</p><h1 className="mt-3 text-4xl font-semibold leading-tight tracking-[-0.04em] sm:text-6xl">Four decisions.<br />A clear creative direction.</h1>
+  <div className="mt-10 grid gap-9 sm:grid-cols-2">{STEPS.map(s => <section key={s.n}><img src={"/catalog/" + s.image + ".webp"} alt={s.title + " illustrated with an AI-created example"} width={512} height={512} className="aspect-[4/3] w-full rounded-2xl object-cover" /><p className="mt-4 font-mono text-xs text-accent-ink">{s.n}</p><h2 className="mt-2 text-2xl font-semibold tracking-tight">{s.title}</h2><p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-2">{s.text}</p></section>)}</div>
+  <div className="mt-12 rounded-2xl bg-paper-2 p-6"><h2 className="text-lg font-semibold">What the checks can do</h2><p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-2">Automatic checks compare visible product details, dimensions and photographic issues. AI can still alter details. Check results closely, especially text, jewellery settings, hands and faces. Failed undelivered images release reserved credits under the credit policy.</p><Link href="/legal/refunds" className="mt-3 inline-flex min-h-11 items-center text-sm underline">Credit and refund policy</Link></div>
+  <Link href="/sign-in?next=%2Fapp%2Fnew" className="mt-8 inline-flex min-h-13 items-center gap-3 rounded-full bg-accent px-7 text-sm font-semibold text-white">Find your style <ArrowRight size={17} /></Link>
+</div>; }

@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { after } from "next/server";
-import { CATEGORIES, LOCKS, OUTPUTS, STYLES, isFreeRemake, isCategoryId, type LockId } from "@packshot/core";
+import { CATEGORIES, LOCKS, OUTPUTS, STYLES, SHOOT_STYLE_IDS, shootRecipe, isFreeRemake, isCategoryId, type LockId, type ShootStyleId } from "@packshot/core";
 import { admin } from "./supabase";
 import { getFlag, getSettings } from "./settings";
 import { isTrialOrg } from "./credits";
@@ -20,6 +20,7 @@ export const createJobSchema = z.object({
   styles: z.array(z.string().refine((s) => s in STYLES, "Unknown style")).min(1).max(8).nullish(),
   /** AI campaign ideas picked in the studio: each becomes its own shot. */
   ideas: z.array(z.object({ title: z.string().max(60), description: z.string().max(300), human_presence: z.enum(["none", "hands", "model"]).default("none"), base_scene: z.string().refine((s) => s in STYLES) })).max(4).nullish(),
+  shootStyle: z.enum(SHOOT_STYLE_IDS).nullish(),
   output: z.string().refine((s) => s in OUTPUTS, "Unknown output size"),
   count: z.number().int().min(1).max(20),
   customBrief: z.string().max(600).nullish(),
@@ -65,6 +66,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   const { count: assetCount } = await db.from("product_assets").select("id", { count: "exact", head: true }).eq("product_id", product.id);
   if (!assetCount) throw new ApiError(400, "Add at least one photo of the product first");
 
+  const chosenLook = input.shootStyle ? shootRecipe(input.shootStyle, isCategoryId(product.category) ? product.category : "other") : null;
   let palette: string[] = [];
   if (input.brandKitId) {
     const { data: kit } = await db.from("brand_kits").select("palette").eq("id", input.brandKitId).eq("organization_id", ctx.orgId).maybeSingle();
@@ -82,11 +84,11 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
       created_by: ctx.userId,
       source: opts.source ?? ctx.via,
       mode: input.mode,
-      style: input.styles?.[0] ?? input.style,
+      style: chosenLook?.scene ?? input.styles?.[0] ?? input.style,
       output: input.output,
       requested_count: input.count,
       custom_brief: input.customBrief ?? null,
-      settings: { palette, brandKitId: input.brandKitId ?? null, category: product.category, styles: input.styles ?? [input.style], ...(opts.edit ? { edit: opts.edit } : {}) },
+      settings: { palette, shootStyle: input.shootStyle ?? null, brandKitId: input.brandKitId ?? null, category: product.category, styles: chosenLook ? [chosenLook.scene] : input.styles ?? [input.style], ...(opts.edit ? { edit: opts.edit } : {}) },
       idempotency_key: input.idempotencyKey,
       is_trial: isTrial,
       parent_asset_id: opts.parentAssetId ?? null,
@@ -103,7 +105,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   }
 
   // Each image gets a slot: a scene, or an AI idea (scene + brief). Images cycle through the slots.
-  const slots: { style: string; params: Record<string, string> }[] = [
+  const slots: { style: string; params: Record<string, string> }[] = chosenLook ? [{ style: chosenLook.scene, params: { brief: chosenLook.brief, ideaTitle: chosenLook.title, humanPresence: chosenLook.human, framing: chosenLook.framing } }] : [
     ...(input.styles?.length ? input.styles : input.ideas?.length ? [] : [input.style]).map((s) => ({ style: s, params: {} })),
     ...(input.ideas ?? []).map((i) => ({ style: i.base_scene, params: { brief: i.description, ideaTitle: i.title, humanPresence: i.human_presence } })),
   ];
@@ -154,14 +156,14 @@ export async function remakeAsset(ctx: AuthContext, assetId: string, idempotency
   const free = isFreeRemake(asset.remakes_used, asset.delivered_at, policy);
   const res = await createJob(
     ctx,
-    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style: itemStyle, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, idempotencyKey },
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style: itemStyle, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, idempotencyKey },
     { parentAssetId: asset.id, freeRemake: free },
   );
   if (!res.duplicate) await db.from("generated_assets").update({ remakes_used: asset.remakes_used + 1 }).eq("id", asset.id);
   return { ...res, free };
 }
 
-interface ParentJob { mode: "preserve" | "creative"; style: string; output: string; custom_brief: string | null; project_id: string | null; settings: { brandKitId?: string } }
+interface ParentJob { mode: "preserve" | "creative"; style: string; output: string; custom_brief: string | null; project_id: string | null; settings: { brandKitId?: string; shootStyle?: ShootStyleId } }
 
 async function parentOf(ctx: AuthContext, assetId: string) {
   const { data: asset } = await admin()
@@ -181,7 +183,7 @@ export async function editAsset(ctx: AuthContext, assetId: string, instruction: 
   if (text.length < 3) throw new ApiError(400, "Describe the change you want");
   return createJob(
     ctx,
-    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output: job.output, count: 1, customBrief: text.slice(0, 500), brandKitId: job.settings?.brandKitId ?? null, idempotencyKey },
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output: job.output, count: 1, customBrief: text.slice(0, 500), brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, idempotencyKey },
     { parentAssetId: asset.id, edit: { assetId: asset.id, instruction: text.slice(0, 500) } },
   );
 }
@@ -192,7 +194,7 @@ export async function resizeAsset(ctx: AuthContext, assetId: string, output: str
   if (!(output in OUTPUTS)) throw new ApiError(400, "Unknown size");
   return createJob(
     ctx,
-    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, idempotencyKey },
+    { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style, output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, idempotencyKey },
     { parentAssetId: asset.id },
   );
 }

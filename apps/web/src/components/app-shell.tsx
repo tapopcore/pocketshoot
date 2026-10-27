@@ -49,12 +49,13 @@ export function AppShell({ locale, orgName, orgs, orgId, credits, email, isPlatf
     { href: "/app/account", label: "Account", icon: "user", mobile: true },
   ];
   return (
-    <div className="darkroom min-h-dvh lg:grid lg:grid-cols-[236px_1fr]">
+    <div className="studio-shell min-h-dvh lg:grid lg:grid-cols-[236px_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line px-3 py-5 lg:flex">
         <Link href="/app" className="px-3"><Mark /></Link>
         <OrgSwitcher orgs={orgs} current={orgId} name={orgName} />
         <nav className="mt-5 flex-1 space-y-0.5 overflow-y-auto">
-          <NavLinks items={items} />
+          <NavLinks items={items.filter(i => i.mobile)} />
+          <details className="mt-5 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer px-3 py-3 text-xs font-medium text-mute">Workspace tools</summary><NavLinks items={items.filter(i => !i.mobile)} /></details>
           {isPlatform && <NavLinks items={[{ href: "/admin", label: "Admin", icon: "shield" }]} />}
         </nav>
         <Link href="/app/wallet" className="group mx-1 mt-4 rounded-2xl border border-line bg-card p-4 transition-colors hover:border-ink/25">

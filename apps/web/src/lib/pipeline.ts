@@ -44,6 +44,7 @@ interface JobRow {
 }
 
 interface ItemParams {
+  framing?: "full" | "close" | "macro";
   /** A campaign idea chosen in the studio (its description acts as the brief). */
   humanPresence?: "none" | "hands" | "model";
   brief?: string;
@@ -75,16 +76,16 @@ async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, produc
   const byStyle = new Map<string, typeof missing>();
   for (const it of missing) {
     const sid = output.forceStyle ?? (it.style && it.style in STYLES ? it.style : job.style);
-    const key = JSON.stringify([sid, (it.params as ItemParams)?.brief ?? "", (it.params as ItemParams)?.humanPresence ?? "none"]);
+    const key = JSON.stringify([sid, (it.params as ItemParams)?.brief ?? "", (it.params as ItemParams)?.humanPresence ?? "none", (it.params as ItemParams)?.framing ?? "full"]);
     byStyle.set(key, [...(byStyle.get(key) ?? []), it]);
   }
   // Previous shots of this product, so new ones don't repeat them.
   const { data: prev } = await db.from("generation_items").select("params, generation_jobs!inner(product_id)").eq("generation_jobs.product_id", job.product_id).neq("job_id", job.id).order("created_at", { ascending: false }).limit(6);
   const avoid = (prev ?? []).map((p) => (p.params as ItemParams)?.shot?.scene).filter(Boolean) as string[];
   await Promise.all([...byStyle.entries()].map(async ([key, list]) => {
-    const [sid, ideaBrief, humanPresence] = JSON.parse(key) as [StyleId, string, "none" | "hands" | "model"];
+    const [sid, ideaBrief, humanPresence, framing] = JSON.parse(key) as [StyleId, string, "none" | "hands" | "model", "full" | "close" | "macro"];
     const { shots, source } = await directShots({
-      humanPresence, style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
+      humanPresence, framing, style: STYLES[sid as StyleId], output, count: list.length, analysis, productName,
       brief: [ideaBrief, job.custom_brief].filter(Boolean).join(". ") || undefined, palette: job.settings?.palette, avoid,
     });
     await Promise.all(list.map((it, k) => db.from("generation_items").update({ params: { ...((it.params as object) ?? {}), shot: shots[k], shotSource: source } }).eq("id", it.id)));
@@ -124,6 +125,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   const params = (itemRow?.params ?? {}) as ItemParams;
   const styleId = (output.forceStyle ?? (itemRow?.style && itemRow.style in STYLES ? itemRow.style : job.style)) as StyleId;
 
+  const detailShot = params.shot?.framing === "close" || params.shot?.framing === "macro";
   const humanShot = !!params.shot?.human_presence && params.shot.human_presence !== "none";
 
   // ---- build the model input
@@ -153,7 +155,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     const p = buildEditPrompt(edit.instruction, product.name, analysis);
     promptText = p.text; promptVersion = p.version;
   } else {
-    if (job.mode === "preserve" && (!params.shot?.human_presence || params.shot.human_presence === "none")) {
+    if (job.mode === "preserve" && !detailShot && (!params.shot?.human_presence || params.shot.human_presence === "none")) {
       cut = await getCutout(primary, { allowModel: true, wait: true });
       if (cut) {
         place = layoutProduct(cut, W, H, params.shot ?? { product_scale: output.productScale, offset_x: 0, baseline: output.baseline });
@@ -256,7 +258,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     });
   } else {
     finalImage = await sharp(result.image).removeAlpha().resize(W, H, { fit: "cover", kernel: "lanczos3" }).png().toBuffer();
-    if (job.mode === "preserve" && !humanShot) {
+    if (job.mode === "preserve" && !humanShot && !detailShot) {
       checks.push({ type: "product_alignment", score: null, decision: "review", details: { note: "We couldn't cut the product out of this photo, so the AI re-created it. Check the label closely, or upload a photo on a plain background." } });
     }
   }
@@ -273,7 +275,7 @@ export async function processItem(item: ItemRow): Promise<void> {
   if (judgeNeeded && integrations.openai) {
     try {
       const res = await jsonCall({
-        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + "\nAlso report photographic (credible light, material and photographic realism), natural_anatomy (true when no people; otherwise believable adult hands, faces and physical contact), and brief_followed (the actual action and composition match the direction). Selected direction: " + JSON.stringify(params.shot ?? null) + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
+        models: settings.providers.llm.models, prompt: FIDELITY_JUDGE_PROMPT + "\nAlso report photographic (credible light, material and photographic realism), natural_anatomy (true when no people; otherwise believable adult hands, faces and physical contact), and brief_followed (the actual action and composition match the direction). Selected direction: " + JSON.stringify(params.shot ?? null) + (detailShot ? "\nThis is an intentional close/macro crop. Do not count parts outside the frame or text outside the frame as missing or changed. Judge the visible product region strictly." : "") + (analysis?.visible_text.length ? `\nThe printed text on the real product is: ${analysis.visible_text.map((t) => `"${t}"`).join(", ")}.` : ""),
         images: [refImages[0], finalImage], detail: "high", schemaName: "fidelity", schema: JUDGE_SCHEMA, timeoutMs: 60_000,
       });
       const look = res.data as { photographic?: boolean; natural_anatomy?: boolean; brief_followed?: boolean };
