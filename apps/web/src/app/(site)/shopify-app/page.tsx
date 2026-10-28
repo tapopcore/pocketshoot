@@ -1,25 +1,14 @@
-import { Check } from "lucide-react";
-import { LinkButton } from "@/components/ui";
+/* eslint-disable @next/next/no-img-element -- showcase images are pre-sized webp files */
+import Link from "next/link";
+import { Ic } from "@/components/site/ic";
 
-export const metadata = { title: "Shopify app" };
+export const metadata = { title: "Shopify App for AI Product Photos", description: "Create product photos inside Shopify admin and add them straight to your product listings. 2 photos free." };
 
 export default function ShopifyApp() {
   const listing = process.env.NEXT_PUBLIC_SHOPIFY_APP_URL;
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8">
-      <div className="grid gap-12 lg:grid-cols-2">
-        <div>
-          <div className="eyebrow">For Shopify stores</div>
-          <h1 className="display mt-4 text-6xl">Reshoot your whole store from inside Shopify.</h1>
-          <p className="mt-5 text-lg text-ink-2">Install the app and every product in your store shows up with its current photos. Pick one or a hundred, choose a look, and add the approved images straight back to each product.</p>
-          {listing ? <LinkButton href={listing} variant="accent" size="lg" className="mt-8">Install from the Shopify App Store</LinkButton> : <p className="mt-8 rounded-lg bg-paper-2 px-4 py-3 text-sm">The app is in Shopify review. Use the web app in the meantime; it works with any store.</p>}
-        </div>
-        <ul className="space-y-4 self-center">
-          {["Reads your products and existing photos, nothing else. No access to orders or customers.", "Uses your current product photo as the reference, so there's nothing to upload", "Bulk shoots: select many products, one look for all", "Approve an image and it's added to the product. Your existing photos aren't removed.", "Charges appear on your Shopify bill. No separate card.", "Same accuracy checks and credit-back promise as the web app"].map((x) => (
-            <li key={x} className="flex gap-3 rounded-xl border border-line bg-card p-4"><Check size={18} className="mt-0.5 shrink-0 text-accent" /> {x}</li>
-          ))}
-        </ul>
-      </div>
+    <div className="pg-shopify">
+<section className="phero"><div className="wrap sh"><div><span className="kicker"><i></i>Shopify app</span><h1 className="h1 s">Product photos inside <span className="it">Shopify</span></h1><p className="lead">Pick a product in your Shopify admin, choose a style and add the new photos to the listing. No downloading, no re-uploading.</p><div className="row" style={{ marginTop: 'var(--s6)', flexWrap: 'wrap' }}>{listing ? <Link href={listing} className="btn btn-lg btn-lime">Add to Shopify <span className="go"><Ic n="arrow" /></span></Link> : <span className="pill warn">In Shopify review. Use the web app meanwhile</span>}<span className="sm muted">2 photos free. Billed through Shopify.</span></div></div><div className="win"><div className="wt"><i></i><i></i><i></i><span>admin.shopify.com / PocketShoot</span></div><div className="wb"><div className="between"><h3 className="h5">Products</h3><span className="pill sm warn">12 need better photos</span></div><div className="pr"><div className="ph r11" style={{ width: '52px', flex: 'none', borderRadius: '10px' }}><img src="/showcase/skincare-before.webp" alt="" /></div><div style={{ flex: 1, minWidth: 0 }}><div className="sm" style={{ fontWeight: 600 }}>Nourishing body lotion</div><div className="xs muted">1 photo, low quality</div></div><span className="btn btn-lime btn-sm">Create photos</span></div><div className="pr"><div className="ph r11" style={{ width: '52px', flex: 'none', borderRadius: '10px' }}><img src="/showcase/beverage-2.webp" alt="" /></div><div style={{ flex: 1, minWidth: 0 }}><div className="sm" style={{ fontWeight: 600 }}>Peach iced tea</div><div className="xs muted">4 new photos</div></div><span className="pill good sm">Added to listing</span></div><div className="pr"><div className="ph r11" style={{ width: '52px', flex: 'none', borderRadius: '10px' }}><img src="/showcase/bags-before.webp" alt="" /></div><div style={{ flex: 1, minWidth: 0 }}><div className="sm" style={{ fontWeight: 600 }}>Leather tote</div><div className="xs muted">Creating 2 of 4</div></div><span className="pill sm"><span className="live"></span>Working</span></div></div></div></div></section><section className="sec"><div className="wrap"><div className="grid c3"><div className="card pl"><span className="ico dark"><Ic n="store" /></span><h3 className="h4" style={{ marginTop: 'var(--s4)' }}>Install in one click</h3><p className="body muted" style={{ marginTop: '6px' }}>Approve the app and your products appear instantly.</p></div><div className="card pl"><span className="ico dark"><Ic n="image" /></span><h3 className="h4" style={{ marginTop: 'var(--s4)' }}>Pick a product and a style</h3><p className="body muted" style={{ marginTop: '6px' }}>The same styles as the PocketShoot web app.</p></div><div className="card pl"><span className="ico dark"><Ic n="upload" /></span><h3 className="h4" style={{ marginTop: 'var(--s4)' }}>Add photos to the listing</h3><p className="body muted" style={{ marginTop: '6px' }}>Choose which photos to add and in what order.</p></div></div></div></section>
     </div>
   );
 }
