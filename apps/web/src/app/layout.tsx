@@ -1,27 +1,24 @@
 import type { Metadata, Viewport } from "next";
 // Self-hosted fonts (bundled from npm, no request to Google at runtime).
-import "@fontsource/instrument-serif/latin-400.css";
-import "@fontsource/instrument-serif/latin-400-italic.css";
-import "@fontsource-variable/schibsted-grotesk/index.css";
-import "@fontsource/jetbrains-mono/latin-400.css";
-import "@fontsource/jetbrains-mono/latin-500.css";
+import "@fontsource-variable/albert-sans/index.css";
+import "@fontsource/bodoni-moda/latin-500-italic.css";
 import "./globals.css";
 
 const name = process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
-  title: { default: `${name}: studio product photos from your phone photos`, template: `%s | ${name}` },
-  description: "Upload a plain photo of your product and get studio and lifestyle shots guided by your product references and category-specific creative direction. Pay per image, no subscription.",
+  title: { default: `AI Product Photography for Online Sellers in India | ${name}`, template: `%s | ${name}` },
+  description: "Turn a phone photo into professional product photos for Amazon, Flipkart, Shopify and Instagram. Studio and lifestyle shots in minutes. 2 photos free.",
   openGraph: { siteName: name, type: "website" },
 };
 
-export const viewport: Viewport = { themeColor: "#f6f6f4", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#ffffff", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-dvh antialiased">{children}</body>
+    <html lang="en-IN">
+      <body className="ps min-h-dvh antialiased">{children}</body>
     </html>
   );
 }

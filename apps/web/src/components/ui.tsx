@@ -4,17 +4,17 @@ import type { ComponentProps, ReactNode } from "react";
 
 type Variant = "primary" | "accent" | "ghost" | "outline" | "danger";
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-ink text-paper hover:opacity-90 shadow-[0_1px_2px_rgb(0_0_0/0.1)]",
-  accent: "cta-strobe",
-  ghost: "text-ink hover:bg-paper-2",
-  outline: "border border-line bg-card text-ink hover:border-ink/50",
+  primary: "bg-ink text-white hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-12px_rgb(0_0_0/0.5)]",
+  accent: "bg-accent text-white hover:bg-accent-ink hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgb(252_74_18/0.7)]",
+  ghost: "bg-paper-2 text-ink hover:bg-[#ededea]",
+  outline: "border border-[#d6d6d1] bg-card text-ink hover:border-ink/60",
   danger: "border border-bad/40 text-bad hover:bg-bad hover:text-white",
 };
-const SIZES = { sm: "h-8 px-3 text-sm", md: "h-11 px-5 text-[15px]", lg: "h-13 px-7 text-base" };
+const SIZES = { sm: "h-10 px-4 text-[14px]", md: "h-12 px-6 text-[15px]", lg: "h-14 px-7 text-[16px]" };
 
 export function buttonClass(variant: Variant = "primary", size: keyof typeof SIZES = "md", extra?: string) {
   return clsx(
-    "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none select-none whitespace-nowrap",
+    "inline-flex items-center justify-center gap-2 rounded-full font-bold transition-all duration-300 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none select-none whitespace-nowrap",
     VARIANTS[variant], SIZES[size], extra,
   );
 }
@@ -46,7 +46,7 @@ export function Badge({ tone = "neutral", children, className }: { tone?: "neutr
 export function Field({ label, hint, error, children, className }: { label: string; hint?: ReactNode; error?: string | null; children: ReactNode; className?: string }) {
   return (
     <label className={clsx("block", className)}>
-      <span className="mb-1.5 block text-sm font-medium text-ink">{label}</span>
+      <span className="mb-2 block text-[15px] font-semibold text-ink">{label}</span>
       {children}
       {hint && !error && <span className="mt-1 block text-xs text-mute">{hint}</span>}
       {error && <span className="mt-1 block text-xs text-bad">{error}</span>}
@@ -55,7 +55,7 @@ export function Field({ label, hint, error, children, className }: { label: stri
 }
 
 export const inputClass =
-  "w-full h-11 rounded-xl border border-line bg-card px-3.5 text-[15px] text-ink placeholder:text-mute/70 focus:border-ink/60 focus:outline-none focus:ring-4 focus:ring-ink/5 transition";
+  "w-full h-12 rounded-[14px] border border-[#d6d6d1] bg-card px-4 text-[16px] text-ink placeholder:text-mute/70 focus:border-ink focus:outline-none focus:ring-4 focus:ring-ink/10 transition";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={clsx(inputClass, props.className)} />;
@@ -72,8 +72,8 @@ export function PageHeader({ eyebrow, title, children, actions }: { eyebrow?: Re
     <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="animate-rise">
         {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
-        <h1 className="display text-3xl sm:text-4xl">{title}</h1>
-        {children && <div className="mt-3 max-w-2xl text-ink-2">{children}</div>}
+        <h1 className="display text-[30px] sm:text-[44px]">{title}</h1>
+        {children && <div className="mt-2 max-w-2xl text-[15px] text-mute">{children}</div>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </header>
@@ -109,18 +109,11 @@ export function Spinner({ className }: { className?: string }) {
   return <span className={clsx("inline-block size-4 animate-spin rounded-full border-2 border-current border-r-transparent", className)} aria-hidden />;
 }
 
-export function Logo({ className }: { className?: string }) {
-  const name = process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot";
-  return (
-    <span className={clsx("inline-flex items-center gap-2", className)}>
-      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
-        <rect x="1" y="1" width="20" height="20" rx="6" fill="currentColor" />
-        <circle cx="11" cy="11" r="4.6" fill="#ff5a1f" />
-        <circle cx="16.2" cy="5.8" r="1.3" fill="#fff" />
-      </svg>
-      <span className="text-[17px] font-semibold tracking-tight">{name}</span>
-    </span>
-  );
+/** Brand logo from the traced vector files in /public/brand. */
+export function Logo({ className, dark, mark, height = 36 }: { className?: string; dark?: boolean; mark?: boolean; height?: number }) {
+  const file = `${mark ? "mark" : "logo"}-${dark ? "dark" : "light"}.svg`;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={`/brand/${file}`} alt="PocketShoot" height={height} style={{ height, width: "auto" }} className={clsx("block shrink-0", className)} />;
 }
 
 export function formatDate(d: string | Date, withTime = false) {
