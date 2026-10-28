@@ -590,3 +590,10 @@
 .pg-examples .exx{grid-template-areas:"ba side" "pills pills"}
 .pg-examples .exba{grid-area:ba}.pg-examples .exside{grid-area:side}.pg-examples .exx .cpills{grid-area:pills;margin-top:var(--s2)}
 @media(max-width:900px){.pg-examples .exx{grid-template-areas:"ba" "pills" "side";row-gap:var(--s4)}.pg-examples .exx .cpills{margin-top:0}}
+/* show whole photos: no zoomed or squeezed crops */
+.pg-home .zoompair .ph img,.pg-home .bx.a .zoompair .ph img{transform:none!important;object-position:50% 50%}
+.pg-home .wall .ph{width:260px;height:260px}
+@media(max-width:900px){.pg-home .wall .ph{width:180px;height:180px}}
+.pg-signin .art-m .ph{width:124px;height:124px}
+.menu .menu-strip .ph{width:128px;height:128px}
+.pg-apps .pf.a .pill{z-index:2}

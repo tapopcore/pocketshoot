@@ -13,7 +13,7 @@ export function RatioDemo() {
   return (
     <div className="rdemo">
       <div className="stagebox">
-        <img src="/showcase/beverage-4.webp" alt="" />
+        <img src="/showcase/beverage-4.webp" alt="" loading="lazy" decoding="async" />
         <div className="crop" style={{ aspectRatio: String(r), height: r > 1.2 ? "auto" : "88%", width: r > 1.2 ? "92%" : "auto" }}><span>{SIZES[i][0]}</span></div>
       </div>
       <div className="rsel" role="radiogroup" aria-label="Photo size">

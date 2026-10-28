@@ -64,7 +64,7 @@ export default async function Brand() {
         <aside className="card pl prv">
           <span className="sm muted">How it works</span>
           <h2 className="h5" style={{ marginTop: 4 }}>Your look on every photo</h2>
-          <div className="gx" style={{ gridTemplateColumns: "1fr 1fr", gap: "var(--s2)", marginTop: "var(--s4)" }}>{["skincare-4", "skincare-1", "skincare-3", "fragrance-5"].map((k) => <div key={k} className="ph r11" style={{ borderRadius: 12 }}><img src={`/showcase/${k}.webp`} alt="" /></div>)}</div>
+          <div className="gx" style={{ gridTemplateColumns: "1fr 1fr", gap: "var(--s2)", marginTop: "var(--s4)" }}>{["skincare-4", "skincare-1", "skincare-3", "fragrance-5"].map((k) => <div key={k} className="ph r11" style={{ borderRadius: 12 }}><img src={`/showcase/${k}.webp`} alt="" loading="lazy" decoding="async" /></div>)}</div>
           <ul className="how">{["Colours guide props, backgrounds and light", "Mood sets the feel of each scene", "Always and never notes are followed in every shoot", "Your product and label never change"].map((t) => <li key={t}>{t}</li>)}</ul>
         </aside>
       </div>

@@ -87,7 +87,7 @@ export function Empty({ title, children, action }: { title: string; children?: R
     <div className="empty">
       <div className="fan" aria-hidden>{(["saree-2", "skincare-1", "rings-3"] as const).map((k, i) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <div key={k} className="ph r45" style={{ transform: `rotate(${(i - 1) * 9}deg) translateY(${i === 1 ? 0 : 12}px)` }}><img src={`/showcase/${k}.webp`} alt="" /></div>
+        <div key={k} className="ph r45" style={{ transform: `rotate(${(i - 1) * 9}deg) translateY(${i === 1 ? 0 : 12}px)` }}><img src={`/showcase/${k}.webp`} alt="" loading="lazy" decoding="async" /></div>
       ))}</div>
       <h2 className="h3" style={{ marginTop: "var(--s7)" }}>{title}</h2>
       {children && <p className="muted" style={{ marginTop: "var(--s2)", maxWidth: 460 }}>{children}</p>}

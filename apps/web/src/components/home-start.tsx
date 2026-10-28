@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Signed storage URLs. */
 "use client";
+import { FitImg } from "@/components/fit-img";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -33,7 +34,7 @@ export function StartBox({ products, canEdit }: { products: { id: string; name: 
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => go(e.target.files)} />
     </div>
     {products.length > 0 && <div className="reuse"><span className="sm muted nowrap">Or use a saved product</span><div className="pills">{products.map((p) =>
-      <Link key={p.id} href={"/app/new?product=" + p.id} className="pill line prod"><span className="ph">{p.coverUrl && <img src={p.coverUrl} alt="" />}</span>{p.name}</Link>)}</div></div>}
+      <Link key={p.id} href={"/app/new?product=" + p.id} className="pill line prod"><span className="ph">{p.coverUrl && <FitImg src={p.coverUrl} />}</span>{p.name}</Link>)}</div></div>}
   </>;
 }
 

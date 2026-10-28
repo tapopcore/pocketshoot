@@ -49,7 +49,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
     </div>
     <h2 className="h3" style={{ marginTop: "var(--s8)" }}>What makes a good photo</h2>
     <div className="tips">{([["skincare-before", "Good", "good", "Whole product in frame, label facing you"], ["fragrance-before", "Good", "good", "Soft daylight from a window"], ["bags-before", "Avoid", "warn", "Cut-off edges or fingers over the logo"]] as const).map(([k, t, c, p]) =>
-      <div key={k} className="tip card"><div className="ph r11"><img src={`/showcase/${k}.webp`} alt="" /></div><div><span className={"pill sm " + c}>{t}</span><p className="sm" style={{ marginTop: 8 }}>{p}</p></div></div>)}</div>
+      <div key={k} className="tip card"><div className="ph r11"><img src={`/showcase/${k}.webp`} alt="" loading="lazy" decoding="async" /></div><div><span className={"pill sm " + c}>{t}</span><p className="sm" style={{ marginTop: 8 }}>{p}</p></div></div>)}</div>
   </div>;
 
   return <div className="pg-ahome">
@@ -62,6 +62,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
       <div className="gx c4" style={{ marginTop: "var(--s4)" }}>{jobs.map((j, i) => <JobCard key={j.id} job={j} index={i} />)}</div>
     </>}
     <div className="between hsec"><h2 className="h3">Styles to try next</h2><Link href="/examples" className="link sm d-only">See examples <ArrowRight size={16} /></Link></div>
-    <div className="ideas">{IDEAS.map(([k, n, c, ind]) => <Link key={k} href={"/app/new?industry=" + ind}><div className="ph r45 zoom"><img src={`/showcase/${k}.webp`} alt="" /></div><b>{n}</b><span>{c}</span></Link>)}</div>
+    <div className="ideas">{IDEAS.map(([k, n, c, ind]) => <Link key={k} href={"/app/new?industry=" + ind}><div className="ph r11 zoom"><img src={`/showcase/${k}.webp`} alt="" loading="lazy" /></div><b>{n}</b><span>{c}</span></Link>)}</div>
   </div>;
 }

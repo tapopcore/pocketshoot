@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- Signed storage URLs. */
+import { FitImg } from "@/components/fit-img";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Plus, Search, Store } from "lucide-react";
 import { CATEGORIES, isCategoryId } from "@packshot/core";
@@ -31,7 +32,7 @@ export default async function Products({ searchParams }: { searchParams: Promise
         : <Empty title="No products yet" action={<Link href="/app/new" className="btn btn-lg btn-lime">Add your first product</Link>}>Products are saved when you start a shoot, import from Shopify or use Bulk shoots.</Empty>)
       : <div className="gx c4 grid-top" style={{ gap: "var(--s5) var(--s4)" }}>{products.map((p, i) => (
         <Link key={p.id} href={`/app/products/${p.id}`} className="pd lift animate-rise" style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
-          <div className="pim"><div className="ph r11">{p.coverUrl && <img src={p.coverUrl} alt="" />}</div></div>
+          <div className="pim"><div className="ph r11">{p.coverUrl && <FitImg src={p.coverUrl} alt={p.name} eager={i < 4} />}</div></div>
           <div className="meta">
             <div style={{ minWidth: 0 }}><b>{p.name}</b><span>{isCategoryId(p.category) ? CATEGORIES[p.category].label : p.category}{p.sku ? ` · ${p.sku}` : ""}</span></div>
             {p.archived ? <span className="pill sm">Archived</span> : p.photoCount === 0 ? <span className="pill warn sm">No photo</span> : <span className="pill sm">{p.photoCount} {p.photoCount === 1 ? "angle" : "angles"}</span>}

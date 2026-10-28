@@ -1,4 +1,5 @@
 "use client";
+import { FitImg } from "@/components/fit-img";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
@@ -93,7 +94,7 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits }: 
               <button key={p.id} type="button" onClick={() => setSel(on ? sel.filter((x) => x !== p.id) : [...sel, p.id])} className="text-left">
                 <div className={clsx("relative aspect-square overflow-hidden rounded-lg border-2 bg-paper-2", on ? "border-accent" : "border-transparent")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {p.coverUrl && <img src={p.coverUrl} alt="" className="size-full object-cover" />}
+                  {p.coverUrl && <FitImg src={p.coverUrl} />}
                   {on && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-accent text-white"><Check size={12} /></span>}
                 </div>
                 <div className="mt-1 truncate text-xs">{p.name}</div>

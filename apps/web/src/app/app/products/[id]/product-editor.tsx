@@ -1,4 +1,5 @@
 "use client";
+import { FitImg } from "@/components/fit-img";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -45,9 +46,9 @@ export function ProductEditor({ product, photos }: {
         <div className="grid grid-cols-3 gap-3">
           {photos.map((p) => (
             <div key={p.id} className="group relative">
-              <div className="aspect-square overflow-hidden rounded-lg border border-line bg-card">
+              <div className="ph r11" style={{ borderRadius: 12 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {p.url && <img src={p.url} alt={`${p.view} view`} className="size-full object-cover" />}
+                {p.url && <FitImg src={p.url} alt={`${p.view} view`} />}
               </div>
               <div className="xs muted" style={{ marginTop: 6, fontWeight: 600 }}>{({ front: "Front", angle: "Angle", back: "Back", detail: "Close-up", other: "Other" } as Record<string, string>)[p.view] ?? p.view}</div>
               {photos.length > 1 && (

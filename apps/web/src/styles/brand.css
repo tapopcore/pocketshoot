@@ -329,3 +329,8 @@ textarea.input{height:auto;min-height:112px;padding:14px 16px;resize:none;line-h
 html{-webkit-tap-highlight-color:transparent}
 html:not([data-kbd]) :focus-visible,html:not([data-kbd]) :focus{outline:none!important}
 html:not([data-kbd]) .tgl:focus-visible,html:not([data-kbd]) input:focus-visible+span,html:not([data-kbd]) input:focus-visible+.pill{outline:none!important}
+/* whole photo, never cropped: fitted photo over a soft blurred copy */
+.fit-bg,.fit-fg{position:absolute!important;inset:0;width:100%!important;height:100%!important}
+.fit-bg{object-fit:cover!important;filter:blur(14px) saturate(1.1);transform:scale(1.2);opacity:.5}
+.fit-fg{object-fit:contain!important}
+.zoom:hover>.fit-bg{transform:scale(1.2)}

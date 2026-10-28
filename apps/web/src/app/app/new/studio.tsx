@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Local previews and signed storage URLs. */
 "use client";
+import { FitImg } from "@/components/fit-img";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -223,7 +224,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         {props.recentProducts.length > 0 && <section>
           <h2 className="h5">Or use a saved product</h2>
           <div className="stack">{props.recentProducts.slice(0, 4).map((p) => <button key={p.id} type="button" className="saved" onClick={() => readProduct(p.id)} disabled={!!busy}>
-            <div className="ph">{p.coverUrl && <img src={p.coverUrl} alt="" />}</div><div style={{ minWidth: 0, textAlign: "left" }}><b>{p.name}</b><span>Use its photos and details</span></div><ArrowRight />
+            <div className="ph">{p.coverUrl && <FitImg src={p.coverUrl} />}</div><div style={{ minWidth: 0, textAlign: "left" }}><b>{p.name}</b><span>Use its photos and details</span></div><ArrowRight />
           </button>)}</div>
           <Link href="/app/products" className="link sm" style={{ marginTop: "var(--s3)" }}>All products <ArrowRight size={16} /></Link>
         </section>}
@@ -236,7 +237,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
     {step === "product" && <div className="two">
       <section>
-        <div className="ph r11 hero-ph">{cover && <img src={cover} alt="Your product" style={{ objectFit: "contain", background: "var(--surface)" }} />}
+        <div className="ph r11 hero-ph">{cover && <FitImg src={cover} eager alt="Your product" />}
           {busy ? <span className="pill glass" style={{ position: "absolute", left: 16, top: 16 }}><Loader2 size={15} className="animate-spin" />{busy}</span>
             : prep?.analysis ? <span className="pill good" style={{ position: "absolute", left: 16, top: 16 }}><Check size={15} />{references.length > 1 ? `${references.length} photos studied` : "Photo studied"}</span> : null}
         </div>
@@ -246,7 +247,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         </div>
         <div className="thumbs">
           {thumbs.map((r, i) => <div key={r.id} className={clsx("thumb", i === 0 && "main")}>
-            <div className="ph r11">{r.url && <img src={r.url} alt={`${VIEW_LABEL[r.view_type] ?? "Photo"} view`} />}{!prep && <span className="veil"><Loader2 size={16} className="animate-spin" /></span>}</div>
+            <div className="ph r11">{r.url && <FitImg src={r.url} eager alt={`${VIEW_LABEL[r.view_type] ?? "Photo"} view`} />}{!prep && <span className="veil"><Loader2 size={16} className="animate-spin" /></span>}</div>
             <span className="vt">{VIEW_LABEL[r.view_type] ?? "Photo"}</span>
             {prep && i > 0 && !busy && <button type="button" className="rm" aria-label="Remove this photo" onClick={() => removePhoto(r)}><X size={13} /></button>}
           </div>)}
@@ -323,7 +324,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
     {step === "review" && chosen && prep && <div className="two rv2">
       <div style={{ display: "grid", gap: "var(--s3)" }}>
-        <div className="sumrow"><div className="ph">{cover && <img src={cover} alt="" />}</div><div style={{ flex: 1, minWidth: 0 }}><small>Product · {references.length} photo{references.length === 1 ? "" : "s"}</small><b>{name}</b></div><button type="button" className="link sm" onClick={() => move("product")}>Change</button></div>
+        <div className="sumrow"><div className="ph">{cover && <FitImg src={cover} eager />}</div><div style={{ flex: 1, minWidth: 0 }}><small>Product · {references.length} photo{references.length === 1 ? "" : "s"}</small><b>{name}</b></div><button type="button" className="link sm" onClick={() => move("product")}>Change</button></div>
         <div className="sumrow"><div className="ph"><LookThumb look={chosen} /></div><div style={{ flex: 1, minWidth: 0 }}><small>Style</small><b>{chosen.title}</b></div><button type="button" className="link sm" onClick={() => move("looks")}>Change</button></div>
         <div className="sumrow ideas-row"><div className="ph ico-ph"><Sparkles size={22} /></div><div style={{ flex: 1, minWidth: 0 }}><small>Ideas added</small>{pickedIdeas.length ? <ul>{pickedIdeas.map((s) => <li key={s.id}>{s.title}</li>)}</ul> : <b>None</b>}</div><button type="button" className="link sm" onClick={() => move("looks")}>{pickedIdeas.length ? "Change" : "Add"}</button></div>
         {props.brandKits.length > 0 && <div className="card p between kitrow"><div style={{ minWidth: 0 }}><h3 className="h5">Brand kit</h3><p className="sm muted" style={{ marginTop: 2 }}>Your colours, mood and notes guide the scene</p></div>

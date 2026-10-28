@@ -19,7 +19,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <div className="fm">
           <div className="logo-row"><Link href="/" className="blogo"><img src="/brand/logo-light.svg" alt="PocketShoot" style={{ height: 38 }} /></Link></div>
           <div className="art-m m-only" aria-hidden>
-            {[0, 4].map((o, r) => <div key={r} className={`row-m ${r ? "rev" : ""}`}>{[...col(o), ...col(o)].map((k, i) => <div key={i} className="ph"><img src={`/showcase/${k}.webp`} alt="" /></div>)}</div>)}
+            {[0, 4].map((o, r) => <div key={r} className={`row-m ${r ? "rev" : ""}`}>{[...col(o), ...col(o)].map((k, i) => <div key={i} className="ph"><img src={`/showcase/${k}.webp`} alt="" loading="lazy" decoding="async" /></div>)}</div>)}
             <span className="pill lime sm tag">2 photos free</span>
           </div>
           <div className="box">
@@ -29,7 +29,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           </div>
         </div>
         <div className="art d-only">
-          <div className="cols">{[0, 4].map((o, c) => <div key={c} className={`col ${c ? "dn" : "up"}`}>{[...col(o), ...col(o)].map((k, i) => <div key={i} className="ph r45"><img src={`/showcase/${k}.webp`} alt="" /></div>)}</div>)}</div>
+          <div className="cols">{[0, 4].map((o, c) => <div key={c} className={`col ${c ? "dn" : "up"}`}>{[...col(o), ...col(o)].map((k, i) => <div key={i} className="ph r45"><img src={`/showcase/${k}.webp`} alt="" loading="lazy" decoding="async" /></div>)}</div>)}</div>
           <div className="q"><span className="pill lime">2 photos free</span><h2 className="h3" style={{ color: "#fff", marginTop: "var(--s4)" }}>Your next product shoot is one photo away</h2></div>
         </div>
       </div>

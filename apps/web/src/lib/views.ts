@@ -1,16 +1,16 @@
 import "server-only";
 import { admin } from "./supabase";
-import { signedUrls } from "./storage";
+import { signedUrls, sized } from "./storage";
 
 /** Adds short-lived signed URLs to asset rows for display. */
 export async function withAssetUrls<T extends { storage_key: string; thumb_key?: string | null }>(rows: T[]) {
   const keys = rows.flatMap((r) => [r.storage_key, r.thumb_key ?? ""]).filter(Boolean);
   const urls = await signedUrls("outputs", keys, 3600);
-  return rows.map((r) => ({ ...r, url: urls[r.storage_key] ?? null, thumbUrl: (r.thumb_key && urls[r.thumb_key]) || urls[r.storage_key] || null }));
+  return rows.map((r) => ({ ...r, url: urls[r.storage_key] ? sized(urls[r.storage_key], 1920) : null, thumbUrl: (r.thumb_key && urls[r.thumb_key]) || (urls[r.storage_key] ? sized(urls[r.storage_key], 640) : null) }));
 }
 
 export async function withRefUrls<T extends { storage_key: string }>(rows: T[]) {
-  const urls = await signedUrls("originals", rows.map((r) => r.storage_key), 3600);
+  const urls = await signedUrls("originals", rows.map((r) => r.storage_key), 3600, 828);
   return rows.map((r) => ({ ...r, url: urls[r.storage_key] ?? null }));
 }
 
@@ -27,7 +27,7 @@ export async function productList(orgId: string, opts: { q?: string | null; limi
   const { data, count } = await query;
   const rows = (data ?? []) as unknown as { id: string; name: string; category: string; sku: string | null; source: string; shopify_product_id: string | null; created_at: string; archived_at: string | null; product_assets: { id: string; storage_key: string; view_type: string }[] }[];
   const covers = rows.map((r) => r.product_assets.find((a) => a.view_type === "front") ?? r.product_assets[0]).filter(Boolean);
-  const urls = await signedUrls("originals", covers.map((c) => c.storage_key), 3600);
+  const urls = await signedUrls("originals", covers.map((c) => c.storage_key), 3600, 640);
   return {
     total: count ?? 0,
     products: rows.map((r) => {
@@ -54,10 +54,10 @@ export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: 
   const { data } = await q;
   const rows = (data ?? []) as unknown as { id: string; status: string; mode: string; style: string; output: string; requested_count: number; created_at: string; is_trial: boolean; source: string; products: { id: string; name: string; product_assets?: { storage_key: string; view_type: string }[] }; generated_assets: { id: string; thumb_key: string | null; storage_key: string; quality_status: string }[] }[];
   const thumbs = rows.flatMap((r) => r.generated_assets.filter((a) => a.quality_status !== "fail").slice(0, 4).map((a) => a.thumb_key ?? a.storage_key));
-  const urls = await signedUrls("outputs", thumbs, 3600);
+  const urls = await signedUrls("outputs", thumbs, 3600, 640);
   const front = (r: (typeof rows)[number]) => { const a = r.products?.product_assets ?? []; return (a.find((x) => x.view_type === "front") ?? a[0])?.storage_key; };
   const origKeys = rows.filter((r) => !r.generated_assets.some((a) => a.quality_status !== "fail")).map(front).filter((k): k is string => !!k);
-  const origUrls = origKeys.length ? await signedUrls("originals", origKeys, 3600) : {};
+  const origUrls = origKeys.length ? await signedUrls("originals", origKeys, 3600, 384) : {};
   return rows.map((r) => ({
     id: r.id, status: r.status, mode: r.mode, style: r.style, output: r.output, count: r.requested_count, createdAt: r.created_at, isTrial: r.is_trial, source: r.source,
     product: { id: r.products?.id, name: r.products?.name },

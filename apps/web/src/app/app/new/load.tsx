@@ -22,8 +22,8 @@ export async function StudioPage({ productId, denied, industry, look }: { produc
     const { data: p } = await admin().from("products").select("id,name,category,product_assets(storage_key,view_type)").eq("id", productId).eq("organization_id", ctx.orgId).is("archived_at", null).maybeSingle();
     if (!p) return null;
     const cover = p.product_assets.find((r: {view_type:string}) => r.view_type === "front") ?? p.product_assets[0];
-    const { signedUrl } = await import("@/lib/storage");
-    return { id:p.id, name:p.name, category:p.category, coverUrl:cover ? await signedUrl("originals",cover.storage_key,3600) : null };
+    const { signedUrls } = await import("@/lib/storage");
+    return { id:p.id, name:p.name, category:p.category, coverUrl:cover ? (await signedUrls("originals",[cover.storage_key],3600,384))[cover.storage_key] ?? null : null };
   })() : null;
   const toLite = (p: {id:string;name:string;category:string;coverUrl:string|null}) => ({ id: p.id, name: p.name, category: categoryOrOther(p.category), coverUrl: p.coverUrl });
   return (
