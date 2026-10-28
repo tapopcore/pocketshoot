@@ -317,3 +317,4 @@ textarea.input{height:auto;min-height:112px;padding:14px 16px;resize:none;line-h
 .anav a{padding:10px 12px;border-radius:12px;font-size:15px;color:#C9C9CC;white-space:nowrap}
 .anav a:hover{background:var(--night-3);color:#fff}.anav a.on{background:#fff;color:var(--ink);font-weight:600}
 @media(max-width:900px){.admin{display:block}.admin .aside{position:static;height:auto}.anav{display:flex;overflow-x:auto}}
+.h1,.h2,.h3,.h4{text-wrap:balance}

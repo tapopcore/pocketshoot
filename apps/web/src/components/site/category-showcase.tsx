@@ -23,12 +23,12 @@ export function CategoryShowcase() {
   const c = SHOWCASE[i];
   return (
     <>
-      <div className="pills" style={{ marginBottom: "var(--s5)" }} role="tablist" aria-label="Product category">
-        {SHOWCASE.map((x, n) => <button key={x.key} role="tab" aria-selected={n === i} className={`pill${n === i ? " on" : ""}`} onClick={() => setI(n)}>{x.label}</button>)}
+      <div className="cpills" role="tablist" aria-label="Product category">
+        {SHOWCASE.map((x, n) => <button key={x.key} role="tab" aria-selected={n === i} className={`cpill${n === i ? " on" : ""}`} onClick={() => setI(n)}><img src={shot(`${x.key}-0`)} alt="" />{x.label}</button>)}
       </div>
       <div className="cat">
         <div className="orig">
-          <BeforeAfter key={c.key} before={shot(`${c.key}-before`)} after={shot(`${c.key}-${c.after}`)} alt={`${c.label} product photo`} demo labels={["Before", "After"]} style={{ flex: 1 }} />
+          <BeforeAfter key={c.key} before={shot(`${c.key}-before`)} after={shot(`${c.key}-${c.after}`)} alt={`${c.label} product photo`} demo labels={["Before", "After"]} style={{ aspectRatio: "1" }} />
           <div className="cap"><span>Original phone photo</span><span className="muted" style={{ fontWeight: 400 }}>Drag to compare</span></div>
         </div>
         {SHOT_LABELS[c.key].map((s, n) => (

@@ -18,6 +18,10 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <div className="si">
         <div className="fm">
           <div className="logo-row"><Link href="/" className="blogo"><img src="/brand/logo-light.svg" alt="PocketShoot" style={{ height: 38 }} /></Link></div>
+          <div className="art-m m-only" aria-hidden>
+            {[0, 4].map((o, r) => <div key={r} className={`row-m ${r ? "rev" : ""}`}>{[...col(o), ...col(o)].map((k, i) => <div key={i} className="ph"><img src={`/showcase/${k}.webp`} alt="" /></div>)}</div>)}
+            <span className="pill lime sm tag">2 photos free</span>
+          </div>
           <div className="box">
             {sp.error && <p className="sm" style={{ color: "var(--bad)", background: "#FDECEA", padding: "12px 16px", borderRadius: 14, marginBottom: "var(--s5)" }}>That sign-in link didn&apos;t work or has expired. Try again.</p>}
             <SignInForm next={next} />

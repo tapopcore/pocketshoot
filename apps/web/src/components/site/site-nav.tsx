@@ -33,8 +33,8 @@ export function SiteNav({ signedIn }: { signedIn: boolean }) {
         <div className="menu" role="dialog" aria-label="Menu">
           <div className="menu-top"><Link href="/" className="blogo"><img src="/brand/logo-light.svg" alt="PocketShoot" /></Link><button className="burger" style={{ display: "grid" }} aria-label="Close menu" onClick={() => setOpen(false)}><X /></button></div>
           <div className="big">{[...LINKS, ["/faq", "Questions"] as [string, string]].map(([h, l]) => <Link key={h} href={h}>{l}<ChevronRight /></Link>)}</div>
-          <div className="marquee" style={{ margin: "28px -20px 0" }}><div className="track">{[...Array(2)].flatMap((_, n) => ["skincare-1", "saree-2", "rings-3", "beverage-2", "bags-3", "fragrance-3"].map((s) => <div key={s + n} className="ph" style={{ width: 128, height: 160, flex: "none", borderRadius: 16 }}><img src={shot(s)} alt="" /></div>))}</div></div>
-          <div style={{ marginTop: "auto", display: "grid", gap: 10 }}>
+          <div className="marquee menu-strip" aria-hidden><div className="track">{[...Array(2)].flatMap((_, n) => ["skincare-1", "saree-2", "rings-1", "beverage-2", "bags-2", "fragrance-1"].map((s) => <div key={s + n} className="ph"><img src={shot(s)} alt="" /></div>))}</div></div>
+          <div className="menu-acts">
             <Link href={cta.href} className="btn btn-lg btn-lime btn-block">{cta.label} <Go /></Link>
             {!signedIn && <Link href="/sign-in" className="btn btn-lg btn-soft btn-block">Log in</Link>}
           </div>
