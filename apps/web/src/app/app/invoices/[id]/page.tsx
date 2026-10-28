@@ -1,3 +1,4 @@
+import { Logo } from "@/components/ui";
 import { notFound } from "next/navigation";
 import { getWebContext } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
@@ -19,8 +20,8 @@ export default async function Invoice({ params }: { params: Promise<{ id: string
   const tax = inv.tax as { cgstPaise: number; sgstPaise: number; igstPaise: number; ratePercent: number; inWords: string };
   const lines = inv.lines as { description: string; sac: string; quantity: number; rateMinor: number; discountMinor: number; taxableMinor: number }[];
   return (
-    <div className="mx-auto max-w-3xl rounded-xl border border-line bg-white p-8 text-[14px] text-[#141310] print:border-0 print:p-0">
-      <div className="no-print mb-6 flex justify-end"><PrintButton /></div>
+    <div className="mx-auto max-w-3xl rounded-[28px] border border-line bg-white p-8 text-[14px] text-ink sm:p-10 print:border-0 print:p-0">
+      <div className="mb-8 flex items-center justify-between"><Logo height={34} /><div className="no-print"><PrintButton /></div></div>
       <div className="flex items-start justify-between border-b border-ink pb-4">
         <div>
           <div className="text-lg font-semibold">{s.legalName || s.tradeName}</div>
