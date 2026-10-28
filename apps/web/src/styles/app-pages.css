@@ -422,3 +422,4 @@
 @media(max-width:1180px){.create .two,.create .two.sp,.create .two.rv2{grid-template-columns:minmax(0,1fr)}.create .prev,.create .total{position:static}.create .hero-ph{max-width:520px}}
 .found .kv>div{white-space:normal}.found .kv b,.found .kv .trunc{max-width:62%;text-align:right;white-space:normal;overflow:visible}
 .found .kv .row{flex-wrap:wrap;justify-content:flex-end}
+.pg-credits .more summary{padding:10px 0}
