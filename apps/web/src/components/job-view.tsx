@@ -343,7 +343,8 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
       </div>
 
       <aside inert={reporting} className="max-h-[52dvh] w-full shrink-0 overflow-y-auto rounded-t-3xl bg-card p-4 lg:max-h-none lg:w-[380px] lg:rounded-none lg:p-5">
-        <div className="text-xs font-medium text-mute">{sceneName} · {asset.width}×{asset.height}</div>
+        <h2 className="h4" style={{ paddingRight: 8 }}>{productName}</h2>
+        <div className="mt-1 text-sm text-mute">{sceneName} · {asset.width} × {asset.height} px</div>
         {exact ? (
           <div className="mt-2 flex items-start gap-2 rounded-xl bg-good/10 px-3 py-2 text-sm text-good"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><span>Product alignment checked. Inspect fine details before publishing.</span></div>
         ) : warnings.length ? (
@@ -351,7 +352,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         ) : null}
 
         <div className="mt-4 flex gap-2">
-          <Button className="flex-1" disabled={!!busy} onClick={() => run("dl", async () => saveBlob(await api<Blob>(`/api/assets/${asset.id}/download?format=${format}`), `${fileBase}.${format}`))}>
+          <Button variant="accent" className="flex-1" disabled={!!busy} onClick={() => run("dl", async () => saveBlob(await api<Blob>(`/api/assets/${asset.id}/download?format=${format}`), `${fileBase}.${format}`))}>
             {busy === "dl" ? <Spinner /> : <Download size={16} />} Download
           </Button>
           <select value={format} onChange={(e) => setFormat(e.target.value as typeof format)} aria-label="Format" className="rounded-full border border-line bg-card px-3 text-sm font-medium outline-none">
@@ -365,7 +366,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         )}
 
         <button type="button" className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 text-sm" onClick={()=>setReporting(true)}><Flag size={15}/>Report a product, style or realism issue</button>
-        <details className="mt-3 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Edit, variations & export sizes</summary>
+        <details open className="mt-3 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer py-3 text-[15px] font-semibold">Edit, remake or resize</summary>
         <div className="mt-3 rounded-2xl border border-line p-3">
           <div className="flex items-center gap-1.5 text-sm font-semibold"><Wand2 size={15} className="text-accent" /> Edit with words</div>
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={2} maxLength={500}
@@ -411,7 +412,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
 
         <div className="mt-5 border-t border-line pt-3">
           {!reported ? (
-            <button type="button" className={clsx(panelBtn, "text-mute")} onClick={() => setReporting(true)}><Flag size={15} /> Report an issue for review</button>
+            <span className="px-3 text-xs text-mute">Wrong label, colour or shape? Use Report above and the credit comes back after review.</span>
           ) : (
             <div className="px-3 text-xs text-mute">Report {reported.status.replace("_", " ")}</div>
           )}
