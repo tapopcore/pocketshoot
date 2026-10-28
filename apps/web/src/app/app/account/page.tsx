@@ -1,74 +1,70 @@
-import { PageHeader } from "@/components/ui";
 import Link from "next/link";
-import { ArrowRight, LogOut, Settings2, ShieldCheck, UserRound, Wallet } from "lucide-react";
+import { Building2, ChevronRight, CircleHelp, Images, Layers, LogOut, Palette, Receipt, Settings2, Users, FolderKanban } from "lucide-react";
+import { PageHeader } from "@/components/ui";
 import { requireWeb } from "@/lib/auth";
 import { getWallet } from "@/lib/credits";
 import { OrgSwitcher } from "@/components/org-switcher";
 
 export const metadata = { title: "Account" };
 
+type Item = [href: string, label: string, hint: string, icon: typeof Images];
+
+/** The "You" tab: who is signed in, credits, and every workspace page in one list. */
 export default async function AccountPage() {
   const ctx = await requireWeb();
   const wallet = await getWallet(ctx.orgId);
   const email = ctx.email || "Email not available";
   const initial = ctx.email?.trim().charAt(0).toUpperCase() || "?";
+  const admin = ["owner", "admin"].includes(ctx.role);
+  const groups: [string, Item[]][] = [
+    ["Your work", [
+      ["/app/library", "All photos", "Every photo you have made", Images],
+      ["/app/projects", "Projects", "Group shoots by launch or client", FolderKanban],
+      ...(ctx.role !== "viewer" ? [["/app/batch", "Bulk shoots", "Shoot many products in one go", Layers] as Item] : []),
+      ["/app/brand", "Brand kit", "Colours, mood and rules", Palette],
+    ]],
+    ["Workspace", [
+      ["/app/wallet", "Credits and invoices", `${wallet.available} credit${wallet.available === 1 ? "" : "s"} left`, Receipt],
+      ...(admin ? [["/app/team", "Team", "Invite people and set access", Users] as Item] : []),
+      ["/app/settings", "Settings", "Workspace, billing and emails", Settings2],
+    ]],
+    ["Support", [["/app/support", "Help", "Quick answers and a direct line to us", CircleHelp]]],
+  ];
 
   return (
-    <div className="w-full max-w-2xl pb-10">
-      <PageHeader title="Your account">Who is signed in, your workspace and every setting in one place.</PageHeader>
-
-      <section aria-label="Signed-in account" className="rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
-        <div className="flex min-w-0 items-center gap-4">
-          <div aria-hidden="true" className="grid size-14 shrink-0 place-items-center rounded-2xl bg-paper-2 text-2xl font-semibold text-ink">{initial}</div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-widest text-mute">Signed in as</p>
-            <p className="mt-1 break-all text-[15px] font-semibold leading-snug text-ink sm:text-lg">{email}</p>
+    <div className="pg-you">
+      <PageHeader title="You" />
+      <section className="me card" aria-label="Signed-in account">
+        <span className="av" aria-hidden>{initial}</span>
+        <div className="who"><span className="xs muted">Signed in as</span><b title={email}>{email}</b></div>
+      </section>
+      <section className="org card" aria-label="Workspace">
+        <span className="ic" aria-hidden><Building2 size={18} /></span>
+        <div className="who">
+          <span className="xs muted">Workspace</span>
+          {ctx.orgs && ctx.orgs.length > 1
+            ? <OrgSwitcher orgs={ctx.orgs} current={ctx.orgId} name={ctx.orgName} inputId="account-workspace" />
+            : <b>{ctx.orgName}</b>}
+        </div>
+      </section>
+      <Link href="/app/wallet" className="bal">
+        <div><span className="sm">Credits left</span><b className="num">{wallet.available}</b><span className="xs">1 credit makes 1 photo</span></div>
+        <span className="btn btn-lime">Buy credits</span>
+      </Link>
+      {groups.map(([title, items]) => (
+        <section key={title} className="grp" aria-label={title}>
+          <h2 className="sm muted">{title}</h2>
+          <div className="card list">
+            {items.map(([href, label, hint, Icon]) => (
+              <Link key={href} href={href}><span className="ic" aria-hidden><Icon size={18} /></span><span className="t"><b>{label}</b><span className="xs muted">{hint}</span></span><ChevronRight size={18} className="chev" aria-hidden /></Link>
+            ))}
           </div>
-          <ShieldCheck size={20} aria-label="Signed-in session" className="shrink-0 text-good" />
-        </div>
-        <div className="mt-6 border-t border-line pt-5">
-          <p className="text-xs font-medium uppercase tracking-widest text-mute">Active workspace</p>
-          {ctx.orgs && ctx.orgs.length > 1 ? (
-            <div className="-mt-2"><OrgSwitcher orgs={ctx.orgs} current={ctx.orgId} name={ctx.orgName} inputId="account-workspace" /></div>
-          ) : (
-            <p className="mt-2 break-words text-sm font-medium text-ink">{ctx.orgName}</p>
-          )}
-          <p className="mt-1 text-xs text-mute">Your photos and credits belong to this workspace.</p>
-        </div>
-      </section>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Link href="/app/wallet" className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-5 transition-colors hover:border-accent">
-          <span className="flex items-center gap-3"><Wallet size={20} aria-hidden="true" /><span><strong className="block text-sm">Credits</strong><span className="mt-1 block text-xs text-mute">{wallet.available} available</span></span></span>
-          <ArrowRight size={16} aria-hidden="true" className="shrink-0 text-mute" />
-        </Link>
-        <Link href="/app/settings" className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-5 transition-colors hover:border-accent">
-          <span className="flex items-center gap-3"><Settings2 size={20} aria-hidden="true" /><span><strong className="block text-sm">Workspace settings</strong><span className="mt-1 block text-xs text-mute">Details and preferences</span></span></span>
-          <ArrowRight size={16} aria-hidden="true" className="shrink-0 text-mute" />
-        </Link>
-      </div>
-
-      <section className="mt-7 rounded-2xl border border-line bg-card p-5" aria-label="Workspace tools">
-        <h2 className="text-lg font-semibold">Workspace tools</h2>
-        <div className="mt-3 divide-y divide-line">{[
-          ["/app/library", "All photos"], ["/app/brand", "Brand kit"], ["/app/projects", "Projects"],
-          ...(ctx.role !== "viewer" ? [["/app/batch", "Bulk shoots"]] : []),
-          ...(["owner","admin"].includes(ctx.role) ? [["/app/team", "Team"]] : []),
-          ["/app/support", "Help"],
-        ].map(([href,label]) => <Link key={href} href={href} className="flex min-h-12 items-center justify-between gap-3 py-3 text-sm"><span>{label}</span><ArrowRight size={16}/></Link>)}</div>
-      </section>
-
-      <div className="mt-7 rounded-3xl border border-line bg-card p-5 sm:p-7">
-        <div className="flex items-center gap-2"><UserRound size={18} aria-hidden="true" /><h2 className="text-lg font-semibold">Not the right account?</h2></div>
-        <p className="mt-2 text-sm leading-relaxed text-mute">Sign out and use the email address that owns your PocketShoot workspace. This will not delete your photos or credits.</p>
-        <form action="/auth/sign-out" method="post" className="mt-5">
-          <button type="submit" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-line bg-paper px-5 text-sm font-semibold transition-colors hover:border-accent sm:w-auto">
-            <LogOut size={17} aria-hidden="true" /> Sign out
-          </button>
-        </form>
-      </div>
-
-      <p className="mt-5 text-center text-xs text-mute">Need help? <Link href="/app/support" className="font-medium text-ink underline underline-offset-4">Contact support</Link></p>
+        </section>
+      ))}
+      <form action="/auth/sign-out" method="post" className="out">
+        <button type="submit" className="btn btn-soft btn-block"><LogOut size={17} aria-hidden />Sign out</button>
+        <p className="xs muted">Signing out does not delete your photos or credits.</p>
+      </form>
     </div>
   );
 }

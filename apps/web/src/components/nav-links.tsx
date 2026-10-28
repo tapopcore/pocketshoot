@@ -43,7 +43,7 @@ export function Crumbs() {
 
 export function TabBar() {
   const path = usePathname();
-  if (path.startsWith("/app/new")) return null;
+  if (path.startsWith("/app/new") || path.startsWith("/dev/studio")) return null;
   const you = ["/app/account", "/app/wallet", "/app/settings", "/app/support", "/app/team", "/app/brand", "/app/batch", "/app/projects", "/app/invoices"].some((p) => path.startsWith(p));
   const T: [string, typeof House, string, boolean][] = [["/app", House, "Home", path === "/app"], ["/app/shoots", Grid2x2, "Shoots", isActive(path, "/app/shoots")], ["/app/new", Plus, "", false], ["/app/products", Box, "Products", path.startsWith("/app/products")], ["/app/account", UserRound, "You", you]];
   return (

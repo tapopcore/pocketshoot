@@ -12,7 +12,7 @@ export function ProductEditor({ product, photos }: {
   photos: { id: string; url: string | null; view: string; size: string; cutout: string | null }[];
 }) {
   const router = useRouter();
-  const [form, setForm] = useState({ name: product.name, category: product.category, sku: product.sku ?? "", locks: product.locks, mustNotChange: product.mustNotChange ?? "" });
+  const [form, setForm] = useState({ name: product.name, category: product.category, sku: product.sku ?? "", locks: product.locks ?? [], mustNotChange: product.mustNotChange ?? "" });
   const [busy, setBusy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const [view, setView] = useState("angle");
@@ -41,7 +41,7 @@ export function ProductEditor({ product, photos }: {
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr]">
       <div>
-        <div className="between" style={{ marginBottom: 12 }}><h2 className="h5">Product photos <span className="sm muted" style={{ fontWeight: 400 }}>· {photos.length} of 6</span></h2>{photos.length < 6 && <div className="pills" role="group" aria-label="The next photo shows"><span className="xs muted nowrap">Next photo:</span>{([["angle", "Angle"], ["back", "Back"], ["detail", "Close-up"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx("pill sm", view === v && "on")} onClick={() => setView(v)}>{l}</button>)}</div>}</div><p className="xs muted" style={{ marginBottom: 12 }}>Every photo is studied and sent to the image engine, so more angles keep the back, sides and details true.</p>
+        <div className="pe-head"><h2 className="h5">Product photos <span className="sm muted" style={{ fontWeight: 400 }}>· {photos.length} of 6</span></h2>{photos.length < 6 && <div className="pills" role="group" aria-label="The next photo shows"><span className="xs muted nowrap">Next photo:</span>{([["angle", "Angle"], ["back", "Back"], ["detail", "Close-up"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx("pill sm", view === v && "on")} onClick={() => setView(v)}>{l}</button>)}</div>}</div><p className="xs muted" style={{ marginBottom: 12 }}>We use every photo, so more angles keep the back, sides and small details true.</p>
         <div className="grid grid-cols-3 gap-3">
           {photos.map((p) => (
             <div key={p.id} className="group relative">

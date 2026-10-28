@@ -37,7 +37,7 @@ export function JobCard({ job, index, hrefBase = "/app/jobs" }: { job: JobSummar
   return (
     <Link href={`${hrefBase}/${job.id}`} className="shoot lift animate-rise" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
       <div className="ph r45 zoom">
-        {cover ? <img src={cover} alt="" className="animate-develop" /> : <div className={busy ? "skeleton size-full" : "size-full"} />}
+        {cover ? <img src={cover} alt="" className="animate-develop" /> : <div className={busy ? "nocover skeleton" : "nocover"}><span>{busy ? "Making your photos" : s.tone === "bad" ? "No photos made" : "No photos yet"}</span></div>}
         <span className="pill glass sm cnt">{job.count} photo{job.count === 1 ? "" : "s"}</span>
       </div>
       <div className="meta">

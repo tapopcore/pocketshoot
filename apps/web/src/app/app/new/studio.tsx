@@ -252,7 +252,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
           </div>)}
           {prep && references.length < MAX_PHOTOS && <button type="button" className="slot" disabled={!!busy || disabled} onClick={() => extra.current?.click()} aria-label={`Add a ${VIEW_LABEL[nextView].toLowerCase()} photo`}><Plus /></button>}
         </div>
-        <p className="xs muted" style={{ marginTop: "var(--s3)" }}>{collection?.references ? `Helpful for ${collection.label.toLowerCase()}: ${collection.references}` : "Every photo is sent to the image engine, so the back, sides and details stay true in your shoot."}</p>
+        <p className="xs muted" style={{ marginTop: "var(--s3)" }}>We use every photo, so the back, sides and small details stay true in your shoot.</p>
       </section>
 
       {prep ? <section className="card pl found">
@@ -329,7 +329,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         {props.brandKits.length > 0 && <div className="card p between kitrow"><div style={{ minWidth: 0 }}><h3 className="h5">Brand kit</h3><p className="sm muted" style={{ marginTop: 2 }}>Your colours, mood and notes guide the scene</p></div>
           <select className="input" aria-label="Brand kit" value={kitId ?? ""} onChange={(e) => setKitId(e.target.value || null)}><option value="">Do not use</option>{props.brandKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}</select></div>}
         <div className="card p"><h3 className="h5">Photo size</h3><div className="shapes">{SHAPES.map(([id, label, hint, w, h]) => <button key={id} type="button" aria-pressed={output === id} className={clsx(output === id && "on")} onClick={() => setOutput(id)}><i style={{ width: w, height: h }} /><b>{label}</b><span>{hint}</span></button>)}</div></div>
-        <div className="card p between"><div><h3 className="h5">Photos</h3><p className="sm muted" style={{ marginTop: 2 }}>Each one is a different shot</p></div><div className="qty"><button type="button" className="ib" aria-label="Fewer photos" disabled={count <= 1} onClick={() => setCount(count - 1)}><Minus size={18} /></button><b className="num">{count}</b><button type="button" className="ib" aria-label="More photos" disabled={count >= maxCount} onClick={() => setCount(count + 1)}><Plus size={18} /></button></div></div>
+        <div className="card p between"><div><h3 className="h5">Photos</h3><p className="sm muted" style={{ marginTop: 2 }}>Each is a different shot</p></div><div className="qty"><button type="button" className="ib" aria-label="Fewer photos" disabled={count <= 1} onClick={() => setCount(count - 1)}><Minus size={18} /></button><b className="num">{count}</b><button type="button" className="ib" aria-label="More photos" disabled={count >= maxCount} onClick={() => setCount(count + 1)}><Plus size={18} /></button></div></div>
         <div className="card p"><h3 className="h5"><label htmlFor="note">Add a note</label> <span className="sm muted" style={{ fontWeight: 400 }}>· optional</span></h3><textarea id="note" className="input" style={{ marginTop: "var(--s3)", minHeight: 88, height: "auto", padding: "14px 16px" }} value={brief} maxLength={600} onChange={(e) => setBrief(e.target.value)} placeholder="For example: summer feel, a few peach slices on the table" /><p className="xs muted" style={{ marginTop: 8 }}>Your product and label always stay the same.</p></div>
       </div>
       <aside className="total">
@@ -345,6 +345,13 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
     </div>}
 
     {step === "saved" && accepted.current && <Link className="btn btn-lg btn-lime" href={"/app/jobs/" + accepted.current}>Open your shoot <ArrowRight size={18} /></Link>}
+
+    {step === "review" && <div className="abar m-only rbar">
+      <div style={{ minWidth: 0 }}><b className="num">{quoteBusy ? "…" : quote ? quote.credits : count * perPhoto} credit{(quote?.credits ?? count * perPhoto) === 1 ? "" : "s"}</b><div className="xs muted">{props.balance} available</div></div>
+      {quote && quote.credits > props.balance
+        ? <Link className="btn btn-lg btn-lime" href="/app/wallet?returnTo=%2Fapp%2Fnew">Get credits</Link>
+        : <button type="button" className="btn btn-lg btn-lime" disabled={!quote || quoteBusy || !!busy || !!issue || disabled} onClick={generate}>{busy ? <Loader2 size={18} className="animate-spin" /> : null}{busy ? "Starting" : `Create ${count} photo${count === 1 ? "" : "s"}`}</button>}
+    </div>}
 
     {(step === "product" || step === "looks") && <div className="abar">
       {step === "product" && <span className="sm muted d-only">{busy ? <><Loader2 size={15} className="animate-spin inline" /> {busy}</> : "Next, you will choose a style. Browsing is free."}</span>}
