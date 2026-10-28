@@ -2,14 +2,14 @@
 /* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
 import { shot } from "./bits";
+import { SHOT_LABELS } from "./shots";
 
 const CATS: [string, string][] = [["skincare", "Skincare"], ["saree", "Sarees"], ["rings", "Jewellery"], ["footwear", "Shoes"], ["beverage", "Drinks"], ["electronics", "Headphones"], ["bags", "Bags"], ["fragrance", "Perfume"], ["necklace", "Necklaces"], ["prepared-food", "Food"], ["decor", "Home decor"], ["lehenga", "Lehenga"], ["makeup", "Makeup"], ["cookware", "Kitchen"], ["mens-ethnic", "Menswear"], ["packaged-food", "Packaged food"]];
-const STYLE = ["Studio", "With a model", "Outdoor", "Close-up", "Lifestyle"];
 
 export function ExamplesGallery() {
   const [cat, setCat] = useState<string | null>(null);
-  const cards = cat ? [0, 1, 2, 3, 4, 5].map((n) => ({ k: cat, n, label: CATS.find((c) => c[0] === cat)![1], style: `Shot ${n + 1}` }))
-    : CATS.map(([k, label], i) => ({ k, n: (i % 5) + 1, label, style: STYLE[i % 5] }));
+  const cards = cat ? [0, 1, 2, 3, 4, 5].map((n) => ({ k: cat, n, label: CATS.find((c) => c[0] === cat)![1], style: SHOT_LABELS[cat][n] }))
+    : CATS.map(([k, label], i) => ({ k, n: (i % 5) + 1, label, style: SHOT_LABELS[k][(i % 5) + 1] }));
   return (
     <>
       <div className="between filt"><div className="pills" role="tablist" aria-label="Filter by category">

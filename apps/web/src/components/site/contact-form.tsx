@@ -21,7 +21,7 @@ export function ContactForm() {
     <div className="card pl" style={{ borderRadius: "var(--r4)", textAlign: "center" }}><CheckCircle2 style={{ width: 48, height: 48, color: "var(--good)", margin: "0 auto" }} /><h2 className="h3" style={{ marginTop: "var(--s4)" }}>Message sent</h2><p className="body muted" style={{ marginTop: 6 }}>Thanks. We reply within one working day.</p></div>
   );
   return (
-    <form className="card pl" style={{ borderRadius: "var(--r4)" }} onSubmit={submit}>
+    <form id="message" className="card pl" style={{ borderRadius: "var(--r4)", scrollMarginTop: 96 }} onSubmit={submit}>
       <h2 className="h3">Send us a message</h2>
       <div className="fm">
         <div className="gx c2" style={{ gap: "var(--s3)" }}>

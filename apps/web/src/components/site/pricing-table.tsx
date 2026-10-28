@@ -5,9 +5,9 @@ import { Check } from "lucide-react";
 import type { PublicPack } from "@/lib/public";
 
 const FOR: Record<string, [string, string[]]> = {
-  starter: ["Try it on one product", ["All styles", "Free remake on every photo"]],
-  creator: ["A product launch", ["All styles", "Free remake on every photo"]],
-  brand: ["A full catalogue refresh", ["All styles", "Brand kit and bulk shoots"]],
+  starter: ["Try it on one product", ["All styles", "Free remakes"]],
+  creator: ["A product launch", ["All styles", "Free remakes"]],
+  brand: ["A full catalogue refresh", ["All styles", "Brand kit, bulk shoots"]],
   business: ["Weekly new products", ["Everything in Brand", "Team access"]],
   agency: ["Many brands, one account", ["Everything in Business", "Projects per client"]],
 };
@@ -50,7 +50,7 @@ export function PricingTable({ web, shopify }: { web: PublicPack[]; shopify: Pub
         {best && <div className="calc">
           <div><h2 className="h3">Not sure which pack?</h2><p className="body muted" style={{ marginTop: 6 }}>Move the slider and we will suggest one.</p>
             <input type="range" className="rng-in" min={5} max={250} step={5} value={want} onChange={(e) => setWant(+e.target.value)} aria-label="Photos you need" style={{ ["--v" as string]: `${((want - 5) / 245) * 100}%` }} />
-            <div className="between xs muted num" style={{ marginTop: 12 }}><span>5</span><span>50</span><span>100</span><span>150</span><span>250</span></div></div>
+            <div className="rng-scale xs muted num" aria-hidden>{[5, 50, 100, 150, 200, 250].map((v) => <span key={v} style={{ left: `calc(${(v - 5) / 245} * (100% - 28px) + 14px)` }}>{v}</span>)}</div></div>
           <div className="res"><div className="between"><span className="sm muted">{want} photos</span><span className="pill lime sm">{best.name} pack</span></div><div className="amt num">{fmt(best.price_minor, "INR")}</div><p className="sm muted">{fmt(best.price_minor / best.credits, "INR")} per photo{saving > 0 ? `. Saves ${fmt(saving, "INR")} compared with Starter packs.` : "."}</p></div>
         </div>}
       </div>

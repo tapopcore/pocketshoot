@@ -426,3 +426,35 @@
 .pg-signin .otp input{height:64px;border-radius:var(--r2);border:1px solid var(--line-2);text-align:center;font-family:var(--display);font-size:28px;font-weight:700;width:100%;outline:none;background:#fff}
 .pg-signin .otp input:focus{border:2px solid var(--ink)}.pg-examples .filt .pills{min-width:0;flex:1}
 .pg-examples .phero .between.filt{flex-direction:row;align-items:center}.pg-examples .filt>*{min-width:0;max-width:100%}
+
+/* ---------- polish pass (29 Oct): spacing, alignment, tap targets, contrast */
+.nav .blogo{min-height:44px}
+.rng-in{height:36px;background:transparent;cursor:pointer}
+.rng-in::-webkit-slider-runnable-track{height:8px;border-radius:9px;background:linear-gradient(90deg,var(--ink) var(--v),var(--surface-2) var(--v))}
+.rng-in::-moz-range-track{height:8px;border-radius:9px;background:linear-gradient(90deg,var(--ink) var(--v),var(--surface-2) var(--v))}
+.rng-in::-webkit-slider-thumb{margin-top:-10px}
+.rng-in:focus-visible::-webkit-slider-thumb{outline:3px solid var(--brand-soft);outline-offset:2px}
+.rng-scale{position:relative;height:18px;margin-top:10px}
+.rng-scale span{position:absolute;top:0;transform:translateX(-50%)}
+.pg-pricing .pks{grid-template-columns:repeat(5,minmax(0,1fr))}
+.pg-pricing .pk li,.pg-pricing .pk .for{white-space:normal}
+.pg-pricing .pk li{align-items:flex-start;line-height:1.4}.pg-pricing .pk li svg{margin-top:1px}
+@media(min-width:1101px) and (max-width:1320px){.pg-pricing .pk{padding:var(--s4)}.pg-pricing .pk .amt{font-size:34px}}
+@media(max-width:1100px){.pg-pricing .pks{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.pg-pricing .pks{grid-template-columns:1fr}}
+.pg-home .stage{grid-template-columns:300px 104px 1fr}
+.pg-home .brands .w{color:#8E8E93}
+.pg-home .bx.d .ov{background:linear-gradient(180deg,rgba(11,15,17,0),rgba(11,15,17,.62) 32%,rgba(11,15,17,.9))}
+.pg-home .bx.d .ov .body{color:rgba(255,255,255,.92)}
+.pg-home .qa summary,.pg-faq .qa summary{min-height:44px}
+.pg-home .more a,.pg-category .link{padding:10px 0}
+.pg-home .ready .ph.skeleton{background-size:200% 100%}
+.pg-examples .filt .pills,.pg-home .tabsrow .pills{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent);padding-right:40px}
+@media(max-width:900px){
+ .pg-home .flow .dot{transform:none}
+ .pg-home .brands{padding-top:var(--s5)}
+ .pg-home .st3 .sviz{height:auto;min-height:220px}
+ .pg-home .ratios{gap:8px;transform:scale(.82);transform-origin:center bottom}
+ .pg-home .stat{flex-wrap:wrap;row-gap:4px}.pg-home .stat span{flex-basis:100%}
+}
+.pg-contact .ch .chev{width:18px;height:18px;color:var(--faint);flex:none}.pg-contact a.ch{transition:background .2s}.pg-contact a.ch:hover{background:var(--surface-2)}

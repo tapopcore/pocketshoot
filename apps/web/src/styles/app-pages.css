@@ -364,3 +364,14 @@
 .tgl:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .pg-settings .danger{border-color:#F2C9C4}.pg-settings .del{margin-top:var(--s4);max-width:420px}
 @media(max-width:900px){.pg-settings .g2{grid-template-columns:1fr}}
+
+/* ---------- accessible action orange
+   The logo orange (#FC4A12) stays for the logo, accents and icons. Filled surfaces that carry white text
+   use a slightly deeper orange so the text passes WCAG AA (4.5:1). */
+:root{--action:#DC3A06;--action-2:#C93406}
+.btn-lime,.pill.lime,.pg-home .badge b,.pg-home .ratios div.on,.steps .s.on i,.tick,.pg-home .ck.on i,.ck.on i,.pg-credits .lime-pill{background:var(--action);border-color:var(--action)}
+.btn-lime:hover{background:var(--action-2);box-shadow:0 14px 30px -12px rgba(220,58,6,.6)}
+.btn-lime .go{color:var(--action)}.btn-lime .go svg{color:var(--action)}
+.pg-credits .lime-pill{color:#fff}
+.pg-how .stp .no,.idea .k{color:var(--action-2)}
+.pg-home .ready .r span[style]{color:#FF7A50!important}
