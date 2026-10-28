@@ -110,97 +110,95 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
     void load();
   };
 
+  const elapsed = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 1000));
+  const left = Math.max(15, active.length * 40 - (elapsed % 40));
+  const styles = job.settings?.edit ? [] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
+  const allChecked = active.length === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
+
   return (
-    <div>
-      <header className="mb-6">
-        {!embedded && <button type="button" onClick={() => router.push(surface === "shopify" ? "/shopify" : "/app")} className="mb-3 inline-flex items-center gap-1 text-sm text-mute hover:text-ink">
-          <ArrowLeft size={15} /> {surface === "shopify" ? "Products" : "Studio"}
-        </button>}
-        <div className={clsx("flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", embedded && "hidden")}>
-          <div className="min-w-0">
-            <h1 className="display truncate text-3xl sm:text-4xl">{job.products.name}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-              {job.settings?.edit ? <span className="rounded-full bg-accent/10 px-2.5 py-1 font-medium text-accent">Edit: “{job.settings.edit.instruction}”</span>
-                : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))].map((s) => <span key={s} className="rounded-full bg-paper-2 px-2.5 py-1 font-medium">{s}</span>)}
-              <span className="rounded-full bg-paper-2 px-2.5 py-1">{output?.name} {output?.ratio}</span>
-              {job.mode === "preserve" && <span className="inline-flex items-center gap-1 rounded-full bg-good/10 px-2.5 py-1 font-medium text-good"><ShieldCheck size={12} /> Product reference</span>}
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            {failedItems.length > 1 && <Button size="sm" variant="accent" disabled={!!retrying} onClick={() => retry(failedItems)}>{retrying === "all" ? <Spinner /> : <RefreshCw size={14} />} Try {failedItems.length} failed again</Button>}
-            {order.length > 1 && surface === "web" && <ZipButton ids={order} />}
-            <Button variant="outline" size="sm" onClick={() => router.push(surface === "shopify" ? "/shopify" : `/app/new?product=${job.products.id}`)}><Sparkles size={14} /> New scenes</Button>
+    <div className="jobv">
+      {!embedded && <button type="button" onClick={() => router.push(surface === "shopify" ? "/shopify" : "/app/shoots")} className="link sm" style={{ color: "var(--muted)" }}>
+        <ArrowLeft size={18} /> {surface === "shopify" ? "Products" : "My shoots"}
+      </button>}
+      <header className={clsx("jhead", embedded && "hidden")}>
+        <div style={{ minWidth: 0 }}>
+          <h1>{active.length ? "Creating your photos" : job.products.name}</h1>
+          <div className="pills" style={{ marginTop: "var(--s3)" }}>
+            {active.length > 0 && <span className="pill sm">{job.products.name}</span>}
+            {allChecked && <span className="pill good sm"><ShieldCheck size={14} />{delivered.length === 1 ? "Photo checked" : delivered.length === 2 ? "Both photos checked" : `All ${delivered.length} photos checked`}</span>}
+            {job.settings?.edit && <span className="pill sm">Edit: {job.settings.edit.instruction.slice(0, 40)}</span>}
+            {styles.map((s) => <span key={s} className="pill sm">{s}</span>)}
+            <span className="pill sm">{output?.name} {output?.ratio}</span>
           </div>
         </div>
-        {active.length > 0 && (
-          <div className="mt-5">
-            <div className="h-1.5 overflow-hidden rounded-full bg-paper-2"><div className="h-full rounded-full bg-gradient-to-r from-[#ffc27a] via-accent to-[#ff4f7b] transition-all duration-700" style={{ width: `${Math.max(6, pct)}%` }} /></div>
-            <div role="status" className="mt-2 text-xs text-mute">{delivered.length} of {items.length} ready · {Math.max(0,Math.floor((Date.now()-new Date(job.created_at).getTime())/1000))}s elapsed · saved in Shoots; you can leave this page</div>
+        {active.length > 0 ? (
+          <div className="eta" role="status"><span className="live" /><div><b className="num">{delivered.length} of {items.length} ready</b><span>About {left < 60 ? "1 minute" : `${Math.ceil(left / 60)} minutes`} left</span></div></div>
+        ) : (
+          <div className="acts">
+            {failedItems.length > 1 && <button type="button" className="btn btn-lime" disabled={!!retrying} onClick={() => retry(failedItems)}>{retrying === "all" ? <Spinner /> : <RefreshCw size={18} />}Try {failedItems.length} failed again</button>}
+            {order.length > 1 && surface === "web" && <ZipButton ids={order} primary={failedItems.length <= 1} />}
           </div>
         )}
       </header>
+      {active.length > 0 && <div className="pb" aria-hidden><i style={{ width: `${Math.max(6, pct)}%` }} /></div>}
 
-      <div className={clsx("grid gap-3 sm:gap-4", items.length === 1 ? "mx-auto w-full max-w-2xl grid-cols-1" : output && output.width > output.height * 1.3 ? "sm:grid-cols-2" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
+      <div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
         {items.map((it, i) => {
           const a = it.delivered_asset_id ? byId.get(it.delivered_asset_id) : undefined;
           const stages = STAGE[it.status] ?? [it.status];
           return (
-            <div key={it.id} className="animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
-              <div className="group relative overflow-hidden rounded-2xl bg-paper-2 ring-1 ring-black/5" style={{ aspectRatio: ratio }}>
+            <div key={it.id} className="jt animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
+              <div className="ph" style={{ aspectRatio: ratio }}>
                 {a?.thumbUrl ? (
-                  <button type="button" className="size-full" onClick={() => setOpen(a.id)} aria-label="Open image">
+                  <button type="button" className="open" onClick={() => setOpen(a.id)} aria-label={`Open photo ${i + 1}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.thumbUrl} alt={`${job.products.name} ${i + 1}`} className="size-full object-cover animate-develop transition-transform duration-500 group-hover:scale-[1.03]" />
-                    <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/55 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                      {it.params?.ideaTitle ?? styleName(it.style ?? job.style)}<Maximize2 size={14} />
-                    </span>
+                    <img src={a.thumbUrl} alt={`${job.products.name} ${i + 1}`} className="animate-develop" />
+                    <span className="hov">{it.params?.ideaTitle ?? styleName(it.style ?? job.style)}<Maximize2 size={15} /></span>
                   </button>
                 ) : it.status === "failed" ? (
-                  <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center text-sm">
-                    <AlertTriangle size={20} className="text-bad" />
-                    <span className="font-semibold">This photo did not work</span>
-                    <span className="line-clamp-3 max-w-[260px] text-xs leading-relaxed text-mute">{it.last_error ?? "Nothing was charged."}</span>
-                    <button type="button" disabled={!!retrying} onClick={() => retry([it])} className="mt-1 inline-flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-[13px] font-semibold text-white transition-colors hover:bg-accent-ink disabled:opacity-50">
-                        {retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={14} />} Try again
-                      </button>
-                    <span className="text-[11px] text-mute">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
+                  <div className="fail">
+                    <span className="ico"><AlertTriangle size={20} /></span>
+                    <b>This photo did not work</b>
+                    <span className="why">{it.last_error ?? "Nothing was charged."}</span>
+                    <button type="button" className="btn btn-lime btn-sm" disabled={!!retrying} onClick={() => retry([it])}>{retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={16} />}Try again</button>
+                    <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
                   </div>
                 ) : it.status === "cancelled" ? (
-                  <div className="grid size-full place-items-center text-sm text-mute">Cancelled</div>
+                  <div className="fail"><b>Cancelled</b><span className="why">Nothing was charged.</span></div>
                 ) : (
-                  <div className="relative size-full">
+                  <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {ref && <img src={ref} alt="" className="absolute inset-0 size-full scale-110 object-cover opacity-40 blur-2xl" />}
-                    <div className="skeleton absolute inset-0 opacity-70" />
-                    <div className="scanline absolute inset-0" />
-                    <div className="absolute inset-x-3 bottom-3">
-                      <div className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium shadow-sm">
-                        <Spinner className="size-3 text-accent" /> {stages[tick % stages.length]}
-                      </div>
-                      {it.attempts > 1 && <div className="mt-1.5 text-[11px] text-ink-2">Trying again for a better result</div>}
-                    </div>
-                  </div>
+                    {ref && <img src={ref} alt="" className="ghost" />}
+                    <div className="skeleton shim" />
+                    <div className="scanline shim" />
+                    <span className="pill glass sm st">{it.status === "queued" ? null : <span className="spin" />}{it.status === "queued" ? "In queue" : stages[tick % stages.length]}</span>
+                  </>
                 )}
-                {a && (
-                  <div className="pointer-events-none absolute left-2 top-2 flex gap-1">
-                    {a.quality_status === "review" && <span className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[11px] font-medium text-warn">Check label</span>}
-                    {a.approval_status === "approved" && <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-good"><Check size={11} /> Approved</span>}
-                    {a.pushed_to_shopify_at && <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-good"><Store size={11} /> In store</span>}
-                  </div>
-                )}
+                {a && <div className="tags">
+                  {a.quality_status === "review" && <span className="pill warn sm">Check label</span>}
+                  {a.approval_status === "approved" && <span className="pill glass sm"><Check size={13} />Approved</span>}
+                  {a.pushed_to_shopify_at && <span className="pill glass sm"><Store size={13} />In store</span>}
+                </div>}
               </div>
             </div>
           );
         })}
       </div>
 
+      {active.length > 0 && !embedded && <div className="leave card"><span className="ico"><Check size={20} /></span><div style={{ flex: 1, minWidth: 0 }}><b>You can leave this page</b><p className="sm muted">We keep working and your photos are saved in My shoots.{failed ? " Failed photos are not charged." : ""}</p></div></div>}
+
+      {active.length === 0 && !embedded && <div className="nx card">
+        <div><h2 className="h5">{delivered.length ? "Happy with these photos?" : "Want to try a different look?"}</h2><p className="sm muted" style={{ marginTop: 2 }}>Try another style for the same product. Your photos and details are saved.</p></div>
+        <div className="row">{surface === "web" && <button type="button" className="btn btn-dark" onClick={() => router.push(`/app/new?product=${job.products.id}`)}><Sparkles size={18} />Try another style</button>}</div>
+      </div>}
+
       {references.length > 0 && (
-        <div className="mt-10 flex items-center gap-3">
-          <span className="text-xs font-medium text-mute">{references.length > 1 ? `Your ${references.length} photos` : "Your photo"}</span>
-          {references.map((r) => (
+        <div className="refs">
+          <span className="xs muted">{references.length > 1 ? `Made from your ${references.length} photos` : "Made from your photo"}</span>
+          <div className="row" style={{ gap: 8 }}>{references.map((r) => (
             // eslint-disable-next-line @next/next/no-img-element
-            r.url && <img key={r.id} src={r.url} alt="" className="size-12 rounded-lg border border-line object-cover" />
-          ))}
+            r.url && <img key={r.id} src={r.url} alt={r.view_type + " view"} />
+          ))}</div>
         </div>
       )}
 
@@ -224,10 +222,10 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   );
 }
 
-function ZipButton({ ids }: { ids: string[] }) {
+function ZipButton({ ids, primary }: { ids: string[]; primary?: boolean }) {
   const [busy, setBusy] = useState(false);
   return (
-    <Button variant="ghost" size="sm" disabled={busy} onClick={async () => {
+    <Button variant={primary ? "accent" : "ghost"} disabled={busy} onClick={async () => {
       setBusy(true);
       try { saveBlob(await api<Blob>("/api/assets/zip", { method: "POST", json: { ids, format: "jpg" } }), "photos.zip"); } catch (e) { toast((e as Error).message, true); }
       setBusy(false);
