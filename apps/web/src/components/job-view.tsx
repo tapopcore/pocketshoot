@@ -16,7 +16,7 @@ interface Asset {
   approval_status: string; watermarked: boolean; remakes_used: number; delivered_at: string; pushed_to_shopify_at: string | null;
   quality_checks: Check_[]; refund_requests: { status: string }[] | { status: string } | null;
 }
-interface Item { id: string; idx: number; status: string; attempts: number; last_error: string | null; decision: string | null; delivered_asset_id: string | null; style: string | null; params?: { ideaTitle?: string } | null }
+interface Item { id: string; job_id: string; idx: number; status: string; attempts: number; last_error: string | null; decision: string | null; delivered_asset_id: string | null; style: string | null; params?: { ideaTitle?: string; retryJobId?: string } | null; retryOf?: string | null; tries?: number }
 interface JobData {
   job: {
     id: string; status: string; statusLabel: string; statusTone: string; mode: string; style: string; output: string; requested_count: number; is_trial: boolean;
@@ -47,6 +47,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(false);
   const request = useRef<AbortController | null>(null);
@@ -63,7 +64,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
       if (!alive.current || controller.signal.aborted) return;
       setData(d);
       setError(null);
-      const done = ["completed", "review_needed", "failed", "cancelled"].includes(d.job.status);
+      const done = ["completed", "review_needed", "failed", "cancelled"].includes(d.job.status) && d.items.every((i) => ["delivered", "failed", "cancelled"].includes(i.status));
       if (!done) timer.current = setTimeout(load, 5000);
     } catch (e) {
       if (!alive.current || controller.signal.aborted) return;
@@ -73,7 +74,8 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   }, [jobId]);
 
   useEffect(() => { alive.current=true;void load();const visible=()=>{if(!document.hidden)void load();};document.addEventListener("visibilitychange",visible);return () => {alive.current=false;request.current?.abort();if(timer.current)clearTimeout(timer.current);document.removeEventListener("visibilitychange",visible);}; }, [load]);
-  useEffect(() => { if(!data||["completed","review_needed","failed","cancelled"].includes(data.job.status))return;const t = setInterval(() => setTick((n) => n + 1), 1000); return () => clearInterval(t); }, [data?.job.status]);
+  const settled = !!data && ["completed","review_needed","failed","cancelled"].includes(data.job.status) && data.items.every((i) => ["delivered","failed","cancelled"].includes(i.status));
+  useEffect(() => { if(!data||settled)return;const t = setInterval(() => setTick((n) => n + 1), 1000); return () => clearInterval(t); }, [data, settled]);
 
   const byId = useMemo(() => new Map((data?.assets ?? []).map((a) => [a.id, a])), [data]);
   if (!data) {
@@ -93,6 +95,20 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   const order = delivered.map((i) => i.delivered_asset_id!) as string[];
   const pct = Math.round(((delivered.length + failed) / Math.max(1, items.length)) * 100);
   const ref = references[0]?.url ?? null;
+  const failedItems = items.filter((i) => i.status === "failed");
+  const retry = async (list: Item[]) => {
+    if (retrying) return;
+    setRetrying(list.length === 1 ? list[0].id : "all");
+    let started = 0, last: string | null = null;
+    for (const it of list) {
+      try { await api(`/api/jobs/${it.job_id}/items/${it.id}/retry`, { method: "POST", json: { idempotencyKey: "retry-" + it.id } }); started++; }
+      catch (e) { last = e instanceof ClientApiError ? e.message : "Couldn't start the retry. Try again in a moment."; }
+    }
+    setRetrying(null);
+    if (started) toast(started === 1 ? "Trying that photo again" : `Trying ${started} photos again`);
+    if (last) toast(last, true);
+    void load();
+  };
 
   return (
     <div>
@@ -111,6 +127,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            {failedItems.length > 1 && <Button size="sm" variant="accent" disabled={!!retrying} onClick={() => retry(failedItems)}>{retrying === "all" ? <Spinner /> : <RefreshCw size={14} />} Try {failedItems.length} failed again</Button>}
             {order.length > 1 && surface === "web" && <ZipButton ids={order} />}
             <Button variant="outline" size="sm" onClick={() => router.push(surface === "shopify" ? "/shopify" : `/app/new?product=${job.products.id}`)}><Sparkles size={14} /> New scenes</Button>
           </div>
@@ -139,10 +156,14 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
                     </span>
                   </button>
                 ) : it.status === "failed" ? (
-                  <div className="flex size-full flex-col items-center justify-center gap-1.5 p-4 text-center text-sm">
+                  <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center text-sm">
                     <AlertTriangle size={20} className="text-bad" />
-                    <span className="font-medium">Couldn&apos;t make this one</span>
-                    <span className="text-xs text-mute">{it.last_error ?? "No credit was used"}</span>
+                    <span className="font-semibold">This photo did not work</span>
+                    <span className="line-clamp-3 max-w-[260px] text-xs leading-relaxed text-mute">{it.last_error ?? "Nothing was charged."}</span>
+                    <button type="button" disabled={!!retrying} onClick={() => retry([it])} className="mt-1 inline-flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-[13px] font-semibold text-white transition-colors hover:bg-accent-ink disabled:opacity-50">
+                        {retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={14} />} Try again
+                      </button>
+                    <span className="text-[11px] text-mute">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
                   </div>
                 ) : it.status === "cancelled" ? (
                   <div className="grid size-full place-items-center text-sm text-mute">Cancelled</div>
@@ -175,8 +196,8 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
 
       {references.length > 0 && (
         <div className="mt-10 flex items-center gap-3">
-          <span className="text-xs font-medium text-mute">Your photo</span>
-          {references.slice(0, 3).map((r) => (
+          <span className="text-xs font-medium text-mute">{references.length > 1 ? `Your ${references.length} photos` : "Your photo"}</span>
+          {references.map((r) => (
             // eslint-disable-next-line @next/next/no-img-element
             r.url && <img key={r.id} src={r.url} alt="" className="size-12 rounded-lg border border-line object-cover" />
           ))}

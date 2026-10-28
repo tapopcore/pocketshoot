@@ -12,6 +12,8 @@ import { productSchema } from "./jobs";
 import { getProduct as getShopifyProduct } from "./shopify/admin";
 
 export const VIEW_TYPES = ["front", "angle", "back", "detail", "other"] as const;
+/** Photos per product. Every one is studied and sent to the image engine. */
+export const MAX_PRODUCT_PHOTOS = 6;
 
 export const uploadRequestSchema = z.object({
   files: z.array(z.object({ name: z.string().max(200), type: z.string().max(100), size: z.number().int().positive() })).min(1).max(10),
@@ -33,7 +35,7 @@ export async function createUploadUrls(ctx: AuthContext, files: z.infer<typeof u
 }
 
 export const createProductSchema = productSchema.extend({
-  uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("front") })).min(1).max(3),
+  uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("front") })).min(1).max(MAX_PRODUCT_PHOTOS),
 });
 
 /** Validates uploaded files and stores clean copies as the product's reference photos. */
@@ -93,7 +95,7 @@ export async function addProductPhotos(ctx: AuthContext, productId: string, uplo
   const { data: p } = await db.from("products").select("id").eq("id", productId).eq("organization_id", ctx.orgId).maybeSingle();
   if (!p) throw new ApiError(404, "Product not found");
   const { count } = await db.from("product_assets").select("id", { count: "exact", head: true }).eq("product_id", productId);
-  if ((count ?? 0) + uploads.length > 5) throw new ApiError(400, "Up to 5 photos per product");
+  if ((count ?? 0) + uploads.length > MAX_PRODUCT_PHOTOS) throw new ApiError(400, `Up to ${MAX_PRODUCT_PHOTOS} photos per product. Remove one to add another.`);
   return ingestUploads(ctx, productId, uploads);
 }
 

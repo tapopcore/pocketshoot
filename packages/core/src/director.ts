@@ -10,7 +10,9 @@ import { CATEGORY_LIST, type CategoryId } from "./categories";
 import type { OutputPreset, StylePreset } from "./presets";
 
 export type HumanPresence = "none" | "hands" | "model";
-export const CREATIVE_VERSION = "2026-10-27.directed-1";
+/** Reference photos per product. Every one is studied and sent to the image engine. */
+export const MAX_REFERENCE_PHOTOS = 6;
+export const CREATIVE_VERSION = "2026-10-28.suggestions-1";
 
 export interface SceneIdea {
   purpose?: "hero" | "human" | "detail";
@@ -22,6 +24,21 @@ export interface SceneIdea {
   description: string;
   /** Closest scene id from the library, used for lighting and grade. */
   base_scene: string;
+}
+
+/** Kinds of written shoot idea a customer can add on top of a chosen look. One per kind is used. */
+export const SUGGESTION_KINDS = ["props", "setting", "angle", "detail", "mood", "human"] as const;
+export type SuggestionKind = (typeof SUGGESTION_KINDS)[number];
+export const SUGGESTION_KIND_LABEL: Record<SuggestionKind, string> = { props: "Props", setting: "Setting", angle: "Angle", detail: "Detail", mood: "Mood", human: "People" };
+
+/** A written idea made for this exact product, e.g. "Add sliced oranges to echo the Vitamin C on the label". */
+export interface ShootSuggestion {
+  id: string;
+  kind: SuggestionKind;
+  /** 3 to 6 words, e.g. "Fresh orange slices". */
+  title: string;
+  /** One plain sentence the customer reads and the image engine follows. */
+  text: string;
 }
 
 export interface ProductAnalysis {
@@ -53,6 +70,10 @@ export interface ProductAnalysis {
   suggested_scenes: string[];
   /** Three campaign directions made for this product. */
   ideas: SceneIdea[];
+  /** Written shoot ideas for this product, picked by the customer as extra direction. */
+  suggestions?: ShootSuggestion[];
+  /** How many reference photos this analysis was made from. */
+  photo_count?: number;
   /** Problems with the photo that will hurt results, in plain words, e.g. "Held in a hand". */
   photo_issues: string[];
   /** 0..1, how readable the label is in the photo. */
@@ -108,6 +129,43 @@ export const ANALYSIS_SCHEMA = {
   },
 } as const;
 
+/** How the vision model should read several photos of one product. */
+export function photoSetPrompt(views: string[]): string {
+  if (views.length <= 1) return "";
+  return `\nPHOTO SET: you are given ${views.length} photos of ONE product, in this order: ${views.map((v, i) => `photo ${i + 1} = ${v} view`).join("; ")}. Combine every photo: read text, materials and construction from whichever angle shows them best, note details visible only on the back, side or close-up, and never treat the photos as different products.`;
+}
+
+/** Instructions for the written shoot ideas returned with the product facts. */
+export const SUGGESTIONS_PROMPT = `
+SHOOT IDEAS (suggestions): write 6 to 8 short ideas a seller can tick to add on top of any look they choose. Each must come from something you actually see in the photos (a material, a printed ingredient, a colour, a closure, a craft detail, a size, how it is used). Spread them across kinds: props, setting, angle, detail, mood, and at most two of kind human (hands or an adult model using it, only when its use is clear).
+Each idea: kind; title of 3 to 6 plain words; text of one plain sentence under 140 characters that a first-time seller understands and the photographer can follow, for example "Scatter a few fresh orange slices around it to echo the Vitamin C on the label". No camera jargon, no claims about effects or health, no brand names that are not printed on the product, no text overlays.`;
+
+export const SUGGESTIONS_SCHEMA = {
+  type: "array", minItems: 4, maxItems: 8,
+  items: {
+    type: "object", additionalProperties: false, required: ["kind", "title", "text"],
+    properties: { kind: { type: "string", enum: [...SUGGESTION_KINDS] }, title: { type: "string" }, text: { type: "string" } },
+  },
+} as const;
+
+/** Defensive parse of written shoot ideas. Ids are stable for the same text so selections survive reloads. */
+export function parseSuggestions(raw: unknown): ShootSuggestion[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: ShootSuggestion[] = [];
+  for (const r of raw as Record<string, unknown>[]) {
+    const kind = SUGGESTION_KINDS.includes(r?.kind as SuggestionKind) ? (r.kind as SuggestionKind) : null;
+    const title = typeof r?.title === "string" ? clean(r.title).slice(0, 48) : "";
+    const text = typeof r?.text === "string" ? clean(r.text).slice(0, 180) : "";
+    if (!kind || !title || text.length < 12) continue;
+    const id = kind + "-" + title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ id, kind, title, text });
+  }
+  return out.slice(0, 8);
+}
+
 /** Defensive parse of analysis JSON from a model. */
 export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis | null {
   let v: Record<string, unknown>;
@@ -150,6 +208,7 @@ export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis
     key_ingredients: list(v.key_ingredients, 5),
     suggested_scenes: list(v.suggested_scenes, 6).filter((s) => sceneIds.includes(s)),
     ideas,
+    suggestions: parseSuggestions(v.suggestions),
     photo_issues: list(v.photo_issues, 5, 120),
     label_legibility: Math.max(0, Math.min(1, Number(v.label_legibility) || 0)),
   };

@@ -1,35 +1,65 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import clsx from "clsx";
-import { Aperture, Box, Coins, Folder, Grid3x3, House as Home, LifeBuoy as HelpCircle, Layers, Palette, Plus, Settings, Shield, UserRound, Users } from "lucide-react";
+import { Box, Coins, Folder, Grid2x2, House, Layers, LifeBuoy, Palette, Plus, Settings, Shield, UserRound, Users } from "lucide-react";
 
-const ICONS = { aperture: Aperture, home: Home, plus: Plus, box: Box, grid: Grid3x3, layers: Layers, folder: Folder, palette: Palette, coins: Coins, users: Users, settings: Settings, help: HelpCircle, shield: Shield, user: UserRound };
+const GROUPS: [string, [string, typeof House, string][]][] = [
+  ["Create", [["/app", House, "Home"], ["/app/shoots", Grid2x2, "My shoots"], ["/app/products", Box, "Products"]]],
+  ["Workspace", [["/app/brand", Palette, "Brand kit"], ["/app/batch", Layers, "Bulk shoots"], ["/app/projects", Folder, "Projects"], ["/app/team", Users, "Team"]]],
+  ["Account", [["/app/wallet", Coins, "Credits"], ["/app/settings", Settings, "Settings"], ["/app/support", LifeBuoy, "Help"]]],
+];
+const LABELS: Record<string, string> = { "": "Home", new: "New shoot", shoots: "My shoots", jobs: "My shoots", library: "My shoots", products: "Products", brand: "Brand kit", batch: "Bulk shoots", projects: "Projects", team: "Team", wallet: "Credits", invoices: "Credits", settings: "Settings", support: "Help", account: "Account" };
+const GROUP_OF: Record<string, string> = { brand: "Workspace", batch: "Workspace", projects: "Workspace", team: "Workspace", wallet: "Account", invoices: "Account", settings: "Account", support: "Account", account: "Account" };
 
-export function NavLinks({ items, compact }: { items: { href: string; label: string; icon: string }[]; compact?: boolean }) {
+function isActive(path: string, href: string) {
+  if (href === "/app") return path === "/app";
+  if (href === "/app/shoots") return path.startsWith("/app/shoots") || path.startsWith("/app/jobs") || path.startsWith("/app/library");
+  if (href === "/app/wallet") return path.startsWith("/app/wallet") || path.startsWith("/app/invoices");
+  return path.startsWith(href);
+}
+
+export function SideNav({ isPlatform }: { isPlatform: boolean }) {
   const path = usePathname();
   return (
-    <>
-      {items.map((i) => {
-        const active = i.href === "/app" ? path === "/app" : i.href === "/app/shoots" ? path.startsWith("/app/shoots") || path.startsWith("/app/jobs") : i.href === "/admin" ? path === i.href : path.startsWith(i.href);
-        const Icon = ICONS[i.icon as keyof typeof ICONS] ?? Home;
-        if (compact) {
-          return (
-            <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium", active ? "text-ink" : "text-mute")}>
-              <span className={clsx("grid size-7 place-items-center",i.icon === "plus" && "rounded-full bg-accent text-white")}><Icon size={20} strokeWidth={active ? 2.2 : 1.7} /></span>
-              <span className="truncate">{i.label}</span>
-            </Link>
-          );
-        }
-        return (
-          <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined}
-            className={clsx("group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium transition-colors", active ? "bg-paper-2 text-ink" : "text-mute hover:text-ink")}>
-            {active && <span className="absolute -left-3 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />}
-            <Icon size={17} strokeWidth={active ? 2.2 : 1.7} />
-            {i.label}
-          </Link>
-        );
-      })}
-    </>
+    <nav aria-label="App">
+      {GROUPS.map(([g, items]) => (
+        <div className="grp" key={g}><h6>{g}</h6>{items.map(([href, Icon, label]) => (
+          <Link key={href} href={href} className={`nv${isActive(path, href) ? " on" : ""}`} aria-current={isActive(path, href) ? "page" : undefined}><Icon />{label}</Link>
+        ))}</div>
+      ))}
+      {isPlatform && <div className="grp"><h6>Platform</h6><Link href="/admin" className="nv"><Shield />Admin</Link></div>}
+    </nav>
+  );
+}
+
+export function Crumbs() {
+  const path = usePathname();
+  const seg = path.split("/")[2] ?? "";
+  const label = LABELS[seg] ?? "PocketShoot";
+  const group = GROUP_OF[seg];
+  const deep = path.split("/").length > 3 && seg !== "new";
+  return <div className="crumbs">{group && <>{group} / </>}{deep ? <><Link href={`/app/${seg === "jobs" || seg === "library" ? "shoots" : seg === "invoices" ? "wallet" : seg}`}>{label}</Link> / <b>Details</b></> : <b>{label}</b>}</div>;
+}
+
+export function TabBar() {
+  const path = usePathname();
+  if (path.startsWith("/app/new")) return null;
+  const you = ["/app/account", "/app/wallet", "/app/settings", "/app/support", "/app/team", "/app/brand", "/app/batch", "/app/projects", "/app/invoices"].some((p) => path.startsWith(p));
+  const T: [string, typeof House, string, boolean][] = [["/app", House, "Home", path === "/app"], ["/app/shoots", Grid2x2, "Shoots", isActive(path, "/app/shoots")], ["/app/new", Plus, "", false], ["/app/products", Box, "Products", path.startsWith("/app/products")], ["/app/account", UserRound, "You", you]];
+  return (
+    <nav className="tabs" aria-label="Main">
+      {T.map(([href, Icon, label, on]) => href === "/app/new"
+        ? <Link key={href} href={href} className="plus" aria-label="New shoot"><span><Icon /></span></Link>
+        : <Link key={href} href={href} className={on ? "on" : ""} aria-current={on ? "page" : undefined}><Icon />{label}</Link>)}
+    </nav>
+  );
+}
+
+export function AdminNav({ items }: { items: [string, string][] }) {
+  const path = usePathname();
+  return (
+    <nav className="anav" aria-label="Admin">
+      {items.map(([href, label]) => { const on = href === "/admin" ? path === href : path.startsWith(href); return <Link key={href} href={href} className={on ? "on" : ""} aria-current={on ? "page" : undefined}>{label}</Link>; })}
+    </nav>
   );
 }

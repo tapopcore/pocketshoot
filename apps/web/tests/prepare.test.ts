@@ -5,6 +5,7 @@ vi.mock("@/lib/api", () => ({ handler: (fn: unknown) => fn, ApiError: class exte
 vi.mock("@/lib/auth", () => ({ assertRole: vi.fn() }));
 vi.mock("@/lib/prep", () => ({ analyzeProduct: fakes.analyze, getCutout: fakes.getCutout }));
 vi.mock("@/lib/hero", () => ({ heroState: fakes.heroState }));
+vi.mock("@/lib/views", () => ({ withRefUrls: async (rows: unknown[]) => rows }));
 vi.mock("@/lib/supabase", () => ({
   admin: () => ({
     from: (table: string) => {

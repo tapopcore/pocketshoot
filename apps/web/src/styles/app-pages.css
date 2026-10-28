@@ -1,0 +1,87 @@
+/* App screens beyond the shell: create flow, shoot results. Uses the tokens in brand.css. */
+
+/* ---------- shared notices */
+.note{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);padding:14px var(--s4);border-radius:var(--r2);background:var(--surface);font-size:15px;line-height:1.5;margin-bottom:var(--s5)}
+.note>span{display:flex;gap:8px;align-items:flex-start}.note>span svg{flex:none;margin-top:3px}
+.note button{flex:none;color:var(--muted)}
+.note.bad{background:#FDECEA;color:var(--bad)}
+.trunc{max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- create flow */
+.create{padding-bottom:var(--s4)}
+.create .drop{transition:border-color .2s,background .2s}
+.create .drop.over{border-color:var(--brand);background:var(--brand-soft)}
+.create .angles{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:var(--s2)}
+.side-col{display:grid;gap:var(--s5);align-content:start}
+.side-col .stack{display:grid;gap:var(--s2);margin-top:var(--s3)}
+.side-col .saved{width:100%;cursor:pointer;transition:border-color .2s}
+.side-col .saved:hover{border-color:var(--line-2)}
+.tipcard ul{list-style:none;display:grid;gap:10px;margin-top:var(--s3);font-size:15px;line-height:1.45}
+.tipcard li{display:flex;gap:10px;align-items:flex-start}.tipcard li svg{flex:none;margin-top:3px;color:var(--good)}
+
+.hero-ph{border-radius:var(--r4)}
+.thumbs{display:flex;flex-wrap:wrap;gap:var(--s3);margin-top:var(--s3)}
+.thumb{position:relative;width:76px;flex:none}
+.thumb .ph{border-radius:12px}
+.thumb.main .ph{outline:2px solid var(--ink);outline-offset:2px}
+.thumb .vt{display:block;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--muted);text-align:center;white-space:nowrap}
+.thumb .rm{position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.thumb .veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.55)}
+.create .slot{width:76px;height:76px;cursor:pointer;transition:border-color .2s,color .2s}
+.create .slot:hover{border-color:var(--brand);color:var(--brand)}
+.viewpick{gap:6px}
+
+.found .g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s3)}
+.found select.input{appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236E6E73' stroke-width='2'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E") no-repeat right 16px center;padding-right:40px;cursor:pointer}
+.found .issues{margin-top:var(--s4);padding:var(--s3) var(--s4);border-radius:var(--r2);background:var(--warn-soft);font-size:14px;line-height:1.5;color:#6B4A00}
+.found .issues ul{margin-top:4px;padding-left:18px;list-style:disc}
+.found .confirm{display:flex;gap:10px;align-items:flex-start;margin-top:var(--s4);font-size:15px;line-height:1.45;cursor:pointer}
+.found .confirm input{width:18px;height:18px;margin-top:2px;accent-color:var(--brand);flex:none}
+
+.sty{text-align:left;cursor:pointer}
+.sty.gated .ph{opacity:.6}
+.sty .needs{position:absolute;inset:auto 0 0 0;padding:8px 10px;background:rgba(11,15,17,.72);color:#fff;font-size:12.5px;font-weight:600;white-space:nowrap}
+
+.ideas-sec{margin-top:var(--s8)}
+.idea-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3);margin-top:var(--s5)}
+.idea{display:flex;gap:var(--s3);align-items:flex-start;text-align:left;padding:var(--s4);border-radius:var(--r3);border:1px solid var(--line);background:#fff;transition:border-color .2s,box-shadow .2s,background .2s;cursor:pointer}
+.idea:hover{border-color:var(--line-2)}
+.idea.on{border-color:var(--brand);background:#FFF8F5;box-shadow:0 0 0 1px var(--brand)}
+.idea .box{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line-2);display:grid;place-items:center;flex:none;margin-top:1px;background:#fff}
+.idea.on .box{background:var(--brand);border-color:var(--brand);color:#fff}
+.idea .tx{display:grid;gap:2px;min-width:0}
+.idea .k{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--brand-2)}
+.idea b{font-size:16px;font-weight:600;line-height:1.35}
+.idea .tx>span:last-child{font-size:14.5px;line-height:1.5;color:var(--muted)}
+.idea-empty{display:flex;gap:10px;align-items:center;margin-top:var(--s4);padding:var(--s4);border-radius:var(--r2);background:var(--surface);font-size:15px;color:var(--muted)}
+
+.ideas-row ul{list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:15px;font-weight:600}
+.ideas-row ul li::before{content:"+ ";color:var(--brand)}
+.ico-ph{display:grid!important;place-items:center;background:var(--brand-soft)!important;color:var(--brand)}
+.shapes button{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;height:112px;padding-bottom:14px;border-radius:var(--r2);border:1px solid var(--line);text-align:center;cursor:pointer}
+.shapes button i{border:2px solid currentColor;border-radius:4px;margin-bottom:10px}
+.shapes button b{font-size:14px;font-weight:600;white-space:nowrap}.shapes button span{font-size:13px;color:var(--muted);white-space:nowrap}
+.shapes button.on{background:var(--ink);color:#fff;border-color:var(--ink)}.shapes button.on span{color:var(--on-night-2)}
+.qty .ib:disabled{opacity:.4}
+.total .btn:disabled{opacity:.5}
+
+@media(max-width:900px){
+ .flowtop .link.sm span{display:none}
+ .flowhead{margin:var(--s4) 0 var(--s5)}.flowhead h1{font-size:30px}.flowhead p{font-size:15.5px}
+ .create .drop{min-height:340px;padding:var(--s5)}
+ .found .g2{grid-template-columns:1fr}
+ .idea-grid{grid-template-columns:1fr}
+ .ideas-sec{margin-top:var(--s7);padding-bottom:88px}
+ .create{padding-bottom:96px}
+ .thumb,.create .slot{width:64px}.create .slot{height:64px}
+}
+.flowhead h1:focus,.flowhead h1:focus-visible{outline:none}
+.found .fields{display:grid;gap:var(--s4)}
+.photos-head{flex-wrap:wrap;row-gap:var(--s2)}
+.viewpick{align-items:center}
+.nowrap{white-space:nowrap}
+
+/* Sidebar scrolls instead of overlapping on short screens */
+.side{overflow-y:auto;scrollbar-width:none}.side::-webkit-scrollbar{display:none}
+.side>*{flex:0 0 auto}.side .wallet{margin-top:auto;position:relative}.side>nav{padding-bottom:var(--s5)}
+@media(max-height:1080px){.side .nv{height:38px}.side .grp{margin-top:var(--s4)}}

@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import {
-  CREATIVE_VERSION, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
+  CREATIVE_VERSION, MAX_REFERENCE_PHOTOS, SUGGESTIONS_PROMPT, SUGGESTIONS_SCHEMA, photoSetPrompt, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
   sanitizeUserText, type DirectionInput, type ProductAnalysis, type ShotDirection,
 } from "@packshot/core";
 import { admin } from "./supabase";
@@ -21,8 +21,11 @@ const SUMMARY_SCHEMA = {
   properties: { ...ANALYSIS_SCHEMA.properties,
     ideas: { type: "array", maxItems: 0, items: ANALYSIS_SCHEMA.properties.ideas.items },
     suggested_scenes: { type: "array", maxItems: 0, items: { type: "string" } },
+    suggestions: SUGGESTIONS_SCHEMA,
   },
+  required: [...ANALYSIS_SCHEMA.required, "suggestions"],
 };
+
 
 export interface ProductAssetRow {
   id: string;
@@ -156,24 +159,26 @@ export async function analyzeProduct(productId: string, force = false): Promise<
   const { data: product } = await db.from("products").select("id, organization_id, attributes").eq("id", productId).single();
   if (!product) return null;
   const attrs = (product.attributes ?? {}) as { analysis?: ProductAnalysis };
-  // Re-run analyses made by older versions (no campaign ideas or camera angle).
-  if (attrs.analysis && !force && Array.isArray(attrs.analysis.ideas) && attrs.analysis.viewpoint && attrs.analysis.creative_version === CREATIVE_VERSION) return attrs.analysis;
-  if (!integrations.openai) return null;
-  const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(3);
+  const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(MAX_REFERENCE_PHOTOS);
   if (!refs?.length) return null;
+  // Re-run when the product gains or loses a photo, or when the analysis comes from an older version.
+  if (attrs.analysis && !force && attrs.analysis.viewpoint && attrs.analysis.creative_version === CREATIVE_VERSION && (attrs.analysis.photo_count ?? 1) === refs.length) return attrs.analysis;
+  if (!integrations.openai) return attrs.analysis ?? null;
   try {
     const settings = await getSettings();
-    const images = await Promise.all(refs.map((r) => getObject("originals", r.storage_key)));
-    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + "\nReturn only concise product facts. ideas and suggested_scenes must be empty arrays. Leave audience and visual_strategy empty. Do not plan a campaign or generate an image. Report uncertainties in photo_issues; do not invent hidden details.";
-    const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 30_000 });
+    const ordered = [...refs].sort((a, b) => Number(b.view_type === "front") - Number(a.view_type === "front"));
+    const images = await Promise.all(ordered.map((r) => getObject("originals", r.storage_key)));
+    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nReturn concise product facts. ideas and suggested_scenes must be empty arrays. Leave audience and visual_strategy empty. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
+    const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 45_000 });
     const analysis = parseAnalysis(res.data, SCENE_IDS);
     if (!analysis) return null;
+    analysis.photo_count = refs.length;
     await db.from("products").update({ attributes: { ...attrs, analysis, analysisModel: res.model, analysedAt: new Date().toISOString() } }).eq("id", productId);
     await recordCost(product.organization_id, "analysis", res.model, (res.inputTokens * 0.25 + res.outputTokens * 2) / 1_000_000);
     return analysis;
   } catch (e) {
     await logError("prep.analysis", (e as Error).message, { product: productId });
-    return null;
+    return attrs.analysis ?? null;
   }
 }
 

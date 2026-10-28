@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       credits={wallet.available}
       email={ctx.email}
       isPlatform={!!ctx.platformRole}
+      role={ctx.role}
     >
       {children}
     </AppShell>

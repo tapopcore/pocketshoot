@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { ApiError, body, handler } from "@/lib/api";
-import { addProductPhotos, deleteProductPhoto, VIEW_TYPES } from "@/lib/products";
+import { addProductPhotos, deleteProductPhoto, MAX_PRODUCT_PHOTOS, VIEW_TYPES } from "@/lib/products";
 
 export const POST = handler<{ id: string }>(async (req, ctx, { id }) => {
-  const { uploads } = await body(req, z.object({ uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("angle") })).min(1).max(4) }));
+  const { uploads } = await body(req, z.object({ uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("angle") })).min(1).max(MAX_PRODUCT_PHOTOS) }));
   return { photos: await addProductPhotos(ctx, id, uploads) };
 });
 

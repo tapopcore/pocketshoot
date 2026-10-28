@@ -4,6 +4,7 @@ import { assertRole } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { analyzeProduct } from "@/lib/prep";
 import { heroState } from "@/lib/hero";
+import { withRefUrls } from "@/lib/views";
 
 export const maxDuration = 300;
 
@@ -36,7 +37,8 @@ export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   const suggested = [...new Set([...(analysis?.suggested_scenes ?? []), ...ranked])].filter((s) => s in STYLES).slice(0, 7);
   return {
     product: { id, name: (patch.name as string | undefined) ?? product.name, category, shootProfile: (product.attributes as Record<string, unknown> | null)?.shootProfile ?? null },
-    references: refs.map(r => ({ id: r.id, view_type: r.view_type })),
+    references: await withRefUrls(refs.map((r) => ({ id: r.id, storage_key: r.storage_key, view_type: r.view_type }))),
+    suggestions: analysis?.suggestions ?? [],
     analysis,
     ideas: analysis?.ideas ?? [],
     suggestedScenes: suggested,
