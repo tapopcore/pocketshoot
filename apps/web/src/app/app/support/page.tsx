@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { requireWeb } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { Badge, Card, Field, Input, PageHeader, Textarea, formatDate } from "@/components/ui";
@@ -28,7 +29,7 @@ export default async function Support({ searchParams }: { searchParams: Promise<
             <div className="divide-y divide-line rounded-xl border border-line bg-card">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group px-4 py-3">
-                  <summary className="cursor-pointer list-none font-medium">{q}</summary>
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-medium [&::-webkit-details-marker]:hidden">{q}<ChevronDown size={18} className="shrink-0 text-mute transition-transform group-open:rotate-180" aria-hidden /></summary>
                   <p className="mt-2 text-sm text-ink-2">{a}</p>
                 </details>
               ))}
@@ -37,11 +38,11 @@ export default async function Support({ searchParams }: { searchParams: Promise<
           <section>
             <h2 className="display mb-3 text-2xl">Your conversations</h2>
             <Card className="divide-y divide-line">
-              {(tickets ?? []).length === 0 && <div className="p-4 text-sm text-mute">None yet.</div>}
+              {(tickets ?? []).length === 0 && <div className="p-4 text-sm text-mute">No messages yet. Ask us anything and the reply shows up here.</div>}
               {(tickets ?? []).map((t) => (
                 <Link key={t.id} href={`/app/support/${t.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-paper-2">
                   <div><div className="font-medium">{t.subject}</div><div className="frame-no">{formatDate(t.updated_at, true)}</div></div>
-                  <Badge tone={t.status === "resolved" || t.status === "closed" ? "good" : t.status === "pending" ? "warn" : "busy"}>{t.status === "pending" ? "Waiting for you" : t.status}</Badge>
+                  <Badge tone={t.status === "resolved" || t.status === "closed" ? "good" : t.status === "pending" ? "warn" : "busy"}>{t.status === "pending" ? "Waiting for you" : t.status === "resolved" || t.status === "closed" ? "Closed" : "Waiting for us"}</Badge>
                 </Link>
               ))}
             </Card>
@@ -49,7 +50,7 @@ export default async function Support({ searchParams }: { searchParams: Promise<
         </div>
         <Card className="h-fit p-5">
           <h2 className="display text-2xl">Ask us anything</h2>
-          <ActionForm action={createTicket} submit="Send" className="mt-4 space-y-3">
+          <ActionForm action={createTicket} submit="Send message" className="mt-4 space-y-3">
             <input type="hidden" name="jobId" value={sp.job ?? ""} />
             <Field label="Subject"><Input name="subject" required maxLength={160} /></Field>
             <Field label="Message"><Textarea name="body" required maxLength={4000} className="min-h-36" /></Field>

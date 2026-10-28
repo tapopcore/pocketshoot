@@ -14,7 +14,7 @@ export default async function AccountPage() {
   const initial = ctx.email?.trim().charAt(0).toUpperCase() || "?";
 
   return (
-    <div className="mx-auto w-full max-w-2xl pb-10">
+    <div className="w-full max-w-2xl pb-10">
       <PageHeader title="Your account">Who is signed in, your workspace and every setting in one place.</PageHeader>
 
       <section aria-label="Signed-in account" className="rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">

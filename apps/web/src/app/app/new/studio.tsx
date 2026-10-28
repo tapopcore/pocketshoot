@@ -217,7 +217,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
           <button type="button" className="btn btn-lime" disabled={disabled || !!busy} onClick={() => input.current?.click()}>Choose photos</button>
           <button type="button" className="btn btn-line" disabled={disabled || !!busy} onClick={() => camera.current?.click()}><Camera size={18} />Take a photo</button>
         </div>
-        <div className="angles" aria-hidden>{["Front", "Back", "Side", "Close-up"].map((a) => <span key={a} className="pill line sm">{a}</span>)}</div>
+        <p className="xs muted angles">Best order: front, back, side, close-up</p>
       </div>
       <div className="side-col">
         {props.recentProducts.length > 0 && <section>

@@ -24,7 +24,7 @@ export default async function Batch() {
       <PageHeader title="Bulk shoots">
         Pick products (or import a CSV with photos), choose one style, and shoot them all. Good for catalogues and marketplace listings.
       </PageHeader>
-      {!enabled ? <Notice>Batch jobs are turned off for this workspace.</Notice> : (
+      {!enabled ? <Notice>Bulk shoots are not switched on for your workspace yet. <a className="font-semibold underline" href="/app/support">Message us</a> and we will turn them on.</Notice> : (
         <BatchBuilder products={list.products.filter((p) => p.photoCount > 0)} balance={wallet.available} creativeEnabled={creative} brandKits={kits ?? []} />
       )}
       {(batches ?? []).length > 0 && (
