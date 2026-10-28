@@ -67,25 +67,31 @@ export function Select(props: ComponentProps<"select">) {
   return <select {...props} className={clsx(inputClass, "appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22><path d=%22M2 4l4 4 4-4%22 fill=%22none%22 stroke=%22%23141310%22 stroke-width=%221.5%22/></svg>')] bg-[right_14px_center] bg-no-repeat pr-9", props.className)} />;
 }
 
+/** Page title row used on every app and admin screen. */
 export function PageHeader({ eyebrow, title, children, actions }: { eyebrow?: ReactNode; title: ReactNode; children?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="animate-rise">
-        {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
-        <h1 className="display text-[30px] sm:text-[44px]">{title}</h1>
-        {children && <div className="mt-2 max-w-2xl text-[15px] text-mute">{children}</div>}
+    <header className="phead animate-rise">
+      <div style={{ minWidth: 0 }}>
+        {eyebrow && <div className="xs muted" style={{ fontWeight: 600, marginBottom: 6 }}>{eyebrow}</div>}
+        <h1>{title}</h1>
+        {children && <p style={{ maxWidth: 680 }}>{children}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="acts">{actions}</div>}
     </header>
   );
 }
 
+/** Empty state: a small fan of example photos, a title, one line and one action. */
 export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-[var(--radius-card)] border border-dashed border-line bg-card/60 px-6 py-14 text-center">
-      <div className="display text-2xl">{title}</div>
-      {children && <p className="mx-auto mt-2 max-w-md text-sm text-mute">{children}</p>}
-      {action && <div className="mt-6 flex justify-center">{action}</div>}
+    <div className="empty">
+      <div className="fan" aria-hidden>{(["saree-2", "skincare-1", "rings-3"] as const).map((k, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <div key={k} className="ph r45" style={{ transform: `rotate(${(i - 1) * 9}deg) translateY(${i === 1 ? 0 : 12}px)` }}><img src={`/showcase/${k}.webp`} alt="" /></div>
+      ))}</div>
+      <h2 className="h3" style={{ marginTop: "var(--s7)" }}>{title}</h2>
+      {children && <p className="muted" style={{ marginTop: "var(--s2)", maxWidth: 460 }}>{children}</p>}
+      {action && <div style={{ marginTop: "var(--s5)" }}>{action}</div>}
     </div>
   );
 }

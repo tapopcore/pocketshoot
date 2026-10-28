@@ -1,52 +1,46 @@
+/* eslint-disable @next/next/no-img-element -- Signed storage URLs. */
 import Link from "next/link";
+import { ArrowLeft, ArrowRight, Plus, Search, Store } from "lucide-react";
 import { CATEGORIES, isCategoryId } from "@packshot/core";
 import { requireWeb } from "@/lib/auth";
 import { productList } from "@/lib/views";
-import { Badge, Empty, Input, LinkButton, PageHeader } from "@/components/ui";
+import { Empty, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Products" };
+const PER = 24;
 
 export default async function Products({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; archived?: string }> }) {
   const ctx = await requireWeb();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
-  const { products, total } = await productList(ctx.orgId, { q: sp.q, limit: 24, offset: (page - 1) * 24, includeArchived: sp.archived === "1" });
-  return (
-    <div>
-      <PageHeader eyebrow={`${total} products`} title="Products" actions={<LinkButton href="/app/new">Add a product</LinkButton>}>
-        Each product keeps its reference photos and what must not change, so you can shoot it again in any style.
-      </PageHeader>
-      <form className="mb-6 flex gap-2">
-        <Input name="q" defaultValue={sp.q} placeholder="Search by name or SKU" className="max-w-sm" />
-        <LinkButton href={sp.archived === "1" ? "/app/products" : "/app/products?archived=1"} variant="ghost">{sp.archived === "1" ? "Hide archived" : "Show archived"}</LinkButton>
-      </form>
-      {products.length === 0 ? (
-        <Empty title={sp.q ? "No matches" : "No products yet"} action={<LinkButton href="/app/new">Upload your first product</LinkButton>}>Products are created when you start a shoot, import from Shopify, or upload a CSV in Batch.</Empty>
-      ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((p, i) => (
-            <Link key={p.id} href={`/app/products/${p.id}`} className="group animate-rise" style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
-              <div className="cropmarks aspect-square overflow-hidden rounded-lg bg-paper-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {p.coverUrl && <img src={p.coverUrl} alt="" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />}
-              </div>
-              <div className="mt-2 flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{p.name}</div>
-                  <div className="frame-no">{isCategoryId(p.category) ? CATEGORIES[p.category].label : p.category}{p.sku ? ` · ${p.sku}` : ""}</div>
-                </div>
-                {p.archived ? <Badge>Archived</Badge> : p.source === "shopify" ? <Badge tone="good">Shopify</Badge> : null}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-      {total > 24 && (
-        <div className="mt-10 flex justify-center gap-2">
-          {page > 1 && <LinkButton variant="ghost" href={`/app/products?page=${page - 1}${sp.q ? `&q=${sp.q}` : ""}`}>Previous</LinkButton>}
-          {page * 24 < total && <LinkButton variant="ghost" href={`/app/products?page=${page + 1}${sp.q ? `&q=${sp.q}` : ""}`}>Next</LinkButton>}
-        </div>
-      )}
-    </div>
-  );
+  const archived = sp.archived === "1";
+  const { products, total } = await productList(ctx.orgId, { q: sp.q, limit: PER, offset: (page - 1) * PER, includeArchived: archived });
+  const qs = (o: Record<string, string | number | undefined>) => { const p = new URLSearchParams(); for (const [k, v] of Object.entries({ q: sp.q, archived: archived ? "1" : undefined, ...o })) if (v) p.set(k, String(v)); const t = p.toString(); return "/app/products" + (t ? "?" + t : ""); };
+  return <div className="pg-products">
+    <PageHeader title="Products" actions={<>
+      {ctx.role !== "viewer" && <Link href="/app/batch" className="btn btn-line d-only"><Store />Import or bulk add</Link>}
+      {ctx.role !== "viewer" && <Link href="/app/new" className="btn btn-lime"><Plus />Add product</Link>}
+    </>}>Add a product once, with all its angles, then shoot it again any time.</PageHeader>
+    {(total > 0 || sp.q || archived) && <div className="tb">
+      <form className="srch" action="/app/products"><Search /><input name="q" defaultValue={sp.q} placeholder="Search by name or SKU" aria-label="Search products" />{archived && <input type="hidden" name="archived" value="1" />}</form>
+      <Link href={qs({ archived: archived ? undefined : "1", page: undefined })} className="pill">{archived ? "Hide archived" : "Show archived"}</Link>
+      <span className="sm muted d-only" style={{ marginLeft: "auto" }}>{total} product{total === 1 ? "" : "s"}</span>
+    </div>}
+    {products.length === 0
+      ? (sp.q ? <div className="note" style={{ marginTop: "var(--s6)" }}>No products match “{sp.q}”. <Link className="link" href="/app/products">Clear search</Link></div>
+        : <Empty title="No products yet" action={<Link href="/app/new" className="btn btn-lg btn-lime">Add your first product</Link>}>Products are saved when you start a shoot, import from Shopify or use Bulk shoots.</Empty>)
+      : <div className="gx c4 grid-top" style={{ gap: "var(--s5) var(--s4)" }}>{products.map((p, i) => (
+        <Link key={p.id} href={`/app/products/${p.id}`} className="pd lift animate-rise" style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
+          <div className="pim"><div className="ph r11">{p.coverUrl && <img src={p.coverUrl} alt="" />}</div></div>
+          <div className="meta">
+            <div style={{ minWidth: 0 }}><b>{p.name}</b><span>{isCategoryId(p.category) ? CATEGORIES[p.category].label : p.category}{p.sku ? ` · ${p.sku}` : ""}</span></div>
+            {p.archived ? <span className="pill sm">Archived</span> : p.photoCount === 0 ? <span className="pill warn sm">No photo</span> : <span className="pill sm">{p.photoCount} {p.photoCount === 1 ? "angle" : "angles"}</span>}
+          </div>
+        </Link>
+      ))}</div>}
+    {total > PER && <nav className="row" style={{ marginTop: "var(--s7)", justifyContent: "center" }}>
+      {page > 1 && <Link className="btn btn-soft" href={qs({ page: page - 1 })}><ArrowLeft />Previous</Link>}
+      {page * PER < total && <Link className="btn btn-soft" href={qs({ page: page + 1 })}>Next<ArrowRight /></Link>}
+    </nav>}
+  </div>;
 }

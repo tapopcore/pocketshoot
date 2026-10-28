@@ -37,15 +37,20 @@ export async function productList(orgId: string, opts: { q?: string | null; limi
   };
 }
 
-export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: { productId?: string; batchId?: string } = {}) {
+export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: { productId?: string; batchId?: string; q?: string | null; status?: "ready" | "creating" | "failed" | null } = {}) {
+  const term = filter.q?.trim().replace(/[%,()]/g, " ").slice(0, 60);
   let q = admin()
     .from("generation_jobs")
-    .select("id, status, mode, style, output, requested_count, created_at, is_trial, source, products(id, name), generated_assets!generated_assets_job_id_fkey(id, thumb_key, storage_key, quality_status)")
+    .select(`id, status, mode, style, output, requested_count, created_at, is_trial, source, products${term ? "!inner" : ""}(id, name), generated_assets!generated_assets_job_id_fkey(id, thumb_key, storage_key, quality_status)`)
     .eq("organization_id", orgId)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (filter.productId) q = q.eq("product_id", filter.productId);
   if (filter.batchId) q = q.eq("batch_id", filter.batchId);
+  if (term) q = q.ilike("products.name", `%${term}%`);
+  if (filter.status === "ready") q = q.in("status", ["completed", "review_needed"]);
+  if (filter.status === "creating") q = q.in("status", ["queued", "preparing", "generating", "checking"]);
+  if (filter.status === "failed") q = q.eq("status", "failed");
   const { data } = await q;
   const rows = (data ?? []) as unknown as { id: string; status: string; mode: string; style: string; output: string; requested_count: number; created_at: string; is_trial: boolean; source: string; products: { id: string; name: string }; generated_assets: { id: string; thumb_key: string | null; storage_key: string; quality_status: string }[] }[];
   const thumbs = rows.flatMap((r) => r.generated_assets.filter((a) => a.quality_status !== "fail").slice(0, 4).map((a) => a.thumb_key ?? a.storage_key));
