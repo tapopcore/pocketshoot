@@ -3,7 +3,10 @@
 import { useRef, useState } from "react";
 import clsx from "clsx";
 
-/** Drag-to-compare slider with the brand orange handle. `demo` sweeps once a few seconds until touched. */
+/**
+ * Drag-to-compare slider. Only the orange handle drags, so swiping over the photo
+ * still scrolls the page on phones. `demo` sweeps until the handle is touched.
+ */
 export function BeforeAfter({ before, after, alt = "", start = 50, demo, labels = ["Before", "After"], className, style }: {
   before: string; after: string; alt?: string; start?: number; demo?: boolean; labels?: [string, string] | null; className?: string; style?: React.CSSProperties;
 }) {
@@ -12,16 +15,21 @@ export function BeforeAfter({ before, after, alt = "", start = 50, demo, labels 
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef(false);
   const set = (x: number) => { const r = ref.current?.getBoundingClientRect(); if (!r) return; setP(Math.max(2, Math.min(98, ((x - r.left) / r.width) * 100))); setTouched(true); };
+  const nudge = (d: number) => { setP((v) => Math.max(2, Math.min(98, v + d))); setTouched(true); };
   return (
-    <div ref={ref} className={clsx("ba", demo && !touched && "demo", className)} style={{ ...style, ["--p" as string]: `${p}%` }}
-      onPointerDown={(e) => { drag.current = true; (e.target as HTMLElement).setPointerCapture?.(e.pointerId); set(e.clientX); }}
-      onPointerMove={(e) => drag.current && set(e.clientX)} onPointerUp={() => { drag.current = false; }}
-      onKeyDown={(e) => { if (e.key === "ArrowLeft") { setP((v) => Math.max(2, v - 5)); setTouched(true); } if (e.key === "ArrowRight") { setP((v) => Math.min(98, v + 5)); setTouched(true); } }}
-      role="slider" aria-label="Compare before and after" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p)} tabIndex={0}>
+    <div ref={ref} className={clsx("ba", demo && !touched && "demo", drag.current && "dragging", className)} style={{ ...style, ["--p" as string]: `${p}%` }}>
       <img src={before} alt="" draggable={false} />
       <img className="after" src={after} alt={alt} draggable={false} />
       {labels && <><span className="pill dark lab l">{labels[0]}</span><span className="pill glass lab r">{labels[1]}</span></>}
-      <div className="bar"><div className="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="m9 7-5 5 5 5M15 7l5 5-5 5" /></svg></div></div>
+      <div className="bar">
+        <button type="button" className="knob" aria-label="Drag to compare before and after" role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p)}
+          onPointerDown={(e) => { e.preventDefault(); drag.current = true; e.currentTarget.setPointerCapture(e.pointerId); setTouched(true); }}
+          onPointerMove={(e) => { if (drag.current) set(e.clientX); }}
+          onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}
+          onKeyDown={(e) => { if (e.key === "ArrowLeft") { e.preventDefault(); nudge(-5); } if (e.key === "ArrowRight") { e.preventDefault(); nudge(5); } }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="m9 7-5 5 5 5M15 7l5 5-5 5" /></svg>
+        </button>
+      </div>
     </div>
   );
 }

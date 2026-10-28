@@ -318,3 +318,10 @@ textarea.input{height:auto;min-height:112px;padding:14px 16px;resize:none;line-h
 .anav a:hover{background:var(--night-3);color:#fff}.anav a.on{background:#fff;color:var(--ink);font-weight:600}
 @media(max-width:900px){.admin{display:block}.admin .aside{position:static;height:auto}.anav{display:flex;overflow-x:auto}}
 .h1,.h2,.h3,.h4{text-wrap:balance}
+/* compare slider: only the handle drags, the photo scrolls the page */
+.ba{touch-action:pan-y;cursor:default}
+.ba .bar{z-index:2}
+.ba .knob{border:0;padding:0;touch-action:none;cursor:grab}
+.ba .knob::before{content:"";position:absolute;inset:-14px;border-radius:50%}
+.ba .knob:active{cursor:grabbing;transform:scale(1.06)}
+.ba .knob:focus-visible{outline:3px solid #fff;outline-offset:3px}
