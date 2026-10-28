@@ -20,7 +20,7 @@ export default async function Support({ searchParams }: { searchParams: Promise<
   const { data: tickets } = await admin().from("support_tickets").select("id, subject, status, updated_at").eq("organization_id", ctx.orgId).order("updated_at", { ascending: false });
   return (
     <div>
-      <PageHeader eyebrow="We're here" title="Help" />
+      <PageHeader title="Help">Quick answers, and a direct line to our team.</PageHeader>
       <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
         <div className="space-y-8">
           <section>

@@ -8,7 +8,7 @@ const GROUPS: [string, [string, typeof House, string][]][] = [
   ["Workspace", [["/app/brand", Palette, "Brand kit"], ["/app/batch", Layers, "Bulk shoots"], ["/app/projects", Folder, "Projects"], ["/app/team", Users, "Team"]]],
   ["Account", [["/app/wallet", Coins, "Credits"], ["/app/settings", Settings, "Settings"], ["/app/support", LifeBuoy, "Help"]]],
 ];
-const LABELS: Record<string, string> = { "": "Home", new: "New shoot", shoots: "My shoots", jobs: "My shoots", library: "My shoots", products: "Products", brand: "Brand kit", batch: "Bulk shoots", projects: "Projects", team: "Team", wallet: "Credits", invoices: "Credits", settings: "Settings", support: "Help", account: "Account" };
+const LABELS: Record<string, string> = { "": "Home", new: "New shoot", shoots: "My shoots", jobs: "My shoots", library: "All photos", products: "Products", brand: "Brand kit", batch: "Bulk shoots", projects: "Projects", team: "Team", wallet: "Credits", invoices: "Credits", settings: "Settings", support: "Help", account: "Account" };
 const GROUP_OF: Record<string, string> = { brand: "Workspace", batch: "Workspace", projects: "Workspace", team: "Workspace", wallet: "Account", invoices: "Account", settings: "Account", support: "Account", account: "Account" };
 
 function isActive(path: string, href: string) {

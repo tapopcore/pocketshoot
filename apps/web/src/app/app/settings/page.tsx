@@ -47,7 +47,7 @@ export default async function Settings() {
           </ActionForm>
 
           <section id="notify" className="card pl"><h2 className="h4">Notifications</h2><p className="sm muted" style={{ marginTop: 4 }}>Emails sent to {ctx.email ?? "you"}.</p>
-            <ActionForm action={saveNotifications} submit="Save notifications">
+            <ActionForm action={saveNotifications} submit="Save notifications" variant="primary">
               <Toggle first name="ready" title="Photos are ready" text="When a shoot finishes, with a link to your photos" on={me?.notify_ready ?? true} />
               <Toggle name="low" title="Low on credits" text="When your workspace has fewer than 5 credits left" on={me?.notify_low_credits ?? true} />
               <Toggle name="news" title="Product news" text="New styles and features, about once a month" on={me?.notify_news ?? false} />

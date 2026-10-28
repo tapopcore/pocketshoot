@@ -1,10 +1,11 @@
+import { PageHeader } from "@/components/ui";
 import Link from "next/link";
 import { ArrowRight, LogOut, Settings2, ShieldCheck, UserRound, Wallet } from "lucide-react";
 import { requireWeb } from "@/lib/auth";
 import { getWallet } from "@/lib/credits";
 import { OrgSwitcher } from "@/components/org-switcher";
 
-export const metadata = { title: "Account | Pocket Shoot" };
+export const metadata = { title: "Account" };
 
 export default async function AccountPage() {
   const ctx = await requireWeb();
@@ -14,11 +15,7 @@ export default async function AccountPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-10">
-      <div className="mb-7">
-        <p className="tracked text-accent">Pocket Shoot / Account</p>
-        <h1 className="display mt-2 text-4xl sm:text-5xl">Your account</h1>
-        <p className="mt-2 text-sm text-mute">Check which account is signed in, manage your workspace, or sign out.</p>
-      </div>
+      <PageHeader title="Your account">Who is signed in, your workspace and every setting in one place.</PageHeader>
 
       <section aria-label="Signed-in account" className="rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
         <div className="flex min-w-0 items-center gap-4">
@@ -54,16 +51,16 @@ export default async function AccountPage() {
       <section className="mt-7 rounded-2xl border border-line bg-card p-5" aria-label="Workspace tools">
         <h2 className="text-lg font-semibold">Workspace tools</h2>
         <div className="mt-3 divide-y divide-line">{[
-          ["/app/library", "Image library"], ["/app/brand", "Brand preferences"], ["/app/projects", "Projects"],
-          ...(ctx.role !== "viewer" ? [["/app/batch", "Batch shoots"]] : []),
-          ...(["owner","admin"].includes(ctx.role) ? [["/app/team", "Workspace & team"]] : []),
-          ["/app/support", "Help & support"],
+          ["/app/library", "All photos"], ["/app/brand", "Brand kit"], ["/app/projects", "Projects"],
+          ...(ctx.role !== "viewer" ? [["/app/batch", "Bulk shoots"]] : []),
+          ...(["owner","admin"].includes(ctx.role) ? [["/app/team", "Team"]] : []),
+          ["/app/support", "Help"],
         ].map(([href,label]) => <Link key={href} href={href} className="flex min-h-12 items-center justify-between gap-3 py-3 text-sm"><span>{label}</span><ArrowRight size={16}/></Link>)}</div>
       </section>
 
       <div className="mt-7 rounded-3xl border border-line bg-card p-5 sm:p-7">
         <div className="flex items-center gap-2"><UserRound size={18} aria-hidden="true" /><h2 className="text-lg font-semibold">Not the right account?</h2></div>
-        <p className="mt-2 text-sm leading-relaxed text-mute">Sign out and use the email address that owns your Pocket Shoot workspace. This will not delete your photos or credits.</p>
+        <p className="mt-2 text-sm leading-relaxed text-mute">Sign out and use the email address that owns your PocketShoot workspace. This will not delete your photos or credits.</p>
         <form action="/auth/sign-out" method="post" className="mt-5">
           <button type="submit" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-line bg-paper px-5 text-sm font-semibold transition-colors hover:border-accent sm:w-auto">
             <LogOut size={17} aria-hidden="true" /> Sign out

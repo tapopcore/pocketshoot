@@ -21,7 +21,7 @@ export default async function Batch() {
   ]);
   return (
     <div>
-      <PageHeader eyebrow="Many products, one look" title="Batch jobs">
+      <PageHeader title="Bulk shoots">
         Pick products (or import a CSV with photos), choose one style, and shoot them all. Good for catalogues and marketplace listings.
       </PageHeader>
       {!enabled ? <Notice>Batch jobs are turned off for this workspace.</Notice> : (

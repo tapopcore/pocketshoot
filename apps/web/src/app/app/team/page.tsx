@@ -23,7 +23,7 @@ export default async function Team() {
   const canManage = hasRole(ctx, "admin");
   return (
     <div>
-      <PageHeader eyebrow={ctx.orgName} title="Team">Everyone shares the same credits and image library.</PageHeader>
+      <PageHeader title="Team">Everyone shares the same credits, products and photos.</PageHeader>
       <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr]">
         <Card className="divide-y divide-line">
           {(members ?? []).map((m) => {

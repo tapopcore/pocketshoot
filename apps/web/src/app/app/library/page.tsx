@@ -24,7 +24,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
   const assets = await withAssetUrls((data ?? []) as unknown as { id: string; storage_key: string; thumb_key: string | null; width: number; height: number; quality_status: string; approval_status: string; watermarked: boolean; job_id: string; products: { name: string } }[]);
   return (
     <div>
-      <PageHeader eyebrow={`${count ?? 0} images`} title="Image library">Every image you&apos;ve made. Select several to download them together.</PageHeader>
+      <PageHeader eyebrow={`${count ?? 0} photos`} title="All photos">Every photo you have made. Select several to download them together.</PageHeader>
       <div className="mb-6 flex flex-wrap gap-2">
         {Object.entries(FILTERS).map(([k, label]) => (
           <LinkButton key={k} href={`/app/library?f=${k}`} size="sm" variant={f === k ? "primary" : "ghost"}>{label}</LinkButton>
