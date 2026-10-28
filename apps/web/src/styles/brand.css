@@ -161,7 +161,7 @@ textarea.input{height:auto;min-height:112px;padding:14px 16px;resize:none;line-h
 .burger svg{width:20px;height:20px}
 @media(max-width:900px){.nav .in{height:64px;gap:var(--s3)}.nav .links,.nav .acts .d-only{display:none}.burger{display:grid}}
 .menu{position:fixed;inset:0;z-index:60;background:#fff;display:flex;flex-direction:column;padding:12px 20px 24px}
-.menu .top{height:52px;display:flex;align-items:center;justify-content:space-between}
+.menu .menu-top{height:52px;display:flex;align-items:center;justify-content:space-between}
 .menu .big{margin-top:var(--s5)}
 .menu .big a{display:flex;align-items:center;justify-content:space-between;height:64px;border-bottom:1px solid var(--line);font-family:var(--display);font-size:28px;font-weight:600;letter-spacing:-.03em}
 .menu .big a svg{width:20px;height:20px;color:var(--faint)}
@@ -254,7 +254,7 @@ textarea.input{height:auto;min-height:112px;padding:14px 16px;resize:none;line-h
 .shoot .cnt{position:absolute;right:10px;top:10px}
 .shoot .meta{margin-top:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s2)}
 .shoot .meta b{display:block;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.shoot .meta span{font-size:13px;color:var(--muted);white-space:nowrap}
+.shoot .meta>div>span{font-size:13px;color:var(--muted);white-space:nowrap}
 .shoot .meta>div{min-width:0}
 .flowtop{display:flex;align-items:center;justify-content:space-between;gap:var(--s4);height:48px}
 .flowhead{margin:var(--s6) 0 var(--s6)}

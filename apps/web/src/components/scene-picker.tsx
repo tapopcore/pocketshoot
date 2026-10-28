@@ -23,17 +23,17 @@ export function SceneCard({ id, selected, order, onClick, size = "md", preview }
         {preview && <img src={preview} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105" />}
         {/* Published scene photos only; do not fabricate a product silhouette. */}
         {!preview && <img src="/directions/hero.webp" alt="Example product photography; scene preview unavailable" loading="lazy" className="absolute inset-0 size-full object-cover" />}
-        {!preview && <span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-[10px] text-white">Photography reference</span>}
+        {!preview && <span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-xs text-white">Photography reference</span>}
         {id === "custom" && <Wand2 className="absolute left-1/2 top-[38%] -translate-x-1/2 text-white/90" size={28} />}
         {selected && (
-          <span className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-ink text-[11px] font-semibold text-white animate-pop">
+          <span className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-ink text-xs font-semibold text-white animate-pop">
             {order ? order : <Check size={14} />}
           </span>
         )}
       </div>
       <div className="bg-card px-2.5 py-2">
         <div className="truncate text-[13px] font-semibold">{s.name}</div>
-        {size === "md" && <div className="truncate text-[11px] text-mute">{s.description}</div>}
+        {size === "md" && <div className="truncate text-xs text-mute">{s.description}</div>}
       </div>
     </button>
   );

@@ -310,11 +310,11 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
                 <img src={reference} alt="Your photo" className="size-full bg-[#0c0c0e] object-contain" />
               </div>
               <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.6)]" style={{ left: `${split}%` }}>
-                <span className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-ink">⟷</span>
+                <span className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-2 py-1 text-xs font-semibold text-ink">⟷</span>
               </div>
               <input type="range" min={0} max={100} value={split} onChange={(e) => setSplit(Number(e.target.value))} aria-label="Compare" className="absolute inset-0 size-full cursor-ew-resize opacity-0" />
-              <span className="absolute left-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white">Your photo</span>
-              <span className="absolute right-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white">PocketShoot</span>
+              <span className="absolute left-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">Your photo</span>
+              <span className="absolute right-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">PocketShoot</span>
             </div>
           ) : (
             <div
@@ -333,7 +333,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={asset.url ?? ""} alt={productName} className="size-full object-contain transition-transform duration-200"
                 style={zoom ? { transform: "scale(2.6)", transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined} />
-              {!zoom && <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[11px] text-white"><ZoomIn size={12} /> Click to check the label</span>}
+              {!zoom && <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-3 py-1.5 text-[13px] text-white"><ZoomIn size={14} /> <span className="d-only">Click</span><span className="m-only">Tap</span> to zoom in</span>}
             </div>
           )}
         </div>
@@ -366,7 +366,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         )}
 
         <button type="button" className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 text-sm" onClick={()=>setReporting(true)}><Flag size={15}/>Report a product, style or realism issue</button>
-        <details open className="mt-3 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer py-3 text-[15px] font-semibold">Edit, remake or resize</summary>
+        <details open className="group mt-3 border-t border-line pt-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between py-3 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">Edit, remake or resize<ChevronRight size={18} className="text-mute transition-transform group-open:rotate-90" aria-hidden /></summary>
         <div className="mt-3 rounded-2xl border border-line p-3">
           <div className="flex items-center gap-1.5 text-sm font-semibold"><Wand2 size={15} className="text-accent" /> Edit with words</div>
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={2} maxLength={500}
@@ -374,7 +374,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
             className="mt-2 w-full resize-none rounded-xl bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30" />
           <div className="no-scrollbar mt-1 flex gap-1.5 overflow-x-auto">
             {EDIT_IDEAS.map((idea) => (
-              <button key={idea} type="button" onClick={() => setInstruction(idea)} className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-[11px] font-medium text-ink-2 hover:bg-line">{idea}</button>
+              <button key={idea} type="button" onClick={() => setInstruction(idea)} className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-line">{idea}</button>
             ))}
           </div>
           <Button size="sm" className="mt-2.5 w-full" disabled={!!busy || asset.watermarked || instruction.trim().length < 3}

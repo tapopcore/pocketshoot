@@ -124,7 +124,7 @@
  .pg-ahome .wel{grid-template-columns:1fr;gap:var(--s6)}.pg-ahome .ba-wel{order:-1;aspect-ratio:1}.pg-ahome .wel h1{font-size:34px}.pg-ahome .acts .btn{flex:1}
  .pg-ahome .tips{grid-template-columns:1fr}
 }
-.shoot .meta span:not(.pill):not(.live){display:block;overflow:hidden;text-overflow:ellipsis}
+.shoot .meta>div>span{display:block;overflow:hidden;text-overflow:ellipsis}
 
 /* ---------- shoot results */
 .jobv .jhead{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s5);flex-wrap:wrap;margin-top:var(--s4)}
@@ -414,3 +414,11 @@
 
 .steps .s{color:var(--muted)}
 .pill.brand{color:var(--action-2)}
+.pill.good{color:#0F5E38}
+.note.good{color:#0F5E38}
+.pg-credits .cr{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+@media(max-width:1200px){.pg-credits .cr{grid-template-columns:minmax(0,1fr)}}
+.pg-credits .bd span{white-space:normal}
+@media(max-width:1180px){.create .two,.create .two.sp,.create .two.rv2{grid-template-columns:minmax(0,1fr)}.create .prev,.create .total{position:static}.create .hero-ph{max-width:520px}}
+.found .kv>div{white-space:normal}.found .kv b,.found .kv .trunc{max-width:62%;text-align:right;white-space:normal;overflow:visible}
+.found .kv .row{flex-wrap:wrap;justify-content:flex-end}
