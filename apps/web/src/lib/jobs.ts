@@ -87,9 +87,11 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
 
   const chosenLook = recipe ? { ...recipe, brief: recipe.brief + " Product details that must not change: " + collectionById(recipe.collection)!.preserve } : input.shootStyle ? shootRecipe(input.shootStyle, isCategoryId(product.category) ? product.category : "other") : null;
   let palette: string[] = [];
+  let brand: { moods: string[]; rules: string | null } | null = null;
   if (input.brandKitId) {
-    const { data: kit } = await db.from("brand_kits").select("palette").eq("id", input.brandKitId).eq("organization_id", ctx.orgId).maybeSingle();
+    const { data: kit } = await db.from("brand_kits").select("palette, moods, style_rules").eq("id", input.brandKitId).eq("organization_id", ctx.orgId).maybeSingle();
     palette = kit?.palette ?? [];
+    if (kit && ((kit.moods ?? []).length || kit.style_rules)) brand = { moods: kit.moods ?? [], rules: kit.style_rules ?? null };
   }
 
   const isTrial = !opts.internal && (await isTrialOrg(ctx.orgId));
@@ -107,7 +109,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
       output: input.output,
       requested_count: input.count,
       custom_brief: input.customBrief ?? null,
-      settings: { palette, shootStyle: input.shootStyle ?? null, recipeId: recipe?.id ?? null, recipeVersion: recipe ? RECIPE_VERSION : null, recipe: recipe ? chosenLook : null, creditsPerImage: policy.creditsPerImage, brandKitId: input.brandKitId ?? null, category: product.category, styles: chosenLook ? [chosenLook.scene] : input.styles ?? [input.style], suggestions: input.suggestions ?? [], ...(opts.retryOf ? { retryOf: opts.retryOf } : {}), ...(opts.edit ? { edit: opts.edit } : {}) },
+      settings: { palette, ...(brand ? { brand } : {}), shootStyle: input.shootStyle ?? null, recipeId: recipe?.id ?? null, recipeVersion: recipe ? RECIPE_VERSION : null, recipe: recipe ? chosenLook : null, creditsPerImage: policy.creditsPerImage, brandKitId: input.brandKitId ?? null, category: product.category, styles: chosenLook ? [chosenLook.scene] : input.styles ?? [input.style], suggestions: input.suggestions ?? [], ...(opts.retryOf ? { retryOf: opts.retryOf } : {}), ...(opts.edit ? { edit: opts.edit } : {}) },
       idempotency_key: input.idempotencyKey,
       is_trial: isTrial,
       parent_asset_id: opts.parentAssetId ?? null,
