@@ -325,3 +325,7 @@ textarea.input{height:auto;min-height:112px;padding:14px 16px;resize:none;line-h
 .ba .knob::before{content:"";position:absolute;inset:-14px;border-radius:50%}
 .ba .knob:active{cursor:grabbing;transform:scale(1.06)}
 .ba .knob:focus-visible{outline:3px solid #fff;outline-offset:3px}
+/* no focus ring or tap flash unless the keyboard is in use */
+html{-webkit-tap-highlight-color:transparent}
+html:not([data-kbd]) :focus-visible,html:not([data-kbd]) :focus{outline:none!important}
+html:not([data-kbd]) .tgl:focus-visible,html:not([data-kbd]) input:focus-visible+span,html:not([data-kbd]) input:focus-visible+.pill{outline:none!important}

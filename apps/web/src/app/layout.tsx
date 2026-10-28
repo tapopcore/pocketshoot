@@ -18,7 +18,11 @@ export const viewport: Viewport = { themeColor: "#ffffff", width: "device-width"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-IN">
-      <body className="ps min-h-dvh antialiased">{children}</body>
+      <body className="ps min-h-dvh antialiased">
+        {/* Focus rings only after real keyboard use (Tab). Taps, and the volume/power keys used for screenshots, never show them. */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var d=document.documentElement;addEventListener("keydown",function(e){if(e.key==="Tab")d.setAttribute("data-kbd","")},true);addEventListener("pointerdown",function(){d.removeAttribute("data-kbd")},true)})();` }} />
+        {children}
+      </body>
     </html>
   );
 }

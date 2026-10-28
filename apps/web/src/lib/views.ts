@@ -41,7 +41,7 @@ export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: 
   const term = filter.q?.trim().replace(/[%,()]/g, " ").slice(0, 60);
   let q = admin()
     .from("generation_jobs")
-    .select(`id, status, mode, style, output, requested_count, created_at, is_trial, source, products${term ? "!inner" : ""}(id, name), generated_assets!generated_assets_job_id_fkey(id, thumb_key, storage_key, quality_status)`)
+    .select(`id, status, mode, style, output, requested_count, created_at, is_trial, source, products${term ? "!inner" : ""}(id, name, product_assets(storage_key, view_type)), generated_assets!generated_assets_job_id_fkey(id, thumb_key, storage_key, quality_status)`)
     .eq("organization_id", orgId)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -52,12 +52,16 @@ export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: 
   if (filter.status === "creating") q = q.in("status", ["queued", "preparing", "generating", "checking"]);
   if (filter.status === "failed") q = q.eq("status", "failed");
   const { data } = await q;
-  const rows = (data ?? []) as unknown as { id: string; status: string; mode: string; style: string; output: string; requested_count: number; created_at: string; is_trial: boolean; source: string; products: { id: string; name: string }; generated_assets: { id: string; thumb_key: string | null; storage_key: string; quality_status: string }[] }[];
+  const rows = (data ?? []) as unknown as { id: string; status: string; mode: string; style: string; output: string; requested_count: number; created_at: string; is_trial: boolean; source: string; products: { id: string; name: string; product_assets?: { storage_key: string; view_type: string }[] }; generated_assets: { id: string; thumb_key: string | null; storage_key: string; quality_status: string }[] }[];
   const thumbs = rows.flatMap((r) => r.generated_assets.filter((a) => a.quality_status !== "fail").slice(0, 4).map((a) => a.thumb_key ?? a.storage_key));
   const urls = await signedUrls("outputs", thumbs, 3600);
+  const front = (r: (typeof rows)[number]) => { const a = r.products?.product_assets ?? []; return (a.find((x) => x.view_type === "front") ?? a[0])?.storage_key; };
+  const origKeys = rows.filter((r) => !r.generated_assets.some((a) => a.quality_status !== "fail")).map(front).filter((k): k is string => !!k);
+  const origUrls = origKeys.length ? await signedUrls("originals", origKeys, 3600) : {};
   return rows.map((r) => ({
     id: r.id, status: r.status, mode: r.mode, style: r.style, output: r.output, count: r.requested_count, createdAt: r.created_at, isTrial: r.is_trial, source: r.source,
-    product: r.products,
+    product: { id: r.products?.id, name: r.products?.name },
+    productPhoto: (() => { const k = front(r); return k ? origUrls[k] ?? null : null; })(),
     thumbs: r.generated_assets.filter((a) => a.quality_status !== "fail").slice(0, 4).map((a) => urls[a.thumb_key ?? a.storage_key]).filter(Boolean),
   }));
 }
