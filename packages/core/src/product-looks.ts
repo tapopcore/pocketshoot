@@ -3,7 +3,7 @@ import type { ShootStyleId } from './shoots';
 export const COLLECTION_IDS = ["saree","suit","unstitched","lehenga","mens-modern","womens-modern","mens-ethnic","activewear","footwear","bags","skincare","makeup","fragrance","packaged-food","prepared-food","beverage","rings","bracelets","earrings","necklace","bottle","cookware","decor","electronics","general"] as const;
 export type CollectionId = typeof COLLECTION_IDS[number];
 export const RECIPE_VERSION = '2026-10-27.category-1';
-export interface ShootProfile { type: CollectionId; construction: 'stitched'|'unstitched'|'semi_stitched'|'not_applicable'|'unknown'; referenceForm: 'worn'|'flat'|'object'|'unknown'; contentsConfirmed?: boolean }
+export interface ShootProfile { type: CollectionId; construction: 'stitched'|'unstitched'|'semi_stitched'|'not_applicable'|'unknown'; referenceForm: 'worn'|'flat'|'object'|'unknown'; contentsConfirmed?: boolean; subjectCount?: number }
 export interface CategoryLook { id: string; collection: string; title: string; subtitle: string; brief: string; condition: string; human: 'none'|'hands'|'model'; framing: 'full'|'close'; environment: 'indoor'|'outdoor'|'studio'; scene: string; tile: number; atlas: string; requiresDetail: boolean; requiresWorn: boolean; requiresMultiple: boolean; requiresContents: boolean }
 export interface ProductCollection { id: CollectionId; category: CategoryId; label: string; preserve: string; references: string; looks: CategoryLook[] }
 export const PRODUCT_COLLECTIONS: ProductCollection[] = [
@@ -2436,19 +2436,20 @@ const studio = (id: string, title: string, subtitle: string, brief: string, extr
 export const STUDIO_LOOKS: CategoryLook[] = [
   studio("front", "Front hero", "Straight on, centred", "Straight-on front view at product height, centred with even margins, large soft key light from the front left and a fill from the right."),
   studio("three-quarter", "Three-quarter", "Front and one side", "Product turned about thirty degrees so the front and one side are both visible, shot from slightly above product height, soft wrap-around light."),
-  studio("high", "High angle", "Looking down at 45°", "Camera about forty-five degrees above the product looking down, so the top and front read together, bright even light."),
-  studio("low", "Low hero", "Bold and confident", "Camera just below product height looking slightly up, making the product feel bold and premium, soft top light and a crisp edge highlight."),
+  studio("high", "Top-down", "Directly overhead", "True 90-degree overhead view, long axis vertical; show the complete top-facing silhouette with bright even light."),
+  studio("low", "Low perspective", "Ground-level depth", "Camera just below product height looking slightly up, making the product feel bold and premium, soft top light and a crisp edge highlight."),
   studio("rim", "Rim light", "Defined edges", "Straight-on view with a strong rim light from behind on both sides tracing the silhouette, softer front fill, still on pure white."),
   studio("shadow", "Soft shadow", "Gentle window shadow", "Front view with a soft, long natural shadow falling to one side from a low window-like light, airy and minimal, background stays white."),
   studio("back", "Back view", "From behind", "Straight-on back view showing the back exactly as photographed.", { requiresMultiple: true }),
   studio("side", "Side profile", "Shape and depth", "Clean side profile at ninety degrees showing depth and silhouette exactly as photographed.", { requiresMultiple: true }),
-  studio("detail", "Detail", "Close on the finish", "Tight close-up of a real visible detail such as the label, texture, closure or print, rest of the product softly recognisable.", { framing: "close", requiresDetail: true }),
+  studio("diagonal", "Opposite perspective", "Depth from the other side", "Camera at minus forty degrees azimuth and forty degrees elevation. The near end points towards the lower left, the far end recedes; show real foreshortening, not a rotated flat copy."),
+  studio("detail", "Detail crop", "A real visible detail", "Tight close-up of a real visible detail such as the label, texture, closure or print, rest of the product softly recognisable.", { framing: "close", requiresDetail: false }),
 ];
 
 export type PackId = "studio" | "variety";
 export const PACK_SIZE = 6;
 export const PACKS: Record<PackId, { title: string; short: string; description: string }> = {
-  studio: { title: "Studio pack", short: "6 white background photos", description: "Your product alone on pure white, from 6 angles and lights. Made for Amazon, Flipkart and your store." },
+  studio: { title: "Studio pack", short: "6 white background photos", description: "Your product on pure white, in distinct supported views and a detail crop. Made for Amazon, Flipkart and your store." },
   variety: { title: "Photo set", short: "6 different looks", description: "Six different scenes and poses picked for your product. A full set for your listing and social posts." },
 };
 
@@ -2460,10 +2461,10 @@ export function packLooks(pack: PackId, profile: ShootProfile, refs: { view_type
   const ok = (l: CategoryLook) => !lookEligibility(l, profile, refs);
   const has = (v: string) => refs.some((r) => r.view_type === v);
   if (pack === "studio") {
-    const extras = [has("back") && STUDIO_LOOKS.find((l) => l.id === "studio-back"), refs.length > 1 && STUDIO_LOOKS.find((l) => l.id === "studio-side"), has("detail") && STUDIO_LOOKS.find((l) => l.id === "studio-detail")].filter(Boolean) as CategoryLook[];
-    const core = STUDIO_LOOKS.filter((l) => !["studio-back", "studio-side", "studio-detail"].includes(l.id));
+    const extras = [has("back") && STUDIO_LOOKS.find((l) => l.id === "studio-back"), (has("angle") || has("side")) && STUDIO_LOOKS.find((l) => l.id === "studio-side"), has("detail") && STUDIO_LOOKS.find((l) => l.id === "studio-detail")].filter(Boolean) as CategoryLook[];
+    const core = ["front","three-quarter","high","low","diagonal","detail"].map(id=>STUDIO_LOOKS.find(l=>l.id==="studio-"+id)!);
     // Keep front and three-quarter, then real extra angles, then lighting variations.
-    return [...core.slice(0, 2), ...extras, ...core.slice(2)].slice(0, PACK_SIZE);
+    return [...core.slice(0, 2), ...extras.filter(l=>l.id!=="studio-detail"), ...core.slice(2)].slice(0, PACK_SIZE);
   }
   const own = (collectionById(profile.type)?.looks ?? []).filter(ok);
   const general = (PRODUCT_COLLECTIONS.find((c) => c.id === "general")?.looks ?? []).filter(ok);

@@ -740,3 +740,43 @@ input[type=file]::file-selector-button{height:38px;margin-right:12px;padding:0 1
 .bl-l .ph{aspect-ratio:1/1;overflow:hidden}
 @media(max-width:600px){.bl-looks{grid-template-columns:repeat(3,minmax(0,1fr))}.bl-l>span:last-child{display:none}.bl-l b{font-size:13.5px}}
 .bl-opts .seg{display:flex}.bl-opts .seg button{flex:1}
+
+/* Photo-first mobile results and consistent reference viewing. */
+.reference-viewer{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:#101112;color:#fff}
+.reference-viewer[open]{display:flex;flex-direction:column}
+.reference-viewer::backdrop{background:rgba(0,0,0,.8)}
+.reference-viewer header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px max(16px,env(safe-area-inset-right))}
+.reference-viewer header b,.reference-viewer header span{display:block}.reference-viewer header span{font-size:13px;color:#b8bec2;margin-top:3px}
+.reference-viewer button{display:grid;place-items:center;min-width:44px;min-height:44px;background:#ffffff18;color:#fff;border-radius:50%}.reference-viewer button:disabled{opacity:.3}
+.reference-image{flex:1;min-height:0;padding:0 12px 12px;display:grid;place-items:center}.reference-image img{width:100%;height:100%;min-height:0;object-fit:contain}
+.reference-viewer footer{display:flex;align-items:center;justify-content:center;gap:24px;padding:8px 16px max(16px,env(safe-area-inset-bottom))}
+.ref-hit{position:absolute;inset:0;width:100%;height:100%;cursor:zoom-in}.ref-open{display:block;cursor:zoom-in;width:100%}
+.fit-fg{background:var(--surface,#f5f5f4)}.inventory-field .input{width:88px;flex:none}.inventory-field .row{align-items:center;gap:12px}
+.jobv .jhead{margin-top:8px;gap:12px;align-items:center}.jobv .jhead h1{font-size:30px;line-height:1.15}
+.jobv .jhead .pills{margin-top:8px!important;gap:6px}.jobv .jhead .refs{margin-top:10px;gap:10px}
+.jobv .rimgs{gap:6px}.jobv .rimgs button{border:0;background:none;display:block;cursor:zoom-in;min-width:36px;min-height:36px}.jobv .rimgs img{margin:0}
+.job-progress{margin-top:14px}.job-progress>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}.job-progress span{color:var(--muted)}
+.job-progress .pb{height:3px;margin-top:8px}.jobv .jgrid{margin-top:14px}.jobv .jt .open img{object-fit:contain;background:#fff}
+.create .shapes button{height:106px;justify-content:center;padding:10px 4px;gap:4px}.create .shapes button i{display:block;flex:none;margin:0 0 3px;min-height:0}.create .shapes button b{line-height:20px}.create .shapes button span{font-size:11px;line-height:16px}
+.create .rv2 .card.p{padding:20px}.create .sumrow b{white-space:normal;line-height:1.35}.create .found .inventory-field{margin-top:12px}
+@media(max-width:900px){
+ .app:has(.jobv) .content{padding-top:8px;padding-bottom:96px}
+ .jobv>.link{min-height:36px;font-size:13px}.jobv .jhead h1{font-size:23px;letter-spacing:-.02em}.jobv .jhead .pill{font-size:11px;height:25px;padding:0 9px}
+ .jobv .jhead .refs img{width:30px;height:30px}.jobv .jhead .refs{margin-top:8px}.jobv .jhead .refs .xs{font-size:11px}
+ .job-progress>div:first-child{font-size:12px}.job-progress span{font-size:11px}.jobv .jgrid{gap:10px}
+ .app:has(.jobv) .tabs{height:60px;bottom:max(8px,env(safe-area-inset-bottom));border-radius:20px}
+ .jobv .leave2{font-size:12px;margin-top:12px;padding:8px 12px}.jobv .nx{margin-top:16px;padding:16px}
+ .create .flowhead{margin:14px 0 18px}.create .flowhead h1{font-size:27px}.create .flowhead p{font-size:14px;margin-top:5px}
+ .create .shapes{gap:8px}.create .shapes button{height:104px}.create .rv2 .card.p{padding:16px}.create .rvl{gap:10px}
+ .create .rbar,.create .abar{padding-top:10px;padding-bottom:max(12px,env(safe-area-inset-bottom))}.create .abar .btn{height:48px;font-size:15px}
+ .create .packgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px}.create .pk span{display:block;font-size:11px;white-space:normal;line-height:1.35}
+ .create .sty b{white-space:normal;font-size:15px;margin-top:8px}.create .sty>span{white-space:normal;display:block;font-size:12px;line-height:1.4}
+}
+
+.batch-builder .batch-product>button:first-child{width:100%}.batch-view{min-height:36px;font-size:12px}.batch-builder .bl-g{background:#fff}.batch-builder .bl-g img{object-fit:cover}
+@media(max-width:900px){.batch-builder>section{margin-top:24px}.batch-builder>section:first-child{margin-top:0}.batch-builder .batch-product .text-sm{font-size:13px;line-height:1.35}.batch-builder .bl-k{padding:12px}.batch-builder .bl-t b{font-size:15px}.batch-builder .bl-t span{font-size:12px}.batch-builder .batch-checkout{padding:16px;border:1px solid var(--line);border-radius:18px;background:#fff}.batch-builder .batch-checkout .text-right{text-align:left}.batch-builder .batch-checkout button{width:100%;min-height:48px}}
+
+/* Recommended badge stays readable on its pale background. */
+.create .mt b em{color:#b52b05}
+
+@media(max-width:360px){.app .mtop{gap:8px}.app .mtop .blogo{flex:none;max-width:132px}.app .mtop .blogo img{max-width:132px}.app .mtop .r{gap:8px;min-width:0}.app .mtop .pill{padding:6px 9px;font-size:12px}}

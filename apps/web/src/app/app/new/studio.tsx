@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Local previews and signed storage URLs. */
 "use client";
+import { ReferenceViewer } from "@/components/reference-viewer";
 import { FitImg } from "@/components/fit-img";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -32,7 +33,7 @@ const SHAPES: [OutputId, string, string, number, number][] = [["square", "Square
 const profileDefault = (type: CollectionId): ShootProfile => ({ type, construction: collectionById(type)?.category === "fashion" ? "unknown" : "not_applicable", referenceForm: "unknown" });
 
 /** Example photos for looks that have no category example. These are demos, never the customer's product. */
-const GENERAL_EXAMPLE: Record<string, string> = { "general-1": "skincare-0", "general-2": "fragrance-4", "general-3": "skincare-1", "general-4": "decor-0", "general-5": "bottle-0", "general-6": "bags-5" };
+const GENERAL_EXAMPLE: Record<string, string> = { "general-1": "style-demo-0", "general-2": "style-demo-1", "general-3": "style-demo-2", "general-4": "style-demo-3", "general-5": "style-demo-4", "general-6": "style-demo-5" };
 
 /** Demo photo of a look: the category example, a white-studio demo, or a general example. */
 function LookThumb({ look, className }: { look: CategoryLook; className?: string }) {
@@ -82,6 +83,7 @@ function Stepper({ step }: { step: Step }) {
 
 export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewLook?: string; previewMode?: Mode; initialIndustry?: string; initialLook?: string; draftScope?: string; locale: Locale; balance: number; creditsPerImage?: number; isTrial: boolean; creativeEnabled: boolean; maxImages: number; brandKits: { id: string; name: string; palette: string[] }[]; existing: StudioProduct | null; recentProducts: StudioProduct[]; recentJobs: JobSummary[]; previews?: Record<string, string>; notice?: string | null; canEdit?: boolean }) {
   const router = useRouter();
+  const [photoOpen,setPhotoOpen]=useState<number|null>(null);
   const [step, setStep] = useState<Step>("source"), [prep, setPrep] = useState<Prepared | null>(null), [profile, setProfile] = useState<ShootProfile | null>(null);
   const [industry, setIndustry] = useState<CategoryId>("other"), [name, setName] = useState(""), [locals, setLocals] = useState<string[]>([]), [lookId, setLookId] = useState<string | null>(null);
   const [output, setOutput] = useState<OutputId>("square"), [count, setCount] = useState(1), [mode, setMode] = useState<Mode | null>(null), [ideasOpen, setIdeasOpen] = useState(false), [brief, setBrief] = useState(""), [picked, setPicked] = useState<string[]>([]);
@@ -111,7 +113,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       setPrep(p); setName(restore?.name ?? p.product.name); setIndustry(p.product.category); nameTouched.current = !!restore;
       const inferred = inferCollection(p.product.category, p.product.name + " " + (p.analysis?.description ?? ""));
       const nextProfile = restore?.profile ?? p.product.shootProfile ?? (inferred ? profileDefault(inferred) : null);
-      setProfile(nextProfile);
+      setProfile(nextProfile?{...nextProfile,subjectCount:nextProfile.subjectCount??p.analysis?.subject_count}:null);
       if (!restore) { const incoming = categoryLook(props.initialLook ?? ""); setLookId(incoming && incoming.collection === nextProfile?.type ? incoming.id : null); }
       if (restore) { setLookId(restore.lookId); if (restore.mode) setMode(restore.mode); setOutput(restore.output); setCount(Math.max(1, Math.min(maxCount, restore.count))); setBrief(restore.brief); setPicked(restore.picked ?? []); key.current = restore.key; }
       setStep(restore?.step === "looks" || restore?.step === "review" ? restore.step : "product");
@@ -129,7 +131,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
   useEffect(() => {
     if (initialized.current) return; initialized.current = true;
     const pending = takePendingFiles(); if (pending.length) { void upload(pending); return; }
-    if (props.fixture) { setPrep(props.fixture); setName(props.fixture.product.name); setIndustry(props.fixture.product.category); const inferred = inferCollection(props.fixture.product.category, props.fixture.product.name); setProfile(inferred ? profileDefault(inferred) : null); setStep(props.previewStep ?? "product"); if (props.previewLook) setLookId(props.previewLook); if (props.previewMode) setMode(props.previewMode); if (props.previewStep === "review") setPicked((props.fixture.suggestions ?? []).slice(0, 2).map((x) => x.id)); return; }
+    if (props.fixture) { setPrep(props.fixture); setName(props.fixture.product.name); setIndustry(props.fixture.product.category); const inferred = inferCollection(props.fixture.product.category, props.fixture.product.name); setProfile(inferred ? {...profileDefault(inferred),subjectCount:props.fixture.analysis?.subject_count} : null); setStep(props.previewStep ?? "product"); if (props.previewLook) setLookId(props.previewLook); if (props.previewMode) setMode(props.previewMode); if (props.previewStep === "review") setPicked((props.fixture.suggestions ?? []).slice(0, 2).map((x) => x.id)); return; }
     if (props.existing) { void readProduct(props.existing.id); return; }
     try { const raw = localStorage.getItem(draftKey); if (raw) { const d = JSON.parse(raw) as Draft; if (Date.now() - d.updatedAt < 30 * 86400000 && d.productId && collectionById(d.profile?.type)) { void readProduct(d.productId, d); setNotice("Your draft is ready to continue."); } } } catch { /* Storage unavailable: the product is kept on the server. */ }
   }, [draftKey, props.existing, props.fixture, props.previewStep, props.previewLook, readProduct]); // Start the initial upload once.
@@ -236,7 +238,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
     source: ["Add photos of your product", `One clear photo works. Add up to ${MAX_PHOTOS} angles (front, back, sides, close-ups) and we use every one.`],
     product: ["Is this right?", `We studied ${references.length > 1 ? `all ${references.length} photos` : "your photo"}. Check the name and type, then pick your shoot.`],
     looks: ["Choose your shoot", "Nothing is made or charged until the last step."],
-    review: ["Ready to create", "Pick a size, then start. Your product stays exactly the same."],
+    review: ["Ready to create", "Pick a size, then start. Check your product, views and price before creating."],
     saved: ["Your shoot is starting", "You can leave this page. Your photos are saved in My shoots."],
   };
   const thumbs: Ref[] = references.length ? references : locals.map((u, i) => ({ id: "local-" + i, view_type: i === 0 ? "front" : "angle", url: u }));
@@ -282,14 +284,14 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         </section>
         <section className="card guide next">
           <h3 className="h5">What happens next</h3>
-          <ol>{[["We read your product", "Name, type, label and colours"], ["You choose the shoot", "Studio pack, photo set or one style"], ["Photos in about 2 minutes", "You pay only for photos that work"]].map(([t, sub], k) => <li key={t}><i>{k + 1}</i><span><b>{t}</b><span>{sub}</span></span></li>)}</ol>
+          <ol>{[["We read your product", "Name, type, label and colours"], ["You choose the shoot", "Studio pack, photo set or one style"], ["Your shoot stays saved", "You pay only for photos that work"]].map(([t, sub], k) => <li key={t}><i>{k + 1}</i><span><b>{t}</b><span>{sub}</span></span></li>)}</ol>
         </section>
       </div>
     </div>}
 
     {step === "product" && <div className="two pstep">
       <section className="pphotos">
-        <div className="ph r11 hero-ph d-only">{cover && <FitImg src={cover} eager alt="Your product" />}
+        <div className="ph r11 hero-ph d-only">{cover && <button type="button" className="ref-hit" aria-label="Open original photo" onClick={()=>setPhotoOpen(0)}><FitImg src={cover} eager alt="Your product" /></button>}
           {busy ? <span className="pill glass" style={{ position: "absolute", left: 16, top: 16 }}><Loader2 size={15} className="animate-spin" />{busy}</span>
             : prep?.analysis ? <span className="pill good" style={{ position: "absolute", left: 16, top: 16 }}><Check size={15} />{references.length > 1 ? `${references.length} photos studied` : "Photo studied"}</span> : null}
         </div>
@@ -299,7 +301,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         </div>
         <div className="thumbs">
           {thumbs.map((r, i) => <div key={r.id} className={clsx("thumb", i === 0 && "main")}>
-            <div className="ph r11">{r.url && <FitImg src={r.url} eager alt={`${VIEW_LABEL[r.view_type] ?? "Photo"} view`} />}{!prep && <span className="veil"><Loader2 size={16} className="animate-spin" /></span>}</div>
+            <button type="button" className="ph r11 ref-open" aria-label={"Open original photo "+(i+1)} onClick={()=>setPhotoOpen(i)}>{r.url && <FitImg src={r.url} eager alt={`${VIEW_LABEL[r.view_type] ?? "Photo"} view`} />}{!prep && <span className="veil"><Loader2 size={16} className="animate-spin" /></span>}</button>
             <span className="vt">{VIEW_LABEL[r.view_type] ?? "Photo"}</span>
             {prep && i > 0 && !busy && <button type="button" className="rm" aria-label="Remove this photo" onClick={() => removePhoto(r)}><X size={13} /></button>}
           </div>)}
@@ -310,6 +312,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
       {prep ? <section className="card found">
         <div className="field"><label className="label" htmlFor="product-name">Product name</label><input id="product-name" className="input" value={name} maxLength={120} onChange={(e) => { nameTouched.current = true; setName(e.target.value); }} /></div>
+        {profile&&<div className="field inventory-field"><label className="label" htmlFor="subject-count">Product units in each photo</label><div className="row"><input id="subject-count" aria-label="Product units in each photo" className="input" type="number" min={1} max={20} value={profile.subjectCount??""} placeholder="Auto" onChange={e=>setProfile({...profile,subjectCount:e.target.value?Math.max(1,Math.min(20,Number(e.target.value))):undefined})}/><span className="xs muted">Keep every colour and piece shown. A pen with its cap attached counts as one.</span></div></div>}
         <div className="field ptype"><label className="label" htmlFor="ptype">Product type</label>
           <TypePicker value={profile?.type ?? null} onChange={(t) => { setProfile(profileDefault(t)); if (t !== "general") setIndustry(collectionById(t)!.category); setLookId(null); }} />
           <p className="xs muted">{guessed ? "We couldn't match this to a type we know, so you get looks that suit any product. Pick a type if one fits." : profile?.type === "general" ? "You get looks that suit any product, plus white studio photos." : "Looks are made for this type. Change it if we got it wrong."}</p>
@@ -348,9 +351,9 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       </div>
 
       {pack ? <section className="packsec">
-        <div className="between"><h2 className="h5">Your {PACK_SIZE} photos</h2><span className="xs muted">{pack === "studio" ? "Pure white, product only" : "Each one a different scene"}</span></div>
+        <div className="between"><h2 className="h5">Your {PACK_SIZE} photos</h2><span className="xs muted">{pack === "studio" ? "One demo product · white studio" : "Each one a different scene"}</span></div>
         <div className="packgrid">{packSet.map((l) => <div key={l.id} className="pk"><div className="ph r11"><LookThumb look={l} /></div><b>{l.title}</b><span>{l.subtitle}</span></div>)}</div>
-        {pack === "studio" && !(references.some((r) => r.view_type === "back") && references.some((r) => r.view_type === "detail")) && <p className="xs muted">Add a back or close-up photo in Details and the pack swaps in those views.</p>}
+        {pack === "studio" && !(references.some((r) => r.view_type === "back") && references.some((r) => r.view_type === "detail")) && <p className="xs muted">Examples use one demo bottle. Back and side views need supporting photos; detail crops use only visible details.</p>}
         {pack === "variety" && <p className="xs muted">Picked for your {typeLabel === "Any product" ? "product" : typeLabel?.toLowerCase()} from looks your photos can support.</p>}
       </section> : <section className="packsec">
         <h2 className="h5">Pick a style</h2>
@@ -361,7 +364,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
             <b>{l.title}</b><span>{l.subtitle}</span>
           </button>;
         })}</div>
-        {chosen && chosen.atlas && <p className="xs muted">Example only. Your photos show your own {name || "product"}. People shown are AI-made adults.</p>}
+        {chosen && <p className="xs muted">Demo product shown. Your photos will use your own {name || "product"}. People shown are AI-made adults.</p>}
       </section>}
 
       {suggestions.length > 0 && <section className={clsx("touch", ideasOpen && "open")}>
@@ -383,9 +386,9 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
     {step === "review" && ready && prep && <div className="two rv2">
       <div className="rvl">
-        <div className="sumrow"><div className="ph">{cover && <FitImg src={cover} eager />}</div><div style={{ flex: 1, minWidth: 0 }}><small>{typeLabel}</small><b>{name}</b></div><button type="button" className="link sm" onClick={() => move("product")}>Change</button></div>
+        <div className="sumrow"><button type="button" className="ph ref-open" aria-label="Open original photo" onClick={()=>setPhotoOpen(0)}>{cover && <FitImg src={cover} eager />}</button><div style={{ flex: 1, minWidth: 0 }}><small>{typeLabel}</small><b>{name}</b></div><button type="button" className="link sm" onClick={() => move("product")}>Change</button></div>
         <div className="sumrow"><div className={clsx("ph", pack && "stack3")}>{pack ? packSet.slice(0, 3).map((l) => <span key={l.id}><LookThumb look={l} /></span>) : <LookThumb look={chosen!} />}</div><div style={{ flex: 1, minWidth: 0 }}><small>{pack ? PACKS[pack].title : "Style"}</small><b>{pack ? packSet.map((l) => l.title).join(" · ") : chosen!.title}</b>{pickedIdeas.length > 0 && <span className="xs muted">+ {pickedIdeas.map((s) => s.title).join(", ")}</span>}</div><button type="button" className="link sm" onClick={() => move("looks")}>Change</button></div>
-        <div className="card p"><h3 className="h5">Photo size</h3><div className="shapes">{SHAPES.map(([id, label, hint, w, h]) => <button key={id} type="button" aria-pressed={output === id} className={clsx(output === id && "on")} onClick={() => setOutput(id)}><i style={{ width: w, height: h }} /><b>{label}</b><span>{hint}</span></button>)}</div></div>
+        <div className="card p"><h3 className="h5">Photo size</h3><div className="shapes">{SHAPES.map(([id, label, hint, w, h]) => <button key={id} type="button" aria-pressed={output === id} className={clsx(output === id && "on")} onClick={() => setOutput(id)}><i aria-hidden="true" style={{ width: w, height: h, aspectRatio:w+"/"+h }} /><b>{label}</b><span>{hint}</span></button>)}</div></div>
         {!pack && <div className="card p between"><div><h3 className="h5">How many photos</h3><p className="sm muted">Each one is a new take</p></div><div className="qty"><button type="button" className="ib" aria-label="Fewer photos" disabled={count <= 1} onClick={() => setCount(count - 1)}><Minus size={18} /></button><b className="num">{count}</b><button type="button" className="ib" aria-label="More photos" disabled={count >= maxCount} onClick={() => setCount(count + 1)}><Plus size={18} /></button></div></div>}
         <details className="card p more-opts" open={!!brief || undefined}>
           <summary><span><b>More options</b><span className="xs muted">{[props.brandKits.length ? "Brand kit" : "", "Note for the shoot"].filter(Boolean).join(" · ")}</span></span><ArrowRight size={16} /></summary>
@@ -400,7 +403,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         {quote && quote.credits > props.balance
           ? <Link className="btn btn-lg btn-lime btn-block" href="/app/wallet?returnTo=%2Fapp%2Fnew">Get {quote.credits - props.balance} more credit{quote.credits - props.balance === 1 ? "" : "s"}</Link>
           : <button type="button" className="btn btn-lg btn-lime btn-block" disabled={!quote || quoteBusy || !!busy || disabled} onClick={generate}>{busy ? <Loader2 size={18} className="animate-spin" /> : null}{busy ?? `Create ${photos} photo${photos === 1 ? "" : "s"}`}</button>}
-        <ul><li><Check />Ready in about 2 minutes</li><li><Check />Photos that fail are not charged</li><li><Check />Try any failed photo again</li></ul>
+        <ul><li><Check />Saved while your photos are made</li><li><Check />Photos that fail are not charged</li><li><Check />Try any failed photo again</li></ul>
       </aside>
     </div>}
 
@@ -419,5 +422,5 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       {step === "product" && <button type="button" className="btn btn-lg btn-lime" style={{ marginLeft: "auto" }} disabled={!prep || !profile || !name.trim() || !!busy || disabled} onClick={confirmProduct}>Looks right <ArrowRight size={18} /></button>}
       {step === "looks" && <button type="button" className="btn btn-lg btn-lime" style={{ marginLeft: "auto" }} disabled={!ready || !!busy || disabled} onClick={() => move("review")}>Continue <ArrowRight size={18} /></button>}
     </div>}
-  </div>;
+  {photoOpen!==null&&<ReferenceViewer photos={thumbs.filter(r=>!!r.url).map(r=>({url:r.url,label:VIEW_LABEL[r.view_type]??"Photo"}))} index={photoOpen} onIndex={setPhotoOpen} onClose={()=>setPhotoOpen(null)}/>}</div>;
 }

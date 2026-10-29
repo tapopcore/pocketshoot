@@ -40,7 +40,7 @@ describe("canonical photographic jobs",()=>{
     fakes.product={id:"p",name:"Bag",category:"fashion",attributes:{shootProfile:{type:"bags",construction:"not_applicable",referenceForm:"object"}}};
     await createJob(ctx,{productId:"p",mode:"preserve",style:"neutral_studio",shootStyle:"indoor",recipeId:"bags-1",recipeVersion:RECIPE_VERSION,quotedCredits:2,output:"square",count:1,idempotencyKey:"accepted-recipe"});
     expect(fakes.job.mock.calls[0][0].settings).toMatchObject({recipeId:"bags-1",recipeVersion:RECIPE_VERSION,creditsPerImage:2});
-    expect(fakes.items.mock.calls[0][0][0]).toMatchObject({max_attempts:2});
+    expect(fakes.items.mock.calls[0][0][0]).toMatchObject({max_attempts:1});
   });
   it("persists macro framing and reserves only the displayed image credit total",async()=>{
     await createJob(ctx,{productId:"p",mode:"preserve",style:"neutral_studio",shootStyle:"macro",output:"square",count:3,idempotencyKey:"test-key-macro"});
