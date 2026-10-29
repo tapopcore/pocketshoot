@@ -85,7 +85,7 @@ async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, produc
   const styleOf = (p: ItemParams) => { const l = itemLook(p); return l ? styleForLook(l) : selected; };
   let missing = (items ?? []).filter((i) => { const s = styleOf(i.params as ItemParams); return !(i.params as ItemParams)?.shot || (s && !shotMatchesStyle(s, (i.params as ItemParams).shot!)); });
   const studioItems=(items??[]).filter(i=>isStudioLook(itemLook(i.params as ItemParams)??canonical));
-  await Promise.all(studioItems.filter(it=>(it.params as ItemParams & {shotSource?:string})?.shotSource!=="studio-v1" || !(it.params as ItemParams)?.shot).map(it=>{const own=itemLook(it.params as ItemParams)??canonical!;if(!isStudioLook(own))return;return db.from("generation_items").update({style:own.scene,params:{...((it.params as object)??{}),shot:studioDirection(own,analysis),shotSource:"studio-v1"}}).eq("id",it.id);}));
+  await Promise.all(studioItems.filter(it=>(it.params as ItemParams)?.shotSource!=="studio-v1" || !(it.params as ItemParams)?.shot).map(it=>{const own=itemLook(it.params as ItemParams)??canonical!;if(!isStudioLook(own))return;return db.from("generation_items").update({style:own.scene,params:{...((it.params as object)??{}),shot:studioDirection(own,analysis),shotSource:"studio-v1"}}).eq("id",it.id);}));
   missing=missing.filter(i=>!studioItems.some(it=>it.id===i.id));
   if (!missing.length) return;
   const output = OUTPUTS[job.output];

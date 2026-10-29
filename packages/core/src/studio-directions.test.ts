@@ -15,7 +15,7 @@ describe("supported studio view contracts",()=>{
  });
  it("locks multi-piece inventory and assembly without inheriting source hands",()=>{
   const l=categoryLook("studio-three-quarter")!,p=studioImagePrompt(l,studioDirection(l),null,2);
-  expect(p).toContain("Exactly 2 product unit(s)");expect(p).toContain("Do not add a third colour");expect(p).toContain("Remove the original hands");
+  expect(p).toContain("Exactly 2 product unit(s)");expect(p).toContain("Do not add another colour variant");expect(p).toContain("Remove the original hands");
   expect(studioDirection(l).camera).toContain("foreshortening");
  });
  it("allows a supported close crop without inventing hidden geometry",()=>{
