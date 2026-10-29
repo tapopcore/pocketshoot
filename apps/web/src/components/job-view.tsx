@@ -26,10 +26,10 @@ interface JobData {
 }
 
 const STAGE: Record<string, string[]> = {
-  queued: ["In the queue"],
-  preparing: ["Preparing your shoot"],
-  generating: ["Creating your image"],
-  checking: ["Reviewing product details and direction"],
+  queued: ["In queue"],
+  preparing: ["Preparing"],
+  generating: ["Creating"],
+  checking: ["Checking"],
 };
 const REASONS: [string, string][] = [
   ["wrong_style", "The selected style or setting is wrong"], ["unrealistic_interaction", "The person or handling looks wrong"], ["design_changed", "Fabric, embroidery or design changed"],
@@ -130,6 +130,13 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
             {styles.map((s) => <span key={s} className="pill sm">{s}</span>)}
             <span className="pill sm">{output?.name} {output?.ratio}</span>
           </div>
+          {references.length > 0 && <div className="refs">
+            <div className="rimgs">{references.slice(0, 4).map((r) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              r.url && <img key={r.id} src={r.url} alt={r.view_type + " view"} />
+            ))}</div>
+            <span className="xs muted">{references.length > 1 ? `Made from your ${references.length} photos` : "Made from your photo"}</span>
+          </div>}
         </div>
         {active.length > 0 ? (
           <div className="eta" role="status"><span className="live" /><div><b className="num">{delivered.length} of {items.length} ready</b><span>About {left < 60 ? "1 minute" : `${Math.ceil(left / 60)} minutes`} left</span></div></div>
@@ -185,22 +192,12 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
         })}
       </div>
 
-      {active.length > 0 && !embedded && <div className="leave card"><span className="ico"><Check size={20} /></span><div style={{ flex: 1, minWidth: 0 }}><b>You can leave this page</b><p className="sm muted">We keep working and your photos are saved in My shoots.{failed ? " Failed photos are not charged." : ""}</p></div></div>}
+      {active.length > 0 && !embedded && <p className="leave2"><Check size={16} /><span><b>You can leave.</b> Photos land in My shoots.</span></p>}
 
       {active.length === 0 && !embedded && <div className="nx card">
         <div><h2 className="h5">{delivered.length ? "Happy with these photos?" : "Want to try a different look?"}</h2><p className="sm muted" style={{ marginTop: 2 }}>Try another style for the same product. Your photos and details are saved.</p></div>
         <div className="row">{surface === "web" && <button type="button" className="btn btn-dark" onClick={() => router.push(`/app/new?product=${job.products.id}`)}><Sparkles size={18} />Try another style</button>}</div>
       </div>}
-
-      {references.length > 0 && (
-        <div className="refs">
-          <span className="xs muted">{references.length > 1 ? `Made from your ${references.length} photos` : "Made from your photo"}</span>
-          <div className="row" style={{ gap: 8 }}>{references.map((r) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            r.url && <img key={r.id} src={r.url} alt={r.view_type + " view"} />
-          ))}</div>
-        </div>
-      )}
 
       {open && byId.get(open) && (
         <Viewer

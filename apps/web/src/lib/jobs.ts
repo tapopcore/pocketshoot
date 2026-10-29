@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { after } from "next/server";
-import { CATEGORIES, LOCKS, OUTPUTS, STYLES, SHOOT_STYLE_IDS, shootRecipe, isFreeRemake, isCategoryId, COLLECTION_IDS, RECIPE_VERSION, PACK_SIZE, categoryLook, collectionById, lookEligibility, packLooks, type CategoryLook, type ShootProfile, type LockId, type ShootStyleId } from "@packshot/core";
+import { CATEGORIES, LOCKS, OUTPUTS, STYLES, SHOOT_STYLE_IDS, shootRecipe, isFreeRemake, isCategoryId, COLLECTION_IDS, RECIPE_VERSION, PACK_SIZE, categoryLook, collectionById, inferCollection, lookEligibility, packLooks, type CategoryLook, type ShootProfile, type LockId, type ShootStyleId } from "@packshot/core";
 import { admin } from "./supabase";
 import { getFlag, getSettings } from "./settings";
 import { isTrialOrg } from "./credits";
@@ -100,7 +100,9 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
 
   const recipe = input.recipeId && !input.pack ? categoryLook(input.recipeId) : null;
   let packSet: CategoryLook[] | null = null;
-  const profile = (product.attributes as { shootProfile?: ShootProfile } | null)?.shootProfile;
+  const stored = (product.attributes as { shootProfile?: ShootProfile } | null)?.shootProfile;
+  // Bulk shoots and imports may not have a confirmed type yet: packs then use the best match, or looks for any product.
+  const profile: ShootProfile | undefined = stored ?? (input.pack ? { type: inferCollection(isCategoryId(product.category) ? product.category : "other", product.name) ?? "general", construction: "unknown", referenceForm: "unknown" } : undefined);
   if (input.recipeId || input.pack) {
     if (input.recipeId && !input.pack && !recipe || input.recipeVersion !== RECIPE_VERSION) throw new ApiError(409, "The shoot collection has changed. Please choose your look again.", "recipe_changed");
     if (!profile || !profileFits(profile, product.category)) throw new ApiError(400, "Confirm the product type before choosing a look.");
@@ -162,7 +164,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   ];
   await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => {
     const slot = slots[idx % slots.length];
-    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: slot.params, ...(recipe || packSet ? { max_attempts: 1 } : {}) };
+    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: slot.params, ...(recipe || packSet ? { max_attempts: 2 } : {}) };
   }));
 
   if (!opts.freeRemake && !opts.internal) {

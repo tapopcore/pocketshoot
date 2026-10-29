@@ -148,7 +148,8 @@ export async function processItem(item: ItemRow): Promise<void> {
   const styleId = (output.forceStyle ?? chosenLook?.scene ?? (itemRow?.style && itemRow.style in STYLES ? itemRow.style : job.style)) as StyleId;
 
   const detailShot = params.shot?.framing === "close" || params.shot?.framing === "macro";
-  const humanShot = !!params.shot?.human_presence && params.shot.human_presence !== "none";
+  // A chosen look decides whether a person appears; the AI shot notes never override it.
+  const humanShot = chosenLook && "human" in chosenLook ? chosenLook.human !== "none" : !!params.shot?.human_presence && params.shot.human_presence !== "none";
 
   // ---- build the model input
   let cut: Cutout | null = null;
@@ -318,11 +319,18 @@ export async function processItem(item: ItemRow): Promise<void> {
         images: [...refImages, finalImage], detail: "high", schemaName: "fidelity", schema: JUDGE_SCHEMA, timeoutMs: 60_000,
       });
       const look = res.data as StyleReview & { photographic?: boolean; natural_anatomy?: boolean; brief_followed?: boolean };
-      if (selectedStyle && !passesStyleReview(selectedStyle, look)) checks.push({ type: "style_adherence", score: 0, decision: "fail", details: { note: "The image did not match the selected photographic style.", selectedStyle, observed: look } });
+      // Only objective, visible facts fail a photo: wrong place (indoor vs outdoor), a required person missing,
+      // a person where none was asked for, or an unbelievable person. Taste calls ("looks retouched",
+      // "framing differs") are flagged for review and the photo is still delivered.
       const recipe = packLook ?? job.settings?.recipe;
-      if (recipe && (look.environment !== recipe.environment && !(recipe.environment === "studio" && look.environment === "indoor") || recipe.human !== "none" && look.human_visible !== true || look.brief_followed !== true)) checks.push({type:"style_adherence",score:0,decision:"fail",details:{note:"The image did not match the chosen product-specific direction.",recipeId:recipe.id}});
-      if (look.natural_anatomy === false) checks.push({ type: "human_realism", score: 0, decision: "fail", details: { note: "The human interaction was not physically believable." } });
-      if (look.photographic === false || look.brief_followed === false) checks.push({ type: "creative_quality", score: 0, decision: selectedStyle ? "fail" : "review", details: { note: "Review photographic realism and the selected creative direction." } });
+      const wantEnv = recipe?.environment ?? (selectedStyle === "outdoor" ? "outdoor" : selectedStyle ? "inside" : null);
+      const envOk = !wantEnv || !look.environment || look.environment === "unknown" || (wantEnv === "outdoor" ? look.environment === "outdoor" : look.environment !== "outdoor");
+      const wantHuman = recipe ? recipe.human !== "none" : selectedStyle === "model";
+      const humanOk = (!wantHuman || look.human_visible === true) && !(recipe?.human === "none" && look.human_visible === true);
+      if (!envOk || !humanOk) checks.push({ type: "style_adherence", score: 0, decision: "fail", details: { note: "The photo was not made in the chosen setting.", recipeId: recipe?.id ?? null, selectedStyle: selectedStyle ?? null, observed: look } });
+      else if (selectedStyle && !passesStyleReview(selectedStyle, look)) checks.push({ type: "style_adherence", score: 0.5, decision: "review", details: { note: "Check that this photo matches the look you chose.", observed: look } });
+      if (humanShot && look.natural_anatomy === false) checks.push({ type: "human_realism", score: 0, decision: "fail", details: { note: "The human interaction was not physically believable." } });
+      if (look.photographic === false || look.brief_followed === false) checks.push({ type: "creative_quality", score: 0.5, decision: "review", details: { note: "Review photographic realism and the selected creative direction." } });
       const verdict = parseJudgeJson(JSON.stringify(res.data));
       if (verdict) checks.push({ type: "vlm_judge", score: verdict.same_product ? 1 : 0, decision: selectedStyle && (!verdict.same_product || verdict.text_changed || verdict.logo_changed || verdict.design_changed || verdict.shape_changed || verdict.colour_changed || verdict.extra_or_missing_items || verdict.artefacts) ? "fail" : judgeDecision(verdict, job.mode), details: verdict as unknown as Record<string, unknown> });
       else checks.push({ type: "vlm_judge", score: null, decision: selectedStyle ? "fail" : "review", details: { note: "Accuracy check gave an unreadable answer" } });
@@ -333,10 +341,6 @@ export async function processItem(item: ItemRow): Promise<void> {
 
   if (humanShot && !checks.some(c => c.type === "vlm_judge")) checks.push({ type: "vlm_judge", score: null, decision: "review", details: { note: "Product accuracy needs your review for this human interaction." } });
   const decision: Decision = aggregate(checks);
-  if (selectedStyle && decision === "fail") {
-    await saveFailedOutput(job, item, result.attemptId, finalImage, checks);
-    return failItem(item, job, "style_or_quality_fail", "This image did not pass the selected style and quality checks. No credit was used.");
-  }
   if (decision === "fail" && attemptNo < item.max_attempts) {
     await saveFailedOutput(job, item, result.attemptId, finalImage, checks);
     return retryLater(item, attemptNo, "quality_fail", 0);

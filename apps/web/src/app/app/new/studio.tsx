@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
-import { AlertTriangle, ArrowLeft, ArrowRight, Box, Camera, Check, Hand, ImagePlus, Images, Loader2, MapPin, Minus, Plus, ScanSearch, Sparkles, Sun, User, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Box, Camera, Check, ChevronDown, ImagePlus, Images, Loader2, MapPin, Minus, Plus, ScanSearch, Search, Sparkles, Sun, User, X, type LucideIcon } from "lucide-react";
 import {
   CATEGORIES, PACKS, PACK_SIZE, PRODUCT_COLLECTIONS, RECIPE_VERSION, STUDIO_LOOKS, SUGGESTION_KIND_LABEL, collectionById, categoryLook, inferCollection, lookEligibility, packLooks, styleForLook,
   type CategoryId, type CategoryLook, type CollectionId, type PackId, type SuggestionKind, type Locale, type OutputId, type ProductAnalysis, type SceneIdea, type ShootProfile, type ShootSuggestion,
@@ -31,34 +31,42 @@ const VIEW_LABEL: Record<string, string> = { front: "Front", angle: "Angle", bac
 const SHAPES: [OutputId, string, string, number, number][] = [["square", "Square", "Amazon, Flipkart", 30, 30], ["portrait", "Portrait", "Instagram post", 26, 33], ["story", "Story", "Reels, Stories", 20, 36], ["landscape", "Wide", "Website banner", 38, 22]];
 const profileDefault = (type: CollectionId): ShootProfile => ({ type, construction: collectionById(type)?.category === "fashion" ? "unknown" : "not_applicable", referenceForm: "unknown" });
 
-/** Example photo for a look. Looks without an example show the customer's own product in a matching setting. */
-function LookThumb({ look, cover, cutout, className }: { look: CategoryLook; cover?: string | null; cutout?: string | null; className?: string }) {
+/** Example photos for looks that have no category example. These are demos, never the customer's product. */
+const GENERAL_EXAMPLE: Record<string, string> = { "general-1": "skincare-0", "general-2": "fragrance-4", "general-3": "skincare-1", "general-4": "decor-0", "general-5": "bottle-0", "general-6": "bags-5" };
+
+/** Demo photo of a look: the category example, a white-studio demo, or a general example. */
+function LookThumb({ look, className }: { look: CategoryLook; className?: string }) {
   if (look.atlas) return <div role="img" aria-label={look.title} className={clsx("size-full", className)} style={{ backgroundImage: `url("${look.atlas}")`, backgroundSize: "300% 200%", backgroundPosition: ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%"][look.tile] }} />;
-  if (look.collection === "studio" && !cutout) return <div role="img" aria-label={look.title} className={clsx("lt", "env-white", className)}><StudioGlyph shot={look.id.slice(7)} /></div>;
-  const src = cutout ?? cover;
-  const Icon = look.framing === "close" ? ScanSearch : look.human !== "none" ? Hand : look.environment === "outdoor" ? Sun : look.collection === "studio" ? null : MapPin;
-  return <div role="img" aria-label={look.title} className={clsx("lt", "env-" + (look.collection === "studio" ? "white" : look.environment), look.collection === "studio" && "shot-" + look.id.slice(7), cutout && "cut", className)}>
-    {src && <img src={src} alt="" />}{Icon && <span className="lt-ic"><Icon size={14} /></span>}
-  </div>;
+  const src = look.collection === "studio" ? `/showcase/studio/${look.id.slice(7)}.webp` : `/showcase/${GENERAL_EXAMPLE[look.id] ?? "skincare-0"}.webp`;
+  return <img src={src} alt={look.title} loading="lazy" decoding="async" className={clsx("lt-img", look.collection === "studio" && "white", className)} />;
 }
 
-/** Line drawing of a white-studio shot: camera angle and light, for when there is no cut-out of the product yet. */
-function StudioGlyph({ shot }: { shot: string }) {
-  const body = "M41 34h18a4 4 0 0 1 4 4v34a6 6 0 0 1-6 6H43a6 6 0 0 1-6-6V38a4 4 0 0 1 4-4z";
-  const cap = <rect x="45" y="24" width="10" height="10" rx="2" />;
-  const ground = <ellipse cx="50" cy="80" rx="20" ry="3" fill="#E9E7E3" stroke="none" />;
-  const g: Record<string, React.ReactNode> = {
-    front: <>{ground}<path d={body} />{cap}<path d="M41 50h18M41 60h18" opacity=".35" /></>,
-    "three-quarter": <>{ground}<path d={body} />{cap}<path d="M59 36l7 4v32a6 6 0 0 1-6 6h-3" /><path d="M41 50h18M41 60h18" opacity=".35" /></>,
-    high: <>{ground}<path d="M38 44v28a6 6 0 0 0 6 6h12a6 6 0 0 0 6-6V44" /><ellipse cx="50" cy="44" rx="12" ry="6" /><ellipse cx="50" cy="42" rx="5" ry="2.5" /></>,
-    low: <>{ground}<path d="M43 26h14l5 46a6 6 0 0 1-6 6H44a6 6 0 0 1-6-6z" /><path d="M46 18h8v8h-8z" /></>,
-    rim: <><path d={body} stroke="#FC4A12" strokeWidth="4" opacity=".25" /><path d={body} />{cap}</>,
-    shadow: <><path d="M58 78l26-10" stroke="#D9D6D0" strokeWidth="9" strokeLinecap="round" />{ground}<path d={body} />{cap}</>,
-    back: <>{ground}<path d={body} />{cap}<path d="M45 46h10M45 52h10M45 58h7" opacity=".35" /></>,
-    side: <>{ground}<path d="M46 34h8a3 3 0 0 1 3 3v35a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6V37a3 3 0 0 1 3-3z" /><rect x="47" y="24" width="6" height="10" rx="2" /></>,
-    detail: <><circle cx="46" cy="46" r="18" /><path d="M59 59l14 14" strokeWidth="5" /><path d="M38 44h16M38 50h12" opacity=".35" /></>,
-  };
-  return <svg viewBox="0 0 100 100" className="glyph" fill="none" stroke="#0B0F11" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" aria-hidden>{g[shot] ?? g.front}</svg>;
+/** Product type picker: a clean sheet with search, instead of the phone's raw dropdown. */
+function TypePicker({ value, onChange }: { value: CollectionId | null; onChange: (t: CollectionId) => void }) {
+  const [open, setOpen] = useState(false), [q, setQ] = useState("");
+  const cur = value ? collectionById(value) : null;
+  const groups = TYPE_GROUPS.map(([g, list]) => [g, list.filter((c) => !q || (c.label + " " + g).toLowerCase().includes(q.toLowerCase()))] as const).filter(([, l]) => l.length);
+  useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); }; document.addEventListener("keydown", k); document.body.style.overflow = "hidden"; return () => { document.removeEventListener("keydown", k); document.body.style.overflow = ""; }; }, [open]);
+  const pick = (t: CollectionId) => { onChange(t); setOpen(false); setQ(""); };
+  return <>
+    <button type="button" id="ptype" className="input tp-btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <span className="tp-v"><b>{cur ? (cur.id === "general" ? "Any product" : cur.label) : "Choose the closest"}</b>{cur && <small>{cur.id === "general" ? "Looks that suit anything" : CATEGORIES[cur.category].label}</small>}</span>
+      <ChevronDown size={18} />
+    </button>
+    {open && <div className="tp-wrap" onClick={() => setOpen(false)}>
+      <div className="tp-sheet" role="dialog" aria-modal="true" aria-label="Product type" onClick={(e) => e.stopPropagation()}>
+        <div className="tp-head"><b>What are you selling?</b><button type="button" className="ib" aria-label="Close" onClick={() => setOpen(false)}><X size={18} /></button></div>
+        <div className="tp-search"><Search size={18} /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search, e.g. saree, serum, ring" /></div>
+        <div className="tp-list">
+          {!q && <button type="button" className={clsx("tp-it any", value === "general" && "on")} onClick={() => pick("general")}><span><b>Not sure / something else</b><small>Looks that suit any product</small></span>{value === "general" && <Check size={18} />}</button>}
+          {groups.map(([g, list]) => <div key={g} className="tp-g"><span className="tp-gl">{g}</span>
+            {list.map((c) => <button key={c.id} type="button" className={clsx("tp-it", value === c.id && "on")} onClick={() => pick(c.id)}><span><b>{c.label}</b></span>{value === c.id && <Check size={18} />}</button>)}
+          </div>)}
+          {q && !groups.length && <button type="button" className="tp-it any" onClick={() => pick("general")}><span><b>Use “Any product”</b><small>No match for “{q}”. These looks suit anything.</small></span></button>}
+        </div>
+      </div>
+    </div>}
+  </>;
 }
 
 const IDEA_ICON: Record<SuggestionKind, LucideIcon> = { props: Box, setting: MapPin, angle: Camera, detail: ScanSearch, mood: Sun, human: User };
@@ -235,7 +243,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
   return <div data-create-flow className="create">
     <div className="flowtop">
-      <button type="button" className="link sm" style={{ color: "var(--muted)" }} onClick={step === "source" ? () => router.push("/app") : back}><ArrowLeft size={18} />{step === "source" ? "Home" : "Back"}</button>
+      <button type="button" className="link sm fback" style={{ color: "var(--muted)" }} aria-label={step === "source" ? "Home" : "Back"} onClick={step === "source" ? () => router.push("/app") : back}><ArrowLeft size={18} /><span>{step === "source" ? "Home" : "Back"}</span></button>
       <Stepper step={step} />
       <Link href="/app" className="link sm d-only" style={{ color: "var(--muted)" }}>{saved ? "Save and exit" : "Exit"}</Link>
     </div>
@@ -267,9 +275,14 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
           </button>)}</div>
           <Link href="/app/products" className="link sm" style={{ marginTop: "var(--s3)" }}>All products <ArrowRight size={16} /></Link>
         </section>}
-        <section className="card p tipcard">
-          <h3 className="h5">More angles, better photos</h3>
-          <ul>{["Front photo first, label facing you", "Add the back and sides if they look different", "A close-up of fabric, print or texture helps detail shots", "Daylight near a window, no flash"].map((t) => <li key={t}><Check size={16} />{t}</li>)}</ul>
+        <section className="card guide">
+          <h3 className="h5">Photos that work best</h3>
+          <div className="gtiles">{([["front", "Front", "Label facing you"], ["back", "Back", "If it looks different"], ["side", "Side", "Shows the shape"], ["detail", "Detail", "Texture or print"]] as const).map(([k, t, sub]) => <div key={k} className="gt"><span className="ph r11"><img src={`/showcase/studio/${k}.webp`} alt="" loading="lazy" className={k === "detail" ? "" : "white"} /></span><b>{t}</b><span>{sub}</span></div>)}</div>
+          <p className="xs muted gnote"><Sun size={14} />Daylight near a window, no flash. One clear front photo is enough to start.</p>
+        </section>
+        <section className="card guide next">
+          <h3 className="h5">What happens next</h3>
+          <ol>{[["We read your product", "Name, type, label and colours"], ["You choose the shoot", "Studio pack, photo set or one style"], ["Photos in about 2 minutes", "You pay only for photos that work"]].map(([t, sub], k) => <li key={t}><i>{k + 1}</i><span><b>{t}</b><span>{sub}</span></span></li>)}</ol>
         </section>
       </div>
     </div>}
@@ -298,11 +311,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       {prep ? <section className="card found">
         <div className="field"><label className="label" htmlFor="product-name">Product name</label><input id="product-name" className="input" value={name} maxLength={120} onChange={(e) => { nameTouched.current = true; setName(e.target.value); }} /></div>
         <div className="field ptype"><label className="label" htmlFor="ptype">Product type</label>
-          <select id="ptype" className="input" value={profile?.type ?? ""} onChange={(e) => { const t = e.target.value as CollectionId; setProfile(profileDefault(t)); if (t !== "general") setIndustry(collectionById(t)!.category); setLookId(null); }}>
-            <option value="" disabled>Choose the closest</option>
-            {TYPE_GROUPS.map(([label, list]) => <optgroup key={label} label={label}>{list.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</optgroup>)}
-            <option value="general">Something else (looks for any product)</option>
-          </select>
+          <TypePicker value={profile?.type ?? null} onChange={(t) => { setProfile(profileDefault(t)); if (t !== "general") setIndustry(collectionById(t)!.category); setLookId(null); }} />
           <p className="xs muted">{guessed ? "We couldn't match this to a type we know, so you get looks that suit any product. Pick a type if one fits." : profile?.type === "general" ? "You get looks that suit any product, plus white studio photos." : "Looks are made for this type. Change it if we got it wrong."}</p>
         </div>
         {industry === "fashion" && profile && profile.type !== "general" && <div className="chipsets">
@@ -328,9 +337,9 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       <div className="modes" role="radiogroup" aria-label="Kind of shoot">
         {(["studio", "variety", "one"] as const).map((m) => {
           const on = pickMode === m, credits = (m === "one" ? 1 : PACK_SIZE) * perPhoto;
-          const preview = m === "studio" ? STUDIO_LOOKS.slice(0, 3) : m === "variety" ? packLooks("variety", profile, references).slice(0, 3) : [chosen ?? looks[0]].filter(Boolean) as CategoryLook[];
+          const preview = (m === "studio" ? [0, 1, 2, 4].map((k) => STUDIO_LOOKS[k]) : m === "variety" ? packLooks("variety", profile, references) : [...(chosen ? [chosen] : []), ...looks.filter((l) => l.id !== chosen?.id)]).slice(0, 4);
           return <button key={m} type="button" role="radio" aria-checked={on} className={clsx("mode", on && "on")} onClick={() => { setMode(m); setError(null); }}>
-            <span className={clsx("mv", "mv-" + m)}>{preview.map((l) => <span key={l.id}><LookThumb look={l} cover={cover} cutout={prep?.hero.cutoutUrl} /></span>)}</span>
+            <span className="mv">{preview.map((l) => <span key={l.id}><LookThumb look={l} /></span>)}</span>
             <span className="mt"><b>{m === "one" ? "One style" : PACKS[m].title}{m === (props.balance >= PACK_SIZE * perPhoto ? "studio" : "one") && <em>Best start</em>}</b><span>{m === "one" ? "Pick one look, 1 to 4 photos" : PACKS[m].short}</span><span className="mpm">{m === "one" ? `${perPhoto} credit per photo` : `${credits} credits`}</span></span>
             <span className="mp"><b className="num">{credits}</b><span>{m === "one" ? "credit each" : "credits"}</span></span>
             <span className="mr" aria-hidden>{on && <Check size={14} strokeWidth={3} />}</span>
@@ -340,7 +349,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
       {pack ? <section className="packsec">
         <div className="between"><h2 className="h5">Your {PACK_SIZE} photos</h2><span className="xs muted">{pack === "studio" ? "Pure white, product only" : "Each one a different scene"}</span></div>
-        <div className="packgrid">{packSet.map((l) => <div key={l.id} className="pk"><div className="ph r11"><LookThumb look={l} cover={cover} cutout={prep?.hero.cutoutUrl} /></div><b>{l.title}</b><span>{l.subtitle}</span></div>)}</div>
+        <div className="packgrid">{packSet.map((l) => <div key={l.id} className="pk"><div className="ph r11"><LookThumb look={l} /></div><b>{l.title}</b><span>{l.subtitle}</span></div>)}</div>
         {pack === "studio" && !(references.some((r) => r.view_type === "back") && references.some((r) => r.view_type === "detail")) && <p className="xs muted">Add a back or close-up photo in Details and the pack swaps in those views.</p>}
         {pack === "variety" && <p className="xs muted">Picked for your {typeLabel === "Any product" ? "product" : typeLabel?.toLowerCase()} from looks your photos can support.</p>}
       </section> : <section className="packsec">
@@ -348,7 +357,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         <div className="styles">{looks.map((l) => {
           const gate = lookEligibility(l, profile, references);
           return <button key={l.id} type="button" aria-pressed={lookId === l.id} className={clsx("sty", lookId === l.id && "on", gate && "gated")} onClick={() => { if (gate) { setError(gate); return; } setLookId(l.id); setError(null); }}>
-            <div className="ph r11 zoom"><LookThumb look={l} cover={cover} cutout={prep?.hero.cutoutUrl} />{lookId === l.id && <span className="tick"><Check /></span>}{gate && <span className="needs">Needs another photo</span>}</div>
+            <div className="ph r11 zoom"><LookThumb look={l} />{lookId === l.id && <span className="tick"><Check /></span>}{gate && <span className="needs">Needs another photo</span>}</div>
             <b>{l.title}</b><span>{l.subtitle}</span>
           </button>;
         })}</div>
@@ -375,7 +384,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
     {step === "review" && ready && prep && <div className="two rv2">
       <div className="rvl">
         <div className="sumrow"><div className="ph">{cover && <FitImg src={cover} eager />}</div><div style={{ flex: 1, minWidth: 0 }}><small>{typeLabel}</small><b>{name}</b></div><button type="button" className="link sm" onClick={() => move("product")}>Change</button></div>
-        <div className="sumrow"><div className={clsx("ph", pack && "stack3")}>{pack ? packSet.slice(0, 3).map((l) => <span key={l.id}><LookThumb look={l} cover={cover} cutout={prep?.hero.cutoutUrl} /></span>) : <LookThumb look={chosen!} cover={cover} cutout={prep?.hero.cutoutUrl} />}</div><div style={{ flex: 1, minWidth: 0 }}><small>{pack ? PACKS[pack].title : "Style"}</small><b>{pack ? packSet.map((l) => l.title).join(" · ") : chosen!.title}</b>{pickedIdeas.length > 0 && <span className="xs muted">+ {pickedIdeas.map((s) => s.title).join(", ")}</span>}</div><button type="button" className="link sm" onClick={() => move("looks")}>Change</button></div>
+        <div className="sumrow"><div className={clsx("ph", pack && "stack3")}>{pack ? packSet.slice(0, 3).map((l) => <span key={l.id}><LookThumb look={l} /></span>) : <LookThumb look={chosen!} />}</div><div style={{ flex: 1, minWidth: 0 }}><small>{pack ? PACKS[pack].title : "Style"}</small><b>{pack ? packSet.map((l) => l.title).join(" · ") : chosen!.title}</b>{pickedIdeas.length > 0 && <span className="xs muted">+ {pickedIdeas.map((s) => s.title).join(", ")}</span>}</div><button type="button" className="link sm" onClick={() => move("looks")}>Change</button></div>
         <div className="card p"><h3 className="h5">Photo size</h3><div className="shapes">{SHAPES.map(([id, label, hint, w, h]) => <button key={id} type="button" aria-pressed={output === id} className={clsx(output === id && "on")} onClick={() => setOutput(id)}><i style={{ width: w, height: h }} /><b>{label}</b><span>{hint}</span></button>)}</div></div>
         {!pack && <div className="card p between"><div><h3 className="h5">How many photos</h3><p className="sm muted">Each one is a new take</p></div><div className="qty"><button type="button" className="ib" aria-label="Fewer photos" disabled={count <= 1} onClick={() => setCount(count - 1)}><Minus size={18} /></button><b className="num">{count}</b><button type="button" className="ib" aria-label="More photos" disabled={count >= maxCount} onClick={() => setCount(count + 1)}><Plus size={18} /></button></div></div>}
         <details className="card p more-opts" open={!!brief || undefined}>

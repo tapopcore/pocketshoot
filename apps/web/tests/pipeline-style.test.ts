@@ -37,7 +37,7 @@ beforeEach(async () => {
 describe("selected style production pipeline", () => {
   it("rejects altered fabric or design details without capturing credit", async () => {
     f.judge.mockResolvedValue({data:{...verdict,design_changed:true}});
-    await processItem(item);
+    await processItem({ ...item, max_attempts: 1 });
     expect(f.rpc).toHaveBeenCalledWith("settle_item",{p_item:"item",p_capture:false});
     expect(f.assets.mock.calls[0][0]).toMatchObject({quality_status:"fail"});
   });
@@ -52,9 +52,13 @@ describe("selected style production pipeline", () => {
     expect(await sharp(delivered).raw().toBuffer()).toEqual(await sharp(f.image).raw().toBuffer());
     expect(f.rpc).toHaveBeenCalledWith("settle_item", { p_item: "item", p_capture: true });
   });
-  it("rejects an indoor image even when its generated brief was followed, releases credit, and does not retry generation", async () => {
+  it("tries an indoor image once more, then rejects it and releases the credit", async () => {
     f.judge.mockResolvedValue({ data: { ...verdict, environment: "indoor" } });
     await processItem(item);
+    expect(f.rpc).not.toHaveBeenCalledWith("settle_item", { p_item: "item", p_capture: false });
+    expect(f.patches.mock.calls).not.toContainEqual([expect.objectContaining({ status: "failed" })]);
+    vi.clearAllMocks(); f.judge.mockResolvedValue({ data: { ...verdict, environment: "indoor" } });
+    await processItem({ ...item, attempts: 2 });
     expect(f.edit).toHaveBeenCalledTimes(1);
     expect(f.assets.mock.calls[0][0]).toMatchObject({ quality_status: "fail", approval_status: "rejected" });
     expect(f.checks.mock.calls[0][0]).toContainEqual(expect.objectContaining({ check_type: "style_adherence", decision: "fail" }));

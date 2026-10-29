@@ -1,14 +1,14 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- static demo photos and signed URLs */
 import { FitImg } from "@/components/fit-img";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import clsx from "clsx";
-import { Check, FileSpreadsheet } from "lucide-react";
-import { CATEGORIES, isCategoryId, type CategoryId } from "@packshot/core";
+import { Check, FileSpreadsheet, Minus, Plus } from "lucide-react";
+import { CATEGORIES, PACK_SIZE, SHOOT_STYLES, isCategoryId, type CategoryId, type OutputId, type PackId, type ShootStyleId } from "@packshot/core";
 import { api, newKey, toast, uploadFiles } from "@/lib/client";
 import { Button, Field, Input, Notice, Spinner } from "@/components/ui";
-import { ShootSetup, defaultChoices, type ShootChoices } from "@/components/shoot-setup";
 
 interface P { id: string; name: string; category: string; coverUrl: string | null; sku: string | null }
 
@@ -17,14 +17,16 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits }: 
   const [list, setList] = useState(products);
   const [sel, setSel] = useState<string[]>([]);
   const [name, setName] = useState(`Batch ${new Date().toLocaleDateString("en-IN")}`);
-  const [choices, setChoices] = useState<ShootChoices>({ ...defaultChoices("other"), count: 2, style: "pure_white" });
+  const [kind, setKind] = useState<PackId | ShootStyleId>("studio");
+  const [count, setCount] = useState(2), [output, setOutput] = useState<OutputId>("square");
+  const isPack = kind === "studio" || kind === "variety";
+  const perProduct = isPack ? PACK_SIZE : count;
   const [busy, setBusy] = useState<string | null>(null);
   const [csvLog, setCsvLog] = useState<string[]>([]);
   const csv = useRef<HTMLInputElement>(null);
   const imgs = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<Record<string, string>[] | null>(null);
-  const needed = sel.length * choices.count;
-  const firstCat = (list.find((p) => p.id === sel[0])?.category ?? "other") as CategoryId;
+  const needed = sel.length * perProduct;
 
   async function importCsv(images: FileList | null) {
     if (!rows || !images) return;
@@ -55,7 +57,7 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits }: 
     try {
       const r = await api<{ batchId: string; results: { error?: string }[] }>("/api/batch", {
         method: "POST",
-        json: { name, productIds: sel, mode: choices.mode, style: choices.style, output: choices.output, countPerProduct: choices.count, brandKitId: choices.brandKitId, batchKey: newKey() },
+        json: { name, productIds: sel, mode: "preserve", ...(isPack ? { pack: kind } : { shootStyle: kind, style: SHOOT_STYLES[kind as ShootStyleId].scene }), output, countPerProduct: perProduct, brandKitId: brandKits[0]?.id ?? null, batchKey: newKey() },
       });
       const failed = r.results.filter((x) => x.error).length;
       toast(failed ? `Started with ${failed} problem(s). Check the library.` : `Batch started: ${sel.length} products`);
@@ -105,14 +107,33 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits }: 
       </section>
 
       <section>
-        <div className="eyebrow mb-4">2 · One look for all</div>
-        <ShootSetup value={choices} onChange={setChoices} category={firstCat} creativeEnabled={creativeEnabled} brandKits={brandKits} maxImages={4} countLabel="Images per product" />
+        <div className="eyebrow mb-4">2 · What every product gets</div>
+        <div className="bl-kinds">
+          {([["studio", "Studio pack", `${PACK_SIZE} white background photos`, ["/showcase/studio/front.webp", "/showcase/studio/three-quarter.webp", "/showcase/studio/high.webp", "/showcase/studio/rim.webp"]],
+            ["variety", "Photo set", `${PACK_SIZE} different looks, picked per product`, ["/showcase/skincare-1.webp", "/showcase/beverage-2.webp", "/showcase/footwear-0.webp", "/showcase/decor-0.webp"]]] as const).map(([id, t, sub, imgs]) => (
+            <button key={id} type="button" aria-pressed={kind === id} className={clsx("bl-k", kind === id && "on")} onClick={() => setKind(id)}>
+              <span className="bl-g">{imgs.map((src) => <img key={src} src={src} alt="" loading="lazy" className={id === "studio" ? "white" : ""} />)}</span>
+              <span className="bl-t"><b>{t}</b><span>{sub}</span><em>{PACK_SIZE} credits per product</em></span>
+            </button>))}
+        </div>
+        <div className="bl-sub">Or one look, 1 to 4 photos per product</div>
+        <div className="bl-looks">
+          {(["indoor", "outdoor", "model", "closeup", "graphic"] as const).map((id) => { const st = SHOOT_STYLES[id]; return (
+            <button key={id} type="button" aria-pressed={kind === id} className={clsx("bl-l", kind === id && "on")} onClick={() => setKind(id)}>
+              <span className="ph r11"><img src={st.image} alt="" loading="lazy" />{kind === id && <span className="tick"><Check size={14} /></span>}</span>
+              <b>{st.title}</b><span>{st.subtitle}</span>
+            </button>); })}
+        </div>
+        <div className="bl-opts">
+          {!isPack && <div className="bl-count"><span>Photos per product</span><div className="qty"><button type="button" className="ib" aria-label="Fewer" disabled={count <= 1} onClick={() => setCount(count - 1)}><Minus size={18} /></button><b className="num">{count}</b><button type="button" className="ib" aria-label="More" disabled={count >= 4} onClick={() => setCount(count + 1)}><Plus size={18} /></button></div></div>}
+          <div className="seg" role="group" aria-label="Size">{([["square", "Square"], ["portrait", "Portrait"], ["story", "Story"], ["landscape", "Wide"]] as const).map(([id, l]) => <button key={id} type="button" className={clsx(output === id && "on")} onClick={() => setOutput(id)}>{l}</button>)}</div>
+        </div>
       </section>
 
       <section className="grid items-end gap-4 sm:grid-cols-[1fr_auto]">
         <Field label="Batch name"><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} /></Field>
         <div className="text-right">
-          <div className="text-sm text-mute">{sel.length} products × {choices.count} = <b className="text-ink">{needed} credits</b> (you have {balance})</div>
+          <div className="text-sm text-mute">{sel.length} products × {perProduct} = <b className="text-ink">{needed} credits</b> (you have {balance})</div>
           <Button variant="accent" className="mt-2" disabled={!sel.length || needed > balance || !!busy} onClick={start}>{busy ? <><Spinner /> {busy}</> : `Shoot ${sel.length} products`}</Button>
         </div>
       </section>
