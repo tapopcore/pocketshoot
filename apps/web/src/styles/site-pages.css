@@ -574,7 +574,7 @@
 .pg-examples .ex .src{display:block}
 .pg-examples .ex .cap{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s2);margin-top:12px}
 .pg-examples .ex .cap .sm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pg-examples .ex.on .ph{outline:3px solid var(--brand);outline-offset:3px}
+.pg-examples .ex.on>.ph{outline:3px solid var(--brand);outline-offset:3px}
 .pg-examples .ex:hover .h5{text-decoration:underline;text-underline-offset:4px}
 @media(max-width:900px){
  .pg-examples .exx{grid-template-columns:1fr;gap:var(--s5);margin-top:var(--s6);scroll-margin-top:76px}

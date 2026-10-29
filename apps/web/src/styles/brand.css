@@ -334,3 +334,8 @@ html:not([data-kbd]) .tgl:focus-visible,html:not([data-kbd]) input:focus-visible
 .fit-bg{object-fit:cover!important;filter:blur(14px) saturate(1.1);transform:scale(1.2);opacity:.5}
 .fit-fg{object-fit:contain!important}
 .zoom:hover>.fit-bg{transform:scale(1.2)}
+/* compare slider: the whole phone photo is shown, over a soft blurred fill */
+.ba>img.bf-bg{object-fit:cover;filter:blur(18px) saturate(1.1) brightness(.92);transform:scale(1.15)}
+.ba>img.bf{object-fit:contain}
+.ba>img.after{z-index:1}
+.ba .lab{z-index:2}

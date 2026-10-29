@@ -18,7 +18,8 @@ export function BeforeAfter({ before, after, alt = "", start = 50, demo, labels 
   const nudge = (d: number) => { setP((v) => Math.max(2, Math.min(98, v + d))); setTouched(true); };
   return (
     <div ref={ref} className={clsx("ba", demo && !touched && "demo", drag.current && "dragging", className)} style={{ ...style, ["--p" as string]: `${p}%` }}>
-      <img src={before} alt="" draggable={false} />
+      <img src={before} alt="" aria-hidden draggable={false} className="bf-bg" />
+      <img src={before} alt="" draggable={false} className="bf" />
       <img className="after" src={after} alt={alt} draggable={false} />
       {labels && <><span className="pill dark lab l">{labels[0]}</span><span className="pill glass lab r">{labels[1]}</span></>}
       <div className="bar">
