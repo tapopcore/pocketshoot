@@ -42,7 +42,7 @@ export const productSchema = z.object({
   sku: z.string().trim().max(80).nullish(),
   locks: z.array(z.string().refine((l) => l in LOCKS)).max(10).default([]),
   mustNotChange: z.string().trim().max(400).nullish(),
-  shootProfile: z.object({ type: z.enum(COLLECTION_IDS), construction: z.enum(["stitched", "unstitched", "semi_stitched", "not_applicable", "unknown"]), referenceForm: z.enum(["worn", "flat", "object", "unknown"]), contentsConfirmed: z.boolean().optional() }).optional(),
+  shootProfile: z.object({ type: z.enum(COLLECTION_IDS), construction: z.enum(["stitched", "unstitched", "semi_stitched", "not_applicable", "unknown"]), referenceForm: z.enum(["worn", "flat", "object", "unknown"]), contentsConfirmed: z.boolean().optional(), subjectCount: z.number().int().min(1).max(20).optional() }).optional(),
 });
 
 /** A product's confirmed type must belong to its category. Looks for any product ("general") fit every category. */
@@ -141,7 +141,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
       output: input.output,
       requested_count: input.count,
       custom_brief: input.customBrief ?? null,
-      settings: { palette, ...(brand ? { brand } : {}), shootStyle: packSet ? null : input.shootStyle ?? null, pack: input.pack ?? null, recipeId: recipe?.id ?? null, recipeVersion: recipe ? RECIPE_VERSION : null, recipe: recipe ? chosenLook : null, creditsPerImage: policy.creditsPerImage, brandKitId: input.brandKitId ?? null, category: product.category, styles: chosenLook ? [chosenLook.scene] : input.styles ?? [input.style], suggestions: input.suggestions ?? [], ...(opts.retryOf ? { retryOf: opts.retryOf } : {}), ...(opts.edit ? { edit: opts.edit } : {}) },
+      settings: { subjectCount: profile?.subjectCount ?? null, palette, ...(brand ? { brand } : {}), shootStyle: packSet ? null : input.shootStyle ?? null, pack: input.pack ?? null, recipeId: recipe?.id ?? null, recipeVersion: recipe ? RECIPE_VERSION : null, recipe: recipe ? chosenLook : null, creditsPerImage: policy.creditsPerImage, brandKitId: input.brandKitId ?? null, category: product.category, styles: chosenLook ? [chosenLook.scene] : input.styles ?? [input.style], suggestions: input.suggestions ?? [], ...(opts.retryOf ? { retryOf: opts.retryOf } : {}), ...(opts.edit ? { edit: opts.edit } : {}) },
       idempotency_key: input.idempotencyKey,
       is_trial: isTrial,
       parent_asset_id: opts.parentAssetId ?? null,
@@ -164,7 +164,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   ];
   await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => {
     const slot = slots[idx % slots.length];
-    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: slot.params, ...(recipe || packSet ? { max_attempts: 2 } : {}) };
+    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: slot.params, ...(recipe || packSet ? { max_attempts: 1 } : {}) };
   }));
 
   if (!opts.freeRemake && !opts.internal) {

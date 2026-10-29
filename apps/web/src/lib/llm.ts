@@ -6,7 +6,7 @@ import { env } from "./env";
 let client: OpenAI | null = null;
 export function openai() {
   if (!env.openaiKey) throw new Error("OPENAI_API_KEY is not set");
-  client ??= new OpenAI({ apiKey: env.openaiKey, maxRetries: 1 });
+  client ??= new OpenAI({ apiKey: env.openaiKey, maxRetries: 0 });
   return client;
 }
 

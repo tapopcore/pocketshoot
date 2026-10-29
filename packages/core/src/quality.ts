@@ -6,6 +6,8 @@
 export type Decision = "pass" | "review" | "fail";
 
 export type CheckType =
+  | "studio_view"
+  | "product_inventory"
   | "dimensions"
   | "product_alignment"
   | "colour_delta"

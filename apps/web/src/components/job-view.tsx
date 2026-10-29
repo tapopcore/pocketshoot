@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReferenceViewer } from "./reference-viewer";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -43,6 +44,7 @@ const styleName = (id?: string | null) => (id && STYLES[id as StyleId]?.name) ||
 
 export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = false }: { jobId: string; surface?: "web" | "shopify"; freeRemakes?: number; embedded?: boolean }) {
   const router = useRouter();
+  const [referenceOpen,setReferenceOpen]=useState<number|null>(null);
   const [data, setData] = useState<JobData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -111,7 +113,6 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   };
 
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 1000));
-  const left = Math.max(15, active.length * 40 - (elapsed % 40));
   const styles = job.settings?.edit ? [] : job.settings?.pack ? [job.settings.pack === "studio" ? "Studio pack" : "Photo set"] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
   const allChecked = active.length === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
 
@@ -122,32 +123,30 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
       </button>}
       <header className={clsx("jhead", embedded && "hidden")}>
         <div style={{ minWidth: 0 }}>
-          <h1>{active.length ? "Creating your photos" : job.products.name}</h1>
+          <h1>{job.products.name}</h1>
           <div className="pills" style={{ marginTop: "var(--s3)" }}>
-            {active.length > 0 && <span className="pill sm">{job.products.name}</span>}
+            
             {allChecked && <span className="pill good sm"><ShieldCheck size={14} />{delivered.length === 1 ? "Photo checked" : delivered.length === 2 ? "Both photos checked" : `All ${delivered.length} photos checked`}</span>}
             {job.settings?.edit && <span className="pill sm">Edit: {job.settings.edit.instruction.slice(0, 40)}</span>}
             {styles.map((s) => <span key={s} className="pill sm">{s}</span>)}
             <span className="pill sm">{output?.name} {output?.ratio}</span>
           </div>
           {references.length > 0 && <div className="refs">
-            <div className="rimgs">{references.slice(0, 4).map((r) => (
+            <div className="rimgs">{references.slice(0, 4).map((r,ri) => (
               // eslint-disable-next-line @next/next/no-img-element
-              r.url && <img key={r.id} src={r.url} alt={r.view_type + " view"} />
+              r.url && <button key={r.id} type="button" aria-label={"Open original photo "+(ri+1)} onClick={()=>setReferenceOpen(ri)}><img src={r.url} alt={r.view_type + " view"} /></button>
             ))}</div>
-            <span className="xs muted">{references.length > 1 ? `Made from your ${references.length} photos` : "Made from your photo"}</span>
+            <span className="xs muted">Your original{references.length>1?"s":""} · tap to view</span>
           </div>}
         </div>
-        {active.length > 0 ? (
-          <div className="eta" role="status"><span className="live" /><div><b className="num">{delivered.length} of {items.length} ready</b><span>About {left < 60 ? "1 minute" : `${Math.ceil(left / 60)} minutes`} left</span></div></div>
-        ) : (
+        {active.length === 0 && (
           <div className="acts">
             {failedItems.length > 1 && <button type="button" className="btn btn-lime" disabled={!!retrying} onClick={() => retry(failedItems)}>{retrying === "all" ? <Spinner /> : <RefreshCw size={18} />}Try {failedItems.length} failed again</button>}
             {order.length > 1 && surface === "web" && <ZipButton ids={order} primary={failedItems.length <= 1} />}
           </div>
         )}
       </header>
-      {active.length > 0 && <div className="pb" aria-hidden><i style={{ width: `${Math.max(6, pct)}%` }} /></div>}
+      {active.length > 0 && <div className="job-progress" role="status"><div><b>{delivered.length} of {items.length} ready</b><span>Creating · {elapsed}s · safe to leave</span></div><div className="pb" role="progressbar" aria-label="Photos processed" aria-valuenow={delivered.length+failed} aria-valuemin={0} aria-valuemax={items.length}><i style={{width:pct+"%"}}/></div></div>}
 
       <div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
         {items.map((it, i) => {
@@ -182,7 +181,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
                   </>
                 )}
                 {a && <div className="tags">
-                  {a.quality_status === "review" && <span className="pill warn sm">Check label</span>}
+                  {a.quality_status === "review" && <span className="pill warn sm">{a.quality_checks.some(c=>c.check_type==="studio_view"&&c.decision!=="pass")?"Check angle":"Review photo"}</span>}
                   {a.approval_status === "approved" && <span className="pill glass sm"><Check size={13} />Approved</span>}
                   {a.pushed_to_shopify_at && <span className="pill glass sm"><Store size={13} />In store</span>}
                 </div>}
@@ -199,6 +198,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
         <div className="row">{surface === "web" && <button type="button" className="btn btn-dark" onClick={() => router.push(`/app/new?product=${job.products.id}`)}><Sparkles size={18} />Try another style</button>}</div>
       </div>}
 
+      {referenceOpen!==null&&<ReferenceViewer photos={references.filter(r=>r.url).map(r=>({url:r.url,label:r.view_type+" view"}))} index={referenceOpen} onIndex={setReferenceOpen} onClose={()=>setReferenceOpen(null)}/>}
       {open && byId.get(open) && (
         <Viewer
           asset={byId.get(open)!}

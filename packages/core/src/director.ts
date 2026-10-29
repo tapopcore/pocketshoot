@@ -42,6 +42,8 @@ export interface ShootSuggestion {
 }
 
 export interface ProductAnalysis {
+  /** Number of product units in the FIRST reference, not photo count or accessories. */
+  subject_count?: number;
   creative_version?: string;
   use_case?: string;
   audience?: string;
@@ -85,6 +87,7 @@ export function analysisPrompt(sceneIds: string[]): string {
 
 PRODUCT INTELLIGENCE
 Identify the exact product, visible brand, physical materials, colours, label text, scale, orientation and viewpoint. Infer its practical use only when visually supported. Separate observed facts from inference in usage_confidence. Never invent ingredients, efficacy, certifications, medical claims, waterproofing, compatible devices or invisible construction. key_ingredients must contain only readable or clearly visible ingredients; an unknown list is empty.
+subject_count: count physical PRODUCT units in photo 1 only. Alternate references do not add units. Ignore source hands, background objects, shadows, reflections and spare-looking shapes unless clearly product units. Preserve the supplied assembly state; a cap attached to a pen is part of one pen.
 name: a short store-ready name; brand: printed brand or null; category: one of ${CATEGORY_LIST.map(c => c.id).join(", ")}. description: physical form, closure, material and finish, excluding the old background and wear. visible_text: verbatim printed text, without completing illegible words. colours: 2–5 hex colours. size: tiny/small/medium/large. orientation: standing/lying/hanging. viewpoint: front/three_quarter/side/top_down/angled.
 use_case: one plain sentence describing what the product is for, or say that its use needs confirmation. audience: a plausible buyer context, never asserted customer research. visual_strategy: one specific sentence linking its product truth to an interesting visual story.
 
@@ -99,12 +102,13 @@ suggested_scenes: up to 3 relevant ids. photo_issues: plain phrases for visible 
 export const ANALYSIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["name", "brand", "category", "description", "materials", "colours", "visible_text", "size", "orientation", "viewpoint", "key_ingredients", "suggested_scenes", "ideas", "photo_issues", "label_legibility", "use_case", "audience", "visual_strategy", "usage_confidence"],
+  required: ["subject_count", "name", "brand", "category", "description", "materials", "colours", "visible_text", "size", "orientation", "viewpoint", "key_ingredients", "suggested_scenes", "ideas", "photo_issues", "label_legibility", "use_case", "audience", "visual_strategy", "usage_confidence"],
   properties: {
     use_case: { type: "string" },
     audience: { type: "string" },
     visual_strategy: { type: "string" },
     usage_confidence: { type: "string", enum: ["observed", "inferred", "unknown"] },
+    subject_count: { type: "integer", minimum: 1, maximum: 20 },
     name: { type: "string" },
     brand: { type: ["string", "null"] },
     category: { type: "string", enum: CATEGORY_LIST.map((c) => c.id) },
