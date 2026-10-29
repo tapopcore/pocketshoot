@@ -31,6 +31,14 @@ const UNKNOWN = {
   suggestions: FIXTURE.suggestions.slice(0, 4),
 };
 
+const LEHENGA = {
+  ...FIXTURE,
+  product: { id: "p3", name: "Mint embroidered lehenga set", category: "fashion" as const },
+  analysis: { ...FIXTURE.analysis, name: "Mint embroidered lehenga set", brand: null, category: "fashion" as const, description: "Mint lehenga with gold embroidery.", materials: ["embroidered fabric", "metallic thread/embellishments", "net dupatta"], colours: ["#A8E6CF", "#C9A54C", "#CDEBF2", "#B07A3A"], visible_text: [], size: "medium" as const, photo_issues: ["Busy background"] },
+  hero: { ...FIXTURE.hero, originalUrl: "/showcase/lehenga-before.webp" },
+  references: [{ id: "r1", view_type: "front", url: "/showcase/lehenga-before.webp" }],
+};
+
 export default async function DevStudio({ searchParams }: { searchParams: Promise<{ step?: string; fx?: string; mode?: string }> }) {
   if (process.env.PREVIEW_UI !== "1") notFound();
   const { step, fx, mode } = await searchParams;
@@ -38,9 +46,9 @@ export default async function DevStudio({ searchParams }: { searchParams: Promis
   return (
     <AppShell locale="en" orgName="Demo workspace" orgs={[]} orgId="x" credits={12} email="demo@example.com" isPlatform={false}>
       <Studio locale="en" balance={12} isTrial={false} creativeEnabled maxImages={8} brandKits={[]} existing={null}
-        fixture={step ? (fx === "unknown" ? UNKNOWN : FIXTURE) : undefined} previewStep={s} previewMode={mode === "one" || mode === "studio" || mode === "variety" ? mode : undefined} previewLook={s && s !== "product" && mode === "one" ? (fx === "unknown" ? "general-2" : "beverage-2") : undefined}
+        fixture={step ? (fx === "unknown" ? UNKNOWN : fx === "lehenga" ? LEHENGA : FIXTURE) : undefined} previewStep={s} previewMode={mode === "one" || mode === "studio" || mode === "variety" ? mode : undefined} previewLook={s && s !== "product" && mode === "one" ? (fx === "unknown" ? "general-2" : "beverage-2") : undefined}
         recentProducts={[{ id: "p1", name: "Body lotion", category: "beauty", coverUrl: "/showcase/skincare-before.webp" }, { id: "p2", name: "Leather tote", category: "fashion", coverUrl: "/showcase/bags-before.webp" }]}
-        recentJobs={[]} />
+        recentJobs={[]} bulkEnabled />
     </AppShell>
   );
 }

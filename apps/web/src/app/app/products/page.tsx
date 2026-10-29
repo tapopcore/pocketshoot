@@ -1,11 +1,13 @@
 /* eslint-disable @next/next/no-img-element -- Signed storage URLs. */
 import { FitImg } from "@/components/fit-img";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Plus, Search, Store } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Search } from "lucide-react";
 import { CATEGORIES, isCategoryId } from "@packshot/core";
 import { requireWeb } from "@/lib/auth";
 import { productList } from "@/lib/views";
 import { Empty, PageHeader } from "@/components/ui";
+import { BulkCta } from "@/components/bulk-cta";
+import { getFlag } from "@/lib/settings";
 
 export const metadata = { title: "Products" };
 const PER = 24;
@@ -15,13 +17,14 @@ export default async function Products({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const archived = sp.archived === "1";
-  const { products, total } = await productList(ctx.orgId, { q: sp.q, limit: PER, offset: (page - 1) * PER, includeArchived: archived });
+  const [{ products, total }, bulkOn] = await Promise.all([productList(ctx.orgId, { q: sp.q, limit: PER, offset: (page - 1) * PER, includeArchived: archived }), getFlag("batch_jobs", ctx.orgId)]);
+  const bulk = bulkOn && ctx.role !== "viewer";
   const qs = (o: Record<string, string | number | undefined>) => { const p = new URLSearchParams(); for (const [k, v] of Object.entries({ q: sp.q, archived: archived ? "1" : undefined, ...o })) if (v) p.set(k, String(v)); const t = p.toString(); return "/app/products" + (t ? "?" + t : ""); };
   return <div className="pg-products">
     <PageHeader title="Products" actions={<>
-      {ctx.role !== "viewer" && <Link href="/app/batch" className="btn btn-line d-only"><Store />Import or bulk add</Link>}
       {ctx.role !== "viewer" && <Link href="/app/new" className="btn btn-lime"><Plus />Add product</Link>}
     </>}>Add a product once, with all its angles, then shoot it again any time.</PageHeader>
+    {bulk && products.length > 1 && <BulkCta />}
     {(total > 0 || sp.q || archived) && <div className="tb">
       <form className="srch" action="/app/products"><Search /><input name="q" defaultValue={sp.q} placeholder="Search by name or SKU" aria-label="Search products" />{archived && <input type="hidden" name="archived" value="1" />}</form>
       <Link href={qs({ archived: archived ? undefined : "1", page: undefined })} className="pill">{archived ? "Hide archived" : "Show archived"}</Link>

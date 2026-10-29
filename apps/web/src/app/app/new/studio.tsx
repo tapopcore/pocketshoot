@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Local previews and signed storage URLs. */
 "use client";
 import { ReferenceViewer } from "@/components/reference-viewer";
+import { BulkCta } from "@/components/bulk-cta";
 import { FitImg } from "@/components/fit-img";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,7 +82,7 @@ function Stepper({ step }: { step: Step }) {
   </span>)}</div>;
 }
 
-export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewLook?: string; previewMode?: Mode; initialIndustry?: string; initialLook?: string; draftScope?: string; locale: Locale; balance: number; creditsPerImage?: number; isTrial: boolean; creativeEnabled: boolean; maxImages: number; brandKits: { id: string; name: string; palette: string[] }[]; existing: StudioProduct | null; recentProducts: StudioProduct[]; recentJobs: JobSummary[]; previews?: Record<string, string>; notice?: string | null; canEdit?: boolean }) {
+export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewLook?: string; previewMode?: Mode; initialIndustry?: string; initialLook?: string; draftScope?: string; locale: Locale; balance: number; creditsPerImage?: number; isTrial: boolean; creativeEnabled: boolean; maxImages: number; brandKits: { id: string; name: string; palette: string[] }[]; existing: StudioProduct | null; recentProducts: StudioProduct[]; recentJobs: JobSummary[]; previews?: Record<string, string>; notice?: string | null; canEdit?: boolean; bulkEnabled?: boolean }) {
   const router = useRouter();
   const [photoOpen,setPhotoOpen]=useState<number|null>(null);
   const [step, setStep] = useState<Step>("source"), [prep, setPrep] = useState<Prepared | null>(null), [profile, setProfile] = useState<ShootProfile | null>(null);
@@ -277,6 +278,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
           </button>)}</div>
           <Link href="/app/products" className="link sm" style={{ marginTop: "var(--s3)" }}>All products <ArrowRight size={16} /></Link>
         </section>}
+        {props.bulkEnabled && props.recentProducts.length > 1 && <BulkCta />}
         <section className="card guide">
           <h3 className="h5">Photos that work best</h3>
           <div className="gtiles">{([["front", "Front", "Label facing you"], ["back", "Back", "If it looks different"], ["side", "Side", "Shows the shape"], ["detail", "Detail", "Texture or print"]] as const).map(([k, t, sub]) => <div key={k} className="gt"><span className="ph r11"><img src={`/showcase/studio/${k}.webp`} alt="" loading="lazy" className={k === "detail" ? "" : "white"} /></span><b>{t}</b><span>{sub}</span></div>)}</div>
@@ -312,7 +314,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
       {prep ? <section className="card found">
         <div className="field"><label className="label" htmlFor="product-name">Product name</label><input id="product-name" className="input" value={name} maxLength={120} onChange={(e) => { nameTouched.current = true; setName(e.target.value); }} /></div>
-        {profile&&<div className="field inventory-field"><label className="label" htmlFor="subject-count">Product units in each photo</label><div className="row"><input id="subject-count" aria-label="Product units in each photo" className="input" type="number" min={1} max={20} value={profile.subjectCount??""} placeholder="Auto" onChange={e=>setProfile({...profile,subjectCount:e.target.value?Math.max(1,Math.min(20,Number(e.target.value))):undefined})}/><span className="xs muted">Keep every colour and piece shown. A pen with its cap attached counts as one.</span></div></div>}
+        {profile&&<div className="field inventory-field"><label className="label" htmlFor="subject-count">Product units in each photo</label><div className="row"><input id="subject-count" aria-label="Product units in each photo" className="input" type="number" min={1} max={20} value={profile.subjectCount??""} placeholder="Auto" onChange={e=>setProfile({...profile,subjectCount:e.target.value?Math.max(1,Math.min(20,Number(e.target.value))):undefined})}/><span className="xs muted">Leave on Auto unless we get the count wrong. A pen with its cap on counts as one.</span></div></div>}
         <div className="field ptype"><label className="label" htmlFor="ptype">Product type</label>
           <TypePicker value={profile?.type ?? null} onChange={(t) => { setProfile(profileDefault(t)); if (t !== "general") setIndustry(collectionById(t)!.category); setLookId(null); }} />
           <p className="xs muted">{guessed ? "We couldn't match this to a type we know, so you get looks that suit any product. Pick a type if one fits." : profile?.type === "general" ? "You get looks that suit any product, plus white studio photos." : "Looks are made for this type. Change it if we got it wrong."}</p>
@@ -322,8 +324,8 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
           <div><span className="label">It is</span><div className="seg">{([["stitched", "Stitched"], ["unstitched", "Unstitched"], ["semi_stitched", "Semi-stitched"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx(profile.construction === v && "on")} onClick={() => setProfile({ ...profile, construction: v })}>{l}</button>)}</div></div>
         </div>}
         {prep.analysis && <div className="facts">
-          {prep.analysis.visible_text.length > 0 && <span title={prep.analysis.visible_text.join(" · ")}><b>Label</b>{prep.analysis.visible_text.slice(0, 2).join(" · ")}</span>}
-          {prep.analysis.materials.length > 0 && <span><b>Material</b>{prep.analysis.materials.slice(0, 2).join(", ")}</span>}
+          {prep.analysis.visible_text.length > 0 && <span title={prep.analysis.visible_text.join(" · ")}><b>Label</b><em>{prep.analysis.visible_text.slice(0, 2).join(" · ")}</em></span>}
+          {prep.analysis.materials.length > 0 && <span><b>Material</b><em>{prep.analysis.materials.slice(0, 2).join(", ")}</em></span>}
           <span><b>Size</b>{{ tiny: "Very small", small: "Fits in a hand", medium: "Medium", large: "Large" }[prep.analysis.size]}</span>
           {prep.analysis.colours.length > 0 && <span><b>Colours</b><i className="sws">{prep.analysis.colours.slice(0, 5).map((c) => <i key={c} className="sw" style={{ background: c }} />)}</i></span>}
         </div>}
@@ -387,7 +389,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
     {step === "review" && ready && prep && <div className="two rv2">
       <div className="rvl">
         <div className="sumrow"><button type="button" className="ph ref-open" aria-label="Open original photo" onClick={()=>setPhotoOpen(0)}>{cover && <FitImg src={cover} eager />}</button><div style={{ flex: 1, minWidth: 0 }}><small>{typeLabel}</small><b>{name}</b></div><button type="button" className="link sm" onClick={() => move("product")}>Change</button></div>
-        <div className="sumrow"><div className={clsx("ph", pack && "stack3")}>{pack ? packSet.slice(0, 3).map((l) => <span key={l.id}><LookThumb look={l} /></span>) : <LookThumb look={chosen!} />}</div><div style={{ flex: 1, minWidth: 0 }}><small>{pack ? PACKS[pack].title : "Style"}</small><b>{pack ? packSet.map((l) => l.title).join(" · ") : chosen!.title}</b>{pickedIdeas.length > 0 && <span className="xs muted">+ {pickedIdeas.map((s) => s.title).join(", ")}</span>}</div><button type="button" className="link sm" onClick={() => move("looks")}>Change</button></div>
+        <div className="sumrow"><div className={clsx("ph", pack && "stack4")}>{pack ? packSet.slice(0, 4).map((l) => <span key={l.id}><LookThumb look={l} /></span>) : <LookThumb look={chosen!} />}</div><div style={{ flex: 1, minWidth: 0 }}><small>{pack ? PACKS[pack].title : "Style"}</small><b>{pack ? `${packSet.length} ${pack === "studio" ? "studio photos" : "different looks"}` : chosen!.title}</b>{pickedIdeas.length > 0 && <span className="xs muted">+ {pickedIdeas.map((s) => s.title).join(", ")}</span>}</div><button type="button" className="link sm" onClick={() => move("looks")}>Change</button></div>
         <div className="card p"><h3 className="h5">Photo size</h3><div className="shapes">{SHAPES.map(([id, label, hint, w, h]) => <button key={id} type="button" aria-pressed={output === id} className={clsx(output === id && "on")} onClick={() => setOutput(id)}><i aria-hidden="true" style={{ width: w, height: h, aspectRatio:w+"/"+h }} /><b>{label}</b><span>{hint}</span></button>)}</div></div>
         {!pack && <div className="card p between"><div><h3 className="h5">How many photos</h3><p className="sm muted">Each one is a new take</p></div><div className="qty"><button type="button" className="ib" aria-label="Fewer photos" disabled={count <= 1} onClick={() => setCount(count - 1)}><Minus size={18} /></button><b className="num">{count}</b><button type="button" className="ib" aria-label="More photos" disabled={count >= maxCount} onClick={() => setCount(count + 1)}><Plus size={18} /></button></div></div>}
         <details className="card p more-opts" open={!!brief || undefined}>

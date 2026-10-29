@@ -5,6 +5,8 @@ import { requireWeb } from "@/lib/auth";
 import { recentJobs } from "@/lib/views";
 import { JobCard, type JobSummary } from "@/components/job-card";
 import { Empty, PageHeader } from "@/components/ui";
+import { BulkCta } from "@/components/bulk-cta";
+import { getFlag } from "@/lib/settings";
 
 export const metadata = { title: "My shoots" };
 const PER = 24;
@@ -26,6 +28,7 @@ function groups(jobs: JobSummary[]) {
 export default async function Shoots({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; s?: string }> }) {
   const ctx = await requireWeb();
   const sp = await searchParams;
+  const bulkOn = await getFlag("batch_jobs", ctx.orgId);
   const page = Math.max(1, Number(sp.page) || 1);
   const status = (["ready", "creating", "failed"] as const).find((x) => x === sp.s) ?? null;
   const jobs = await recentJobs(ctx.orgId, PER, (page - 1) * PER, { q: sp.q, status });
@@ -33,6 +36,7 @@ export default async function Shoots({ searchParams }: { searchParams: Promise<{
   const filtered = !!(sp.q || status);
   return <div className="pg-shoots">
     <PageHeader title="My shoots" actions={ctx.role !== "viewer" && <Link href="/app/new" className="btn btn-lime"><Plus />New shoot</Link>}>All your photos in one place, newest first.</PageHeader>
+    {bulkOn && ctx.role !== "viewer" && <BulkCta />}
     {(jobs.length > 0 || filtered) && <div className="tb">
       <form className="srch" action="/app/shoots"><Search /><input name="q" defaultValue={sp.q} placeholder="Search by product name" aria-label="Search shoots" />{status && <input type="hidden" name="s" value={status} />}</form>
       <Link href="/app/library" className="link sm d-only" style={{ marginLeft: "auto", order: 3 }}>All photos <ArrowRight size={16} /></Link>

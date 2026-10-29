@@ -8,6 +8,8 @@ import { JobCard } from "@/components/job-card";
 import { ResumeDraft } from "@/components/resume-draft";
 import { StartBox, FirstActions } from "@/components/home-start";
 import { BeforeAfter } from "@/components/site/before-after";
+import { BulkCta } from "@/components/bulk-cta";
+import { getFlag } from "@/lib/settings";
 
 export const metadata = { title: "Home" };
 
@@ -25,7 +27,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const sp = await searchParams;
   const ctx = await requireWeb();
   if (sp.product) { const { redirect } = await import("next/navigation"); redirect("/app/new?product=" + encodeURIComponent(sp.product)); }
-  const [jobs, products, granted] = await Promise.all([recentJobs(ctx.orgId, 4), productList(ctx.orgId, { limit: 6 }), grantTrialIfEligible(ctx, await clientIp())]);
+  const [jobs, products, granted, bulkOn] = await Promise.all([recentJobs(ctx.orgId, 4), productList(ctx.orgId, { limit: 6 }), grantTrialIfEligible(ctx, await clientIp()), getFlag("batch_jobs", ctx.orgId)]);
   const canEdit = ctx.role !== "viewer";
   const busy = jobs.filter((j) => ["queued", "preparing", "generating", "checking"].includes(j.status)).length;
   const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" }).format(new Date());
@@ -57,6 +59,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
     <div className="hi"><div><p className="sm muted">{today}</p><h1 className="h2">{greeting()}</h1></div>{busy > 0 && <span className="pill line d-only"><span className="live" />{busy} shoot{busy === 1 ? "" : "s"} in progress</span>}</div>
     <StartBox canEdit={canEdit} products={products.products.filter((p) => p.photoCount > 0).slice(0, 5).map((p) => ({ id: p.id, name: p.name, coverUrl: p.coverUrl }))} />
     <ResumeDraft scope={ctx.orgId} />
+    {bulkOn && canEdit && products.products.length > 1 && <BulkCta />}
     {jobs.length > 0 && <>
       <div className="between hsec"><h2 className="h3">Recent shoots</h2><Link href="/app/shoots" className="link sm">View all <ArrowRight size={16} /></Link></div>
       <div className="gx c4" style={{ marginTop: "var(--s4)" }}>{jobs.map((j, i) => <JobCard key={j.id} job={j} index={i} />)}</div>

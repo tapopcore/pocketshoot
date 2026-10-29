@@ -9,7 +9,7 @@ import { Studio } from "./studio";
 /** The studio is the home of the app: /app and /app/new both render it. */
 export async function StudioPage({ productId, denied, industry, look }: { productId?: string; denied?: boolean; industry?: string; look?: string }) {
   const ctx = await requireWeb();
-  const [wallet, trial, creative, settings, { data: kits }, recent, jobs] = await Promise.all([
+  const [wallet, trial, creative, settings, { data: kits }, recent, jobs, bulkOn] = await Promise.all([
     walletSummary(ctx.orgId),
     isTrialOrg(ctx.orgId),
     getFlag("creative_mode", ctx.orgId),
@@ -17,6 +17,7 @@ export async function StudioPage({ productId, denied, industry, look }: { produc
     admin().from("brand_kits").select("id, name, palette").eq("organization_id", ctx.orgId).order("created_at"),
     productList(ctx.orgId, { limit: 12 }),
     recentJobs(ctx.orgId, 10),
+    getFlag("batch_jobs", ctx.orgId),
   ]);
   const existing = productId ? recent.products.find((p) => p.id === productId) ?? await (async () => {
     const { data: p } = await admin().from("products").select("id,name,category,product_assets(storage_key,view_type)").eq("id", productId).eq("organization_id", ctx.orgId).is("archived_at", null).maybeSingle();
@@ -42,6 +43,7 @@ export async function StudioPage({ productId, denied, industry, look }: { produc
       creditsPerImage={settings.credit_policy.creditsPerImage}
       recentProducts={recent.products.filter((p) => p.photoCount > 0).map(toLite)}
       recentJobs={jobs}
+      bulkEnabled={bulkOn && ctx.role !== "viewer"}
       notice={denied ? "You don't have permission for that page. Ask a workspace admin." : null}
       canEdit={ctx.role !== "viewer"}
     />

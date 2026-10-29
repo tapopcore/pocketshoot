@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import clsx from "clsx";
 import { Check, FileSpreadsheet, Minus, Plus } from "lucide-react";
-import { CATEGORIES, PACK_SIZE, SHOOT_STYLES, isCategoryId, type CategoryId, type OutputId, type PackId, type ShootStyleId } from "@packshot/core";
+import { CATEGORIES, PACK_SIZE, SCENE_GROUPS, SHOOT_STYLES, STYLE_LIST, isCategoryId, type CategoryId, type OutputId, type PackId, type SceneGroup, type ShootStyleId, type StyleId } from "@packshot/core";
 import { api, newKey, toast, uploadFiles } from "@/lib/client";
 import { Button, Field, Input, Notice, Spinner } from "@/components/ui";
 
@@ -20,7 +20,10 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
   const [list, setList] = useState(products);
   const [sel, setSel] = useState<string[]>([]);
   const [name, setName] = useState(`Batch ${new Date().toLocaleDateString("en-IN")}`);
-  const [kind, setKind] = useState<PackId | ShootStyleId>("studio");
+  const [kind, setKind] = useState<PackId | ShootStyleId | StyleId>("studio");
+  const [tab, setTab] = useState<"quick" | SceneGroup>("quick");
+  const isScene = !(kind in SHOOT_STYLES) && kind !== "studio" && kind !== "variety";
+  const scenes = STYLE_LIST.filter((st) => st.id !== "custom" && (creativeEnabled || !st.creativeOnly));
   const [count, setCount] = useState(2), [output, setOutput] = useState<OutputId>("square");
   const isPack = kind === "studio" || kind === "variety";
   const perProduct = isPack ? PACK_SIZE : count;
@@ -63,7 +66,7 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
     try {
       const r = await api<{ batchId: string; results: { error?: string }[] }>("/api/batch", {
         method: "POST",
-        json: { name, productIds: sel, mode: "preserve", ...(isPack ? { pack: kind } : { shootStyle: kind, style: SHOOT_STYLES[kind as ShootStyleId].scene }), output, countPerProduct: perProduct, brandKitId: brandKits[0]?.id ?? null, quotedCredits:needed, batchKey: requestKey.current },
+        json: { name, productIds: sel, mode: "preserve", ...(isPack ? { pack: kind } : isScene ? { style: kind } : { shootStyle: kind, style: SHOOT_STYLES[kind as ShootStyleId].scene }), output, countPerProduct: perProduct, brandKitId: brandKits[0]?.id ?? null, quotedCredits:needed, batchKey: requestKey.current },
       });
       const failed = r.results.filter((x) => x.error).length;
       toast(failed ? `Started with ${failed} problem(s). Check the library.` : `Batch started: ${sel.length} products`);
@@ -123,13 +126,21 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
               <span className="bl-t"><b>{t}</b><span>{sub}</span><em>{PACK_SIZE*creditsPerImage} credits per product</em></span>
             </button>))}
         </div>
-        <div className="bl-sub">Or one look, 1 to 4 photos per product</div>
+        <div className="bl-sub">Or one look for every product, 1 to 4 photos each</div>
+        <div className="bl-tabs" role="tablist" aria-label="Look groups">
+          {([["quick", "Popular"], ...SCENE_GROUPS.map((g) => [g.id, g.id === "seasonal" ? "Festive" : g.name])] as [typeof tab, string][]).map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={tab === id} className={clsx(tab === id && "on")} onClick={() => setTab(id)}>{l}</button>)}
+        </div>
         <div className="bl-looks">
-          {(["indoor", "outdoor", "model", "closeup", "graphic"] as const).map((id) => { const st = SHOOT_STYLES[id]; return (
+          {tab === "quick" ? (["indoor", "outdoor", "model", "closeup", "graphic"] as const).map((id) => { const st = SHOOT_STYLES[id]; return (
             <button key={id} type="button" aria-pressed={kind === id} className={clsx("bl-l", kind === id && "on")} onClick={() => setKind(id)}>
               <span className="ph r11"><img src={"/showcase/style-demo-"+({indoor:0,outdoor:4,model:2,closeup:5,graphic:1}[id])+".webp"} alt="" loading="lazy" />{kind === id && <span className="tick"><Check size={14} /></span>}</span>
               <b>{st.title}</b><span>{st.subtitle}</span>
-            </button>); })}
+            </button>); })
+          : scenes.filter((st) => st.group === tab).map((st) => (
+            <button key={st.id} type="button" aria-pressed={kind === st.id} className={clsx("bl-l", kind === st.id && "on")} onClick={() => setKind(st.id)}>
+              <span className="ph r11 bl-scene" style={{ background: st.art }}><img src="/showcase/demo-cut.webp" alt="" loading="lazy" />{kind === st.id && <span className="tick"><Check size={14} /></span>}</span>
+              <b>{st.name}</b><span>{st.description}</span>
+            </button>))}
         </div>
         <div className="bl-opts">
           {!isPack && <div className="bl-count"><span>Photos per product</span><div className="qty"><button type="button" className="ib" aria-label="Fewer" disabled={count <= 1} onClick={() => setCount(count - 1)}><Minus size={18} /></button><b className="num">{count}</b><button type="button" className="ib" aria-label="More" disabled={count >= 4} onClick={() => setCount(count + 1)}><Plus size={18} /></button></div></div>}
@@ -144,7 +155,7 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
           <Button variant="accent" className="mt-2" disabled={!sel.length || needed > balance || !!busy} onClick={start}>{busy ? <><Spinner /> {busy}</> : `Shoot ${sel.length} products`}</Button>
         </div>
       </section>
-      <p className="xs muted">All examples show the same demo bottle. Your selected products use their own reference photos. Studio packs keep a white background; photo sets vary the setting.</p>
+      <p className="xs muted">Examples use a demo bottle. Each product is shot from its own photos.</p>
       {photoOpen&&<ReferenceViewer photos={[{url:photoOpen,label:"Original product photo"}]} index={0} onIndex={()=>{}} onClose={()=>setPhotoOpen(null)}/>}
       {needed > balance && <Notice tone="bad">You need {needed - balance} more credits for this batch. <a className="underline" href="/app/wallet">Buy credits</a></Notice>}
     </div>
