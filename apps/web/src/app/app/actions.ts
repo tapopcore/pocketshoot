@@ -149,7 +149,12 @@ export async function createProject(_: ActionState, form: FormData): Promise<Act
   const ctx = await requireWeb("editor");
   const name = String(form.get("name") ?? "").trim();
   if (!name) return { error: "Give the project a name" };
-  await admin().from("projects").insert({ organization_id: ctx.orgId, name: name.slice(0, 120), brand_kit_id: String(form.get("brandKitId") ?? "") || null });
+  let kitId: string | null = String(form.get("brandKitId") ?? "") || null;
+  if (kitId) {
+    const { data: kit } = await admin().from("brand_kits").select("id").eq("id", kitId).eq("organization_id", ctx.orgId).maybeSingle();
+    if (!kit) kitId = null;
+  }
+  await admin().from("projects").insert({ organization_id: ctx.orgId, name: name.slice(0, 120), brand_kit_id: kitId });
   revalidatePath("/app/projects");
   return { ok: true };
 }
@@ -168,7 +173,12 @@ export async function createTicket(_: ActionState, form: FormData): Promise<Acti
   const body = String(form.get("body") ?? "").trim().slice(0, 4000);
   if (!subject || !body) return { error: "Add a subject and a message" };
   const db = admin();
-  const { data: t } = await db.from("support_tickets").insert({ organization_id: ctx.orgId, created_by: ctx.userId, subject, related_job_id: String(form.get("jobId") ?? "") || null }).select("id").single();
+  let jobId: string | null = String(form.get("jobId") ?? "") || null;
+  if (jobId) {
+    const { data: j } = await db.from("generation_jobs").select("id").eq("id", jobId).eq("organization_id", ctx.orgId).maybeSingle();
+    if (!j) jobId = null;
+  }
+  const { data: t } = await db.from("support_tickets").insert({ organization_id: ctx.orgId, created_by: ctx.userId, subject, related_job_id: jobId }).select("id").single();
   await db.from("support_messages").insert({ ticket_id: t!.id, author_id: ctx.userId, body });
   if (env.alertEmail) await sendEmail(env.alertEmail, `Support: ${subject}`, `<p>${ctx.orgName} (${ctx.email})</p><p>${body.replace(/</g, "&lt;")}</p>`);
   redirect(`/app/support/${t!.id}`);

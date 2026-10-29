@@ -3,6 +3,7 @@ const fakes = vi.hoisted(() => ({ analyze: vi.fn(), getCutout: vi.fn(), after: v
 vi.mock("next/server", () => ({ after: fakes.after }));
 vi.mock("@/lib/api", () => ({ handler: (fn: unknown) => fn, ApiError: class extends Error { constructor(public status: number, message: string) { super(message); } } }));
 vi.mock("@/lib/auth", () => ({ assertRole: vi.fn() }));
+vi.mock("@/lib/observe", () => ({ rateLimit: async () => true }));
 vi.mock("@/lib/prep", () => ({ analyzeProduct: fakes.analyze, getCutout: fakes.getCutout }));
 vi.mock("@/lib/hero", () => ({ heroState: fakes.heroState }));
 vi.mock("@/lib/views", () => ({ withRefUrls: async (rows: unknown[]) => rows }));

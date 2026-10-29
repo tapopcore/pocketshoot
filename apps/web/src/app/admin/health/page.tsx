@@ -1,8 +1,11 @@
+import { requirePlatform } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { integrationStatus } from "@/lib/env";
 import { Badge, Card, PageHeader, Stat, formatDate } from "@/components/ui";
 
 export default async function Health() {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const db = admin();
   const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
   const [{ count: queued }, { count: running }, { count: stuck }, { data: logs }, { data: hooks }, { data: lastTick }, { data: attempts }] = await Promise.all([

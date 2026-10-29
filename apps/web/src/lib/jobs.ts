@@ -53,6 +53,8 @@ export interface JobOptions {
   retryOf?: { jobId: string; itemId: string };
   /** Platform-internal jobs (scene previews): no credits, no watermark, no limits. */
   internal?: boolean;
+  /** Set only by the bulk-shoot route, which checks credits for the whole batch up front. */
+  inBatch?: boolean;
 }
 
 export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: JobOptions = {}) {
@@ -61,7 +63,16 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   const settings = await getSettings();
   const policy = settings.credit_policy;
 
-  if (!opts.internal && !input.batchId && !(await rateLimit(`gen:${ctx.orgId}`, 60, 3600))) throw new ApiError(429, "You've started a lot of shoots this hour. Please wait a few minutes.");
+  if (!opts.internal && !opts.inBatch && !(await rateLimit(`gen:${ctx.orgId}`, 60, 3600))) throw new ApiError(429, "You've started a lot of shoots this hour. Please wait a few minutes.");
+  // Project and batch ids come from the client: they must belong to this workspace.
+  if (input.projectId) {
+    const { data: pr } = await db.from("projects").select("id").eq("id", input.projectId).eq("organization_id", ctx.orgId).maybeSingle();
+    if (!pr) throw new ApiError(404, "Project not found");
+  }
+  if (input.batchId) {
+    const { data: b } = await db.from("batches").select("id").eq("id", input.batchId).eq("organization_id", ctx.orgId).maybeSingle();
+    if (!b) throw new ApiError(404, "Bulk shoot not found");
+  }
   if (!opts.internal && input.count > policy.maxImagesPerJob) throw new ApiError(400, `Up to ${policy.maxImagesPerJob} images per shoot`);
   if (input.mode === "creative" && !(await getFlag("creative_mode", ctx.orgId))) throw new ApiError(400, "Creative mode is turned off right now");
 

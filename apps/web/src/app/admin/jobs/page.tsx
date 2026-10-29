@@ -1,3 +1,4 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import { JOB_STATUS_LABEL, type JobStatus } from "@packshot/core";
 import { admin } from "@/lib/supabase";
@@ -6,6 +7,8 @@ import { Badge, Card, PageHeader, formatDate } from "@/components/ui";
 const STATUSES = ["all", "queued", "generating", "completed", "review_needed", "failed"];
 
 export default async function AdminJobs({ searchParams }: { searchParams: Promise<{ status?: string; page?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const sp = await searchParams;
   const status = STATUSES.includes(sp.status ?? "") ? sp.status! : "all";
   const page = Math.max(1, Number(sp.page ?? 1));
