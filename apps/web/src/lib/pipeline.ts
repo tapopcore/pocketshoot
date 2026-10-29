@@ -50,7 +50,7 @@ interface ItemParams {
   brief?: string;
   ideaTitle?: string;
   shot?: ShotDirection;
-  shotSource?: "ai" | "rules";
+  shotSource?: "ai" | "rules" | "studio-v1";
   place?: Place;
   cutoutAssetId?: string;
   /** One photo of a pack: its own look (scene, people, framing), checked like a chosen recipe. */
