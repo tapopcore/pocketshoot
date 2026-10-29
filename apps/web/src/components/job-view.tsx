@@ -20,7 +20,7 @@ interface Item { id: string; job_id: string; idx: number; status: string; attemp
 interface JobData {
   job: {
     id: string; status: string; statusLabel: string; statusTone: string; mode: string; style: string; output: string; requested_count: number; is_trial: boolean;
-    created_at: string; custom_brief: string | null; parent_asset_id: string | null; settings: { edit?: { instruction: string } } | null; products: { id: string; name: string; category: string };
+    created_at: string; custom_brief: string | null; parent_asset_id: string | null; settings: { edit?: { instruction: string }; pack?: "studio" | "variety" | null } | null; products: { id: string; name: string; category: string };
   };
   items: Item[]; assets: Asset[]; references: { id: string; url: string | null; view_type: string }[];
 }
@@ -112,7 +112,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
 
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 1000));
   const left = Math.max(15, active.length * 40 - (elapsed % 40));
-  const styles = job.settings?.edit ? [] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
+  const styles = job.settings?.edit ? [] : job.settings?.pack ? [job.settings.pack === "studio" ? "Studio pack" : "Photo set"] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
   const allChecked = active.length === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
 
   return (

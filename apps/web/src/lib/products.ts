@@ -105,7 +105,7 @@ export async function updateProduct(ctx: AuthContext, productId: string, input: 
   if (input.shootProfile) {
     const { data: current } = await admin().from("products").select("attributes, category").eq("id", productId).eq("organization_id", ctx.orgId).maybeSingle();
     if (!current) throw new ApiError(404, "Product not found");
-    if (collectionById(input.shootProfile.type)?.category !== (input.category ?? current.category)) throw new ApiError(400, "Choose a product type in this industry.");
+    if (input.shootProfile.type !== "general" && collectionById(input.shootProfile.type)?.category !== (input.category ?? current.category)) throw new ApiError(400, "Choose a product type in this industry.");
     patch.attributes = { ...(current.attributes ?? {}), shootProfile: input.shootProfile };
   }
   if (input.name !== undefined) patch.name = input.name;

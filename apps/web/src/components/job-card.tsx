@@ -15,6 +15,7 @@ export interface JobSummary {
   product: { id: string; name: string };
   thumbs: string[];
   productPhoto?: string | null;
+  pack?: string | null;
 }
 
 export function ago(d: string) {
@@ -45,7 +46,7 @@ export function JobCard({ job, index, hrefBase = "/app/jobs" }: { job: JobSummar
         <span className="pill glass sm cnt">{job.count} photo{job.count === 1 ? "" : "s"}</span>
       </div>
       <div className="meta">
-        <div><b>{job.product?.name ?? "Product"}</b><span>{STYLES[job.style as StyleId]?.name ?? "Custom"} · {OUTPUTS[job.output as OutputId]?.ratio ?? "1:1"} · {ago(job.createdAt)}</span></div>
+        <div><b>{job.product?.name ?? "Product"}</b><span>{job.pack === "studio" ? "Studio pack" : job.pack === "variety" ? "Photo set" : STYLES[job.style as StyleId]?.name ?? "Custom"} · {OUTPUTS[job.output as OutputId]?.ratio ?? "1:1"} · {ago(job.createdAt)}</span></div>
         {pill}
       </div>
     </Link>

@@ -12,7 +12,7 @@ import type { OutputPreset, StylePreset } from "./presets";
 export type HumanPresence = "none" | "hands" | "model";
 /** Reference photos per product. Every one is studied and sent to the image engine. */
 export const MAX_REFERENCE_PHOTOS = 6;
-export const CREATIVE_VERSION = "2026-10-28.suggestions-1";
+export const CREATIVE_VERSION = "2026-10-29.suggestions-2";
 
 export interface SceneIdea {
   purpose?: "hero" | "human" | "detail";
@@ -138,7 +138,7 @@ export function photoSetPrompt(views: string[]): string {
 /** Instructions for the written shoot ideas returned with the product facts. */
 export const SUGGESTIONS_PROMPT = `
 SHOOT IDEAS (suggestions): write 6 to 8 short ideas a seller can tick to add on top of any look they choose. Each must come from something you actually see in the photos (a material, a printed ingredient, a colour, a closure, a craft detail, a size, how it is used). Spread them across kinds: props, setting, angle, detail, mood, and at most two of kind human (hands or an adult model using it, only when its use is clear).
-Each idea: kind; title of 3 to 6 plain words; text of one plain sentence under 140 characters that a first-time seller understands and the photographer can follow, for example "Scatter a few fresh orange slices around it to echo the Vitamin C on the label". No camera jargon, no claims about effects or health, no brand names that are not printed on the product, no text overlays.`;
+Each idea: kind; title of 2 to 4 everyday words a shopper would say, starting with the thing that changes, for example "Fresh orange slices", "Morning sunlight", "Held in a hand"; text of one short plain sentence under 90 characters saying what appears in the photo, for example "A few orange slices around it, matching the Vitamin C on the label". No instructions to a photographer, no "place", "position", "shoot" or "frame". No camera jargon, no claims about effects or health, no brand names that are not printed on the product, no text overlays.`;
 
 export const SUGGESTIONS_SCHEMA = {
   type: "array", minItems: 4, maxItems: 8,

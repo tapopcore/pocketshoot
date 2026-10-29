@@ -59,6 +59,29 @@ describe("canonical photographic jobs",()=>{
     await expect(editAsset(ctx,"old","change the background","test-old-watermark")).rejects.toMatchObject({status:400});
     expect(fakes.job).not.toHaveBeenCalled(); expect(fakes.rpc).not.toHaveBeenCalled();
   });
+  it("creates a studio pack of six different white-studio photos and reserves six images",async()=>{
+    fakes.product={id:"p",name:"Plastic cap",category:"other",attributes:{shootProfile:{type:"general",construction:"not_applicable",referenceForm:"unknown"}}};
+    await createJob(ctx,{productId:"p",mode:"preserve",style:"pure_white",pack:"studio",recipeVersion:RECIPE_VERSION,quotedCredits:12,output:"square",count:6,idempotencyKey:"studio-pack-1"});
+    const items=fakes.items.mock.calls[0][0];
+    expect(items).toHaveLength(6);
+    expect(new Set(items.map((i:{params:{lookId:string}})=>i.params.lookId)).size).toBe(6);
+    expect(items.every((i:{style:string;params:{lookId:string;brief:string}})=>i.style==="pure_white"&&i.params.lookId.startsWith("studio-")&&/must not change/.test(i.params.brief))).toBe(true);
+    expect(fakes.job.mock.calls[0][0].settings).toMatchObject({pack:"studio",recipeId:null});
+    expect(fakes.rpc).toHaveBeenCalledWith("reserve_credits",{p_job:"job-a",p_quantity:12});
+  });
+  it("gives a photo set six different looks of the product's own type",async()=>{
+    fakes.product={id:"p",name:"Bag",category:"fashion",attributes:{shootProfile:{type:"bags",construction:"not_applicable",referenceForm:"object"}}};
+    await createJob(ctx,{productId:"p",mode:"preserve",style:"neutral_studio",pack:"variety",recipeVersion:RECIPE_VERSION,quotedCredits:12,output:"square",count:6,idempotencyKey:"variety-pack-1"});
+    const ids=fakes.items.mock.calls[0][0].map((i:{params:{lookId:string}})=>i.params.lookId);
+    expect(new Set(ids).size).toBe(6);
+    expect(ids.some((id:string)=>id.startsWith("bags-"))).toBe(true);
+  });
+  it("refuses a pack that isn't six photos or has a stale price",async()=>{
+    fakes.product={id:"p",name:"Bag",category:"fashion",attributes:{shootProfile:{type:"bags",construction:"not_applicable",referenceForm:"object"}}};
+    await expect(createJob(ctx,{productId:"p",mode:"preserve",style:"pure_white",pack:"studio",recipeVersion:RECIPE_VERSION,quotedCredits:8,output:"square",count:4,idempotencyKey:"bad-pack-1"})).rejects.toMatchObject({status:400});
+    await expect(createJob(ctx,{productId:"p",mode:"preserve",style:"pure_white",pack:"studio",recipeVersion:RECIPE_VERSION,quotedCredits:6,output:"square",count:6,idempotencyKey:"bad-pack-2"})).rejects.toMatchObject({status:409});
+    expect(fakes.job).not.toHaveBeenCalled();
+  });
   it("rejects unrecognised photographic styles at the API schema",()=>{
     expect(createJobSchema.safeParse({productId:"11111111-1111-4111-8111-111111111111",style:"neutral_studio",shootStyle:"unknown",output:"square",count:1,idempotencyKey:"test-key-invalid"}).success).toBe(false);
   });

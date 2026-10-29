@@ -1,6 +1,6 @@
 import type { CategoryId } from './categories';
 import type { ShootStyleId } from './shoots';
-export const COLLECTION_IDS = ["saree","suit","unstitched","lehenga","mens-modern","womens-modern","mens-ethnic","activewear","footwear","bags","skincare","makeup","fragrance","packaged-food","prepared-food","beverage","rings","bracelets","earrings","necklace","bottle","cookware","decor","electronics"] as const;
+export const COLLECTION_IDS = ["saree","suit","unstitched","lehenga","mens-modern","womens-modern","mens-ethnic","activewear","footwear","bags","skincare","makeup","fragrance","packaged-food","prepared-food","beverage","rings","bracelets","earrings","necklace","bottle","cookware","decor","electronics","general"] as const;
 export type CollectionId = typeof COLLECTION_IDS[number];
 export const RECIPE_VERSION = '2026-10-27.category-1';
 export interface ShootProfile { type: CollectionId; construction: 'stitched'|'unstitched'|'semi_stitched'|'not_applicable'|'unknown'; referenceForm: 'worn'|'flat'|'object'|'unknown'; contentsConfirmed?: boolean }
@@ -2383,13 +2383,29 @@ export const PRODUCT_COLLECTIONS: ProductCollection[] = [
       }
     ]
   }
+  ,{
+    "id": "general",
+    "category": "other",
+    "label": "Any product",
+    "preserve": "Exact shape, proportions, colours, materials, printed text, logos, parts and item count exactly as photographed",
+    "references": "A clear front photo. Add the back, sides and a close-up for anything that looks different from each angle.",
+    "looks": [
+      { "id": "general-1", "collection": "general", "title": "Clean studio", "subtitle": "Soft light, simple backdrop", "brief": "The product alone on a seamless light-grey studio backdrop with soft, even key light and a gentle contact shadow. Calm, premium catalogue photograph.", "condition": "", "human": "none", "framing": "full", "environment": "studio", "scene": "neutral_studio", "tile": 0, "atlas": "", "requiresDetail": false, "requiresWorn": false, "requiresMultiple": false, "requiresContents": false },
+      { "id": "general-2", "collection": "general", "title": "Styled surface", "subtitle": "On stone, wood or linen", "brief": "The product standing on a natural material surface such as honed stone, light wood or linen, with one or two simple neutral props that suit it and soft window light. Editorial still life, the product stays the clear hero.", "condition": "", "human": "none", "framing": "full", "environment": "indoor", "scene": "natural_sunlight", "tile": 1, "atlas": "", "requiresDetail": false, "requiresWorn": false, "requiresMultiple": false, "requiresContents": false },
+      { "id": "general-3", "collection": "general", "title": "In hand", "subtitle": "Shows the real size", "brief": "An anonymous adult hand holds the product naturally so its true size is obvious, against a softly blurred bright interior. Natural grip with believable weight; fingers never cover the label or key details.", "condition": "", "human": "hands", "framing": "full", "environment": "indoor", "scene": "natural_sunlight", "tile": 2, "atlas": "", "requiresDetail": false, "requiresWorn": false, "requiresMultiple": false, "requiresContents": false },
+      { "id": "general-4", "collection": "general", "title": "Everyday setting", "subtitle": "Where it naturally belongs", "brief": "The product placed in a tidy, believable everyday setting that suits what it plainly is, such as a desk, shelf, counter or table, with warm natural light. Do not show it being used in a way the photos do not prove.", "condition": "", "human": "none", "framing": "full", "environment": "indoor", "scene": "natural_sunlight", "tile": 3, "atlas": "", "requiresDetail": false, "requiresWorn": false, "requiresMultiple": false, "requiresContents": false },
+      { "id": "general-5", "collection": "general", "title": "Outdoor light", "subtitle": "Fresh, natural daylight", "brief": "The product outdoors on a simple natural surface in soft daylight, with an open-air background gently blurred. Bright, fresh and real.", "condition": "", "human": "none", "framing": "full", "environment": "outdoor", "scene": "outdoor_location", "tile": 4, "atlas": "", "requiresDetail": false, "requiresWorn": false, "requiresMultiple": false, "requiresContents": false },
+      { "id": "general-6", "collection": "general", "title": "Detail close-up", "subtitle": "Texture and finish", "brief": "A tight close-up of a real, visible detail of the product such as its texture, finish, closure or print, with shallow depth of field and the rest of the product recognisable.", "condition": "", "human": "none", "framing": "close", "environment": "studio", "scene": "neutral_studio", "tile": 5, "atlas": "", "requiresDetail": true, "requiresWorn": false, "requiresMultiple": false, "requiresContents": false }
+    ]
+  }
 ];
 export function collectionById(id: string) { return PRODUCT_COLLECTIONS.find(c=>c.id===id); }
-export function categoryLook(id: string) { return PRODUCT_COLLECTIONS.flatMap(c=>c.looks).find(l=>l.id===id); }
+export function categoryLook(id: string): CategoryLook | undefined { return PRODUCT_COLLECTIONS.flatMap(c=>c.looks).find(l=>l.id===id) ?? STUDIO_LOOKS.find(l=>l.id===id); }
 export function styleForLook(look: CategoryLook): ShootStyleId { return look.environment==='outdoor'?'outdoor':look.human!=='none'?'model':look.framing==='close'?'closeup':'indoor'; }
 export function lookEligibility(look: CategoryLook, profile: ShootProfile, refs: {view_type:string}[]): string | null {
  const c=collectionById(profile.type);
- if(!c || c.id!==look.collection) return 'Choose a direction for this product type.';
+ const universal=look.collection==='studio'||look.collection==='general';
+ if(!c || !universal && c.id!==look.collection) return 'Choose a direction for this product type.';
  if(!refs.length) return 'Add a clear product photo.';
  if(look.requiresWorn && (profile.referenceForm!=='worn' || profile.type!=='saree' && profile.construction!=='stitched')) return 'This pose needs a photo of the finished garment being worn. Choose a fabric or detail direction instead.';
  if(look.requiresMultiple && refs.length<2) return 'Add another angle before choosing this direction.';
@@ -2399,7 +2415,66 @@ export function lookEligibility(look: CategoryLook, profile: ShootProfile, refs:
 }
 export function inferCollection(category: CategoryId, text: string): CollectionId | null {
  const t=text.toLowerCase();
- const rules:[CollectionId,RegExp][]=[['saree',/saree|sari\b/],['unstitched',/unstitched|dress material/],['lehenga',/lehenga|choli/],['mens-ethnic',/sherwani|kurta.*jacket|mens?.*kurta/],['suit',/salwar|anarkali|kurta|dupatta/],['activewear',/activewear|sportswear|legging|training/],['footwear',/shoe|sneaker|sandal|footwear|boot/],['bags',/handbag|wallet|backpack|tote|bag\b/],['mens-modern',/mens?wear|men.s|shirt|trouser/],['womens-modern',/womens?wear|women.s|dress|blouse|skirt|top\b/],['fragrance',/perfume|fragrance/],['makeup',/lipstick|mascara|makeup|foundation|eyeshadow/],['earrings',/earring/],['necklace',/necklace|pendant|chain/],['bracelets',/bracelet|bangle/],['rings',/ring/],['beverage',/juice|beverage|soda|drink|tea bottle/],['prepared-food',/cake|pastry|dish|bread|sweet|cookie/],['bottle',/bottle|mug|drinkware|cup\b/],['cookware',/cookware|pan\b|container|utensil|kitchen tool/]];
+ const rules:[CollectionId,RegExp][]=[['saree',/saree|sari\b/],['unstitched',/unstitched|dress material/],['lehenga',/lehenga|choli/],['mens-ethnic',/sherwani|kurta.*jacket|mens?.*kurta/],['suit',/salwar|anarkali|kurta|dupatta/],['activewear',/activewear|sportswear|legging|training/],['footwear',/shoe|sneaker|sandal|footwear|boot/],['bags',/handbag|wallet|backpack|tote|bag\b/],['mens-modern',/mens?wear|men.s|shirt|trouser/],['womens-modern',/womens?wear|women.s|dress|blouse|skirt|top\b/],['fragrance',/perfume|fragrance/],['makeup',/lipstick|mascara|makeup|foundation|eyeshadow|nail (polish|lacquer|paint)|kajal|eyeliner|blush|highlighter|compact powder/],['skincare',/serum|cream|lotion|moisturi[sz]er|face ?wash|cleanser|toner|sunscreen|shampoo|conditioner|body wash|soap|face oil|hair oil|skincare|skin care/],['earrings',/earring/],['necklace',/necklace|pendant|chain/],['bracelets',/bracelet|bangle/],['rings',/ring/],['beverage',/juice|beverage|soda|drink|tea bottle/],['prepared-food',/cake|pastry|dish|bread|sweet|cookie/],['bottle',/bottle|mug|drinkware|cup\b/],['cookware',/cookware|pan\b|container|utensil|kitchen tool/]];
  for(const [id,re] of rules) if(re.test(t)&&collectionById(id)?.category===category)return id;
- return ({beauty:'skincare',food:'packaged-food',electronics:'electronics',home_kitchen:'decor'} as Partial<Record<CategoryId,CollectionId>>)[category]??null;
+ // No confident match: use looks that suit any product, never another product type's looks.
+ return category==='electronics'?'electronics':'general';
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Photo packs: six photos in one shoot, the product kept exactly the same. */
+
+const studio = (id: string, title: string, subtitle: string, brief: string, extra: Partial<CategoryLook> = {}): CategoryLook => ({
+  id: "studio-" + id, collection: "studio", title, subtitle, condition: "", human: "none", framing: "full", environment: "studio", scene: "pure_white", tile: 0, atlas: "",
+  requiresDetail: false, requiresWorn: false, requiresMultiple: false, requiresContents: false,
+  brief: "E-commerce studio photograph on a seamless pure white background (#FFFFFF) in a white studio, the product alone as the hero, no props, no people, no text. " + brief + " Crisp focus across the whole product, true-to-life colour, clean soft contact shadow.",
+  ...extra,
+});
+
+/** White-studio angles and lighting used by the studio pack. Every one works from a single front photo. */
+export const STUDIO_LOOKS: CategoryLook[] = [
+  studio("front", "Front hero", "Straight on, centred", "Straight-on front view at product height, centred with even margins, large soft key light from the front left and a fill from the right."),
+  studio("three-quarter", "Three-quarter", "Front and one side", "Product turned about thirty degrees so the front and one side are both visible, shot from slightly above product height, soft wrap-around light."),
+  studio("high", "High angle", "Looking down at 45°", "Camera about forty-five degrees above the product looking down, so the top and front read together, bright even light."),
+  studio("low", "Low hero", "Bold and confident", "Camera just below product height looking slightly up, making the product feel bold and premium, soft top light and a crisp edge highlight."),
+  studio("rim", "Rim light", "Defined edges", "Straight-on view with a strong rim light from behind on both sides tracing the silhouette, softer front fill, still on pure white."),
+  studio("shadow", "Soft shadow", "Gentle window shadow", "Front view with a soft, long natural shadow falling to one side from a low window-like light, airy and minimal, background stays white."),
+  studio("back", "Back view", "From behind", "Straight-on back view showing the back exactly as photographed.", { requiresMultiple: true }),
+  studio("side", "Side profile", "Shape and depth", "Clean side profile at ninety degrees showing depth and silhouette exactly as photographed.", { requiresMultiple: true }),
+  studio("detail", "Detail", "Close on the finish", "Tight close-up of a real visible detail such as the label, texture, closure or print, rest of the product softly recognisable.", { framing: "close", requiresDetail: true }),
+];
+
+export type PackId = "studio" | "variety";
+export const PACK_SIZE = 6;
+export const PACKS: Record<PackId, { title: string; short: string; description: string }> = {
+  studio: { title: "Studio pack", short: "6 white background photos", description: "Your product alone on pure white, from 6 angles and lights. Made for Amazon, Flipkart and your store." },
+  variety: { title: "Photo set", short: "6 different looks", description: "Six different scenes and poses picked for your product. A full set for your listing and social posts." },
+};
+
+/**
+ * The six looks for a pack. Uses only looks the customer's photos can support:
+ * back and side views need those photos, close-ups need a close-up photo.
+ */
+export function packLooks(pack: PackId, profile: ShootProfile, refs: { view_type: string }[]): CategoryLook[] {
+  const ok = (l: CategoryLook) => !lookEligibility(l, profile, refs);
+  const has = (v: string) => refs.some((r) => r.view_type === v);
+  if (pack === "studio") {
+    const extras = [has("back") && STUDIO_LOOKS.find((l) => l.id === "studio-back"), refs.length > 1 && STUDIO_LOOKS.find((l) => l.id === "studio-side"), has("detail") && STUDIO_LOOKS.find((l) => l.id === "studio-detail")].filter(Boolean) as CategoryLook[];
+    const core = STUDIO_LOOKS.filter((l) => !["studio-back", "studio-side", "studio-detail"].includes(l.id));
+    // Keep front and three-quarter, then real extra angles, then lighting variations.
+    return [...core.slice(0, 2), ...extras, ...core.slice(2)].slice(0, PACK_SIZE);
+  }
+  const own = (collectionById(profile.type)?.looks ?? []).filter(ok);
+  const general = (PRODUCT_COLLECTIONS.find((c) => c.id === "general")?.looks ?? []).filter(ok);
+  const seen = new Set<string>();
+  const out: CategoryLook[] = [];
+  const add = (l?: CategoryLook) => { if (l && !seen.has(l.title.toLowerCase()) && out.length < PACK_SIZE) { seen.add(l.title.toLowerCase()); out.push(l); } };
+  const kind = (l: CategoryLook) => l.environment + l.human + l.framing;
+  const pool = [...own, ...general, ...STUDIO_LOOKS.filter(ok)];
+  // First pass: one of each kind of shot (studio, surface, in hand, outdoor, model, close-up), so the six really differ.
+  const humanTaken = (l: CategoryLook) => l.collection === "general" && l.human !== "none" && out.some((o) => o.human !== "none");
+  for (const l of pool) if (!out.some((o) => kind(o) === kind(l)) && !humanTaken(l)) add(l);
+  for (const l of pool) if (!humanTaken(l)) add(l);
+  return out;
 }

@@ -22,14 +22,23 @@ const FIXTURE = {
 };
 
 /** UI preview harness for local screenshots. Disabled unless PREVIEW_UI=1. */
-export default async function DevStudio({ searchParams }: { searchParams: Promise<{ step?: string }> }) {
+const UNKNOWN = {
+  ...FIXTURE,
+  product: { id: "p2", name: "Plastic cap with carry handle", category: "other" as const },
+  analysis: { ...FIXTURE.analysis, name: "Plastic cap with carry handle", brand: null, category: "other" as const, description: "Two ribbed plastic caps with a flat carry handle.", materials: ["Plastic"], visible_text: [], photo_issues: [] },
+  hero: { ...FIXTURE.hero, originalUrl: "/showcase/bottle-before.webp" },
+  references: [{ id: "r1", view_type: "front", url: "/showcase/bottle-before.webp" }],
+  suggestions: FIXTURE.suggestions.slice(0, 4),
+};
+
+export default async function DevStudio({ searchParams }: { searchParams: Promise<{ step?: string; fx?: string; mode?: string }> }) {
   if (process.env.PREVIEW_UI !== "1") notFound();
-  const { step } = await searchParams;
+  const { step, fx, mode } = await searchParams;
   const s = (["product", "looks", "review"].includes(step ?? "") ? step : undefined) as Step | undefined;
   return (
     <AppShell locale="en" orgName="Demo workspace" orgs={[]} orgId="x" credits={12} email="demo@example.com" isPlatform={false}>
       <Studio locale="en" balance={12} isTrial={false} creativeEnabled maxImages={8} brandKits={[]} existing={null}
-        fixture={step ? FIXTURE : undefined} previewStep={s} previewLook={s && s !== "product" ? "beverage-2" : undefined}
+        fixture={step ? (fx === "unknown" ? UNKNOWN : FIXTURE) : undefined} previewStep={s} previewMode={mode === "one" || mode === "studio" || mode === "variety" ? mode : undefined} previewLook={s && s !== "product" && mode === "one" ? (fx === "unknown" ? "general-2" : "beverage-2") : undefined}
         recentProducts={[{ id: "p1", name: "Body lotion", category: "beauty", coverUrl: "/showcase/skincare-before.webp" }, { id: "p2", name: "Leather tote", category: "fashion", coverUrl: "/showcase/bags-before.webp" }]}
         recentJobs={[]} />
     </AppShell>
