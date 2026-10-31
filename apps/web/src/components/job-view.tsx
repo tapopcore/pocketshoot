@@ -114,7 +114,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
 
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 1000));
   const styles = job.settings?.edit ? [] : job.settings?.pack ? [job.settings.pack === "studio" ? "Studio pack" : "Photo set"] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
-  const allChecked = active.length === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
+  const allChecked = active.length === 0 && failed === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
 
   return (
     <div className="jobv">
@@ -127,6 +127,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
           <div className="pills" style={{ marginTop: "var(--s3)" }}>
             
             {allChecked && <span className="pill good sm"><ShieldCheck size={14} />{delivered.length === 1 ? "Photo checked" : delivered.length === 2 ? "Both photos checked" : `All ${delivered.length} photos checked`}</span>}
+            {active.length === 0 && failed > 0 && <span className="pill sm" role="status">{delivered.length} of {items.length} ready · {failed} need attention</span>}
             {job.settings?.edit && <span className="pill sm">Edit: {job.settings.edit.instruction.slice(0, 40)}</span>}
             {styles.map((s) => <span key={s} className="pill sm">{s}</span>)}
             <span className="pill sm">{output?.name} {output?.ratio}</span>
@@ -165,7 +166,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
                   <div className="fail">
                     <span className="ico"><AlertTriangle size={20} /></span>
                     <b>This photo failed</b>
-                    <span className="why">{it.last_error ?? "Nothing was charged."}</span>
+                    <span className="why">{it.last_error?.split(/(?<=\.)\s/)[0] ?? "Nothing was charged."}</span>
                     <button type="button" className="btn btn-lime btn-sm" disabled={!!retrying} onClick={() => retry([it])}>{retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={16} />}Try again</button>
                     <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
                   </div>

@@ -34,3 +34,18 @@ it("does not forward a contradictory all-items rule to a detail-crop judge",()=>
  expect(p).not.toContain("Show every item from reference 1");expect(p).toContain("Full inventory and full-product framing are explicitly NOT required");
  expect(p).toContain("Included matching earrings are never forbidden");
 });
+
+import { jsonCall } from "@/lib/llm";
+import { reviewGeneratedImage } from "@/lib/generation-review";
+it("resolves a prop-only inventory disagreement without another image call",async()=>{
+ vi.clearAllMocks();const bad={...clean,extra_or_missing_items:true,failure_evidence:[{check:"inventory",evidence:"A coaster is extra."}]};
+ vi.mocked(jsonCall).mockResolvedValueOnce({data:bad} as never).mockResolvedValueOnce({data:bad} as never).mockResolvedValueOnce({data:{same_merchandise_components:true,missing_merchandise:[],invented_merchandise:[],marking_region:"unchanged",evidence:"The same bottle is present; coaster is a styling prop."}} as never);
+ const r=await reviewGeneratedImage({refs:[Buffer.from("reference")],image:Buffer.from("result"),models:["test"],context:{}});
+ expect(aggregate(r.checks)).toBe("pass");expect(r.verdict.extra_or_missing_items).toBe(false);
+});
+it("does not call a lower logo erased when its exact region is outside a detail crop",async()=>{
+ vi.clearAllMocks();const bad={...clean,text_changed:true,logo_changed:true,design_changed:true,failure_evidence:[{check:"marking",evidence:"The lower logo is missing."}]};
+ vi.mocked(jsonCall).mockResolvedValueOnce({data:bad} as never).mockResolvedValueOnce({data:bad} as never).mockResolvedValueOnce({data:{same_merchandise_components:true,missing_merchandise:[],invented_merchandise:[],marking_region:"outside_result_view",evidence:"The crop shows the top only; the lower imprint region is outside the frame."}} as never);
+ const r=await reviewGeneratedImage({refs:[Buffer.from("reference")],image:Buffer.from("result"),models:["test"],context:{recipe:categoryLook("studio-detail")}});
+ expect(aggregate(r.checks)).toBe("pass");expect(r.verdict.logo_changed).toBe(false);
+});

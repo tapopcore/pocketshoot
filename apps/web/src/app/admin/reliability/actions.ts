@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePlatform } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { audit } from "@/lib/observe";
+import { REVIEW_VERSION } from "@/lib/generation-review";
 import { recheckSavedItem } from "@/lib/generation-recovery";
 export async function recheckJob(form: FormData) {
   const ctx = await requirePlatform("platform_admin");
@@ -18,6 +19,6 @@ export async function recheckJob(form: FormData) {
       } catch (e) { return { itemId: it.id, slot: it.idx + 1, decision: "unavailable", error: (e as Error).message.slice(0,160) }; }
     })));
   }
-  await audit(ctx, "generation.recheck", { type: "job", id: jobId }, { version: "evidence-2", noImageGeneration: true, noCreditChange: true, results });
+  await audit(ctx, "generation.recheck", { type: "job", id: jobId }, { version: REVIEW_VERSION, noImageGeneration: true, noCreditChange: true, results });
   redirect(`/admin/reliability?job=${jobId}`);
 }
