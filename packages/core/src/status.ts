@@ -24,7 +24,7 @@ export function rollupJobStatus(items: { status: ItemStatus; decision?: "pass" |
   }
   const delivered = active.filter((i) => i.status === "delivered");
   if (delivered.length === 0) return "failed";
-  return delivered.some((i) => i.decision === "review") ? "review_needed" : "completed";
+  return active.some((i) => i.status === "failed") || delivered.some((i) => i.decision === "review") ? "review_needed" : "completed";
 }
 
 export const TERMINAL_ITEM: ItemStatus[] = ["delivered", "failed", "cancelled"];

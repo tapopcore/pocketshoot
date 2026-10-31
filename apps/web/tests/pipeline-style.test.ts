@@ -45,7 +45,7 @@ describe("selected style production pipeline", () => {
     expect(f.assets.mock.calls[0][0]).toMatchObject({quality_status:"pass"});
   });
   it("blocks an invented third product unit and releases credit without regenerating",async()=>{
-    f.studio=true;f.judge.mockResolvedValue({data:{...verdict,environment:"studio",reference_product_count:2,output_product_count:3,studio_view_match:true}});
+    f.studio=true;f.judge.mockResolvedValue({data:{...verdict,environment:"studio",reference_product_count:2,output_product_count:3,extra_or_missing_items:true,studio_view_match:true}});
     await processItem({...item,max_attempts:1});
     expect(f.edit).toHaveBeenCalledTimes(1);expect(f.rpc).toHaveBeenCalledWith("settle_item",{p_item:"item",p_capture:false});
     expect(f.checks.mock.calls[0][0]).toContainEqual(expect.objectContaining({check_type:"product_inventory",decision:"fail"}));
@@ -106,4 +106,22 @@ describe("selected style production pipeline", () => {
     expect(f.rpc).toHaveBeenCalledWith("settle_item",{p_item:"item",p_capture:false});
   });
 
+});
+
+it("confirms contradictory set counts on the same pixels without generating another image", async()=>{
+ f.studio=true;f.judge.mockResolvedValue({data:{...verdict,environment:"studio",reference_product_count:2,output_product_count:1,studio_view_match:true}});
+ await processItem({...item,max_attempts:1});
+ expect(f.judge).toHaveBeenCalledTimes(2);expect(f.edit).toHaveBeenCalledTimes(1);
+ expect(f.rpc).toHaveBeenCalledWith("settle_item",{p_item:"item",p_capture:true});
+});
+it("an independent confirmation can overturn source-hand confusion",async()=>{
+ f.judge.mockResolvedValueOnce({data:{...verdict,human_visible:true,natural_anatomy:false,brief_followed:false}}).mockResolvedValueOnce({data:verdict});
+ await processItem(item);expect(f.judge).toHaveBeenCalledTimes(2);expect(f.edit).toHaveBeenCalledTimes(1);
+ expect(f.rpc).toHaveBeenCalledWith("settle_item",{p_item:"item",p_capture:true});
+ expect(f.judge.mock.calls[0][0].imageLabels.at(-1)).toContain("GENERATED RESULT");
+});
+it("concurrent pack slots share one coordinated planning request",async()=>{
+ f.rules=true;f.direct.mockImplementation(async()=>{await new Promise(r=>setTimeout(r,20));return {shots:[shot],source:"rules"};});
+ await Promise.all([processItem({...item,id:"one"}),processItem({...item,id:"two",idx:1})]);
+ expect(f.direct).toHaveBeenCalledTimes(1);expect(f.edit).not.toHaveBeenCalled();
 });
