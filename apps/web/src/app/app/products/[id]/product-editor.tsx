@@ -1,9 +1,11 @@
 "use client";
+import {ReferenceViewer} from "@/components/reference-viewer";
+import {shrinkPhoto} from "@/lib/photo-client";
 import { FitImg } from "@/components/fit-img";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { ImagePlus, Trash } from "lucide-react";
+import { Camera, ImagePlus, Trash } from "lucide-react";
 import { CATEGORY_LIST, LOCKS, type LockId } from "@packshot/core";
 import { api, toast, uploadFiles } from "@/lib/client";
 import { Button, Field, Input, Select, Spinner, Textarea } from "@/components/ui";
@@ -15,7 +17,9 @@ export function ProductEditor({ product, photos }: {
   const router = useRouter();
   const [form, setForm] = useState({ name: product.name, category: product.category, sku: product.sku ?? "", locks: product.locks ?? [], mustNotChange: product.mustNotChange ?? "" });
   const [busy, setBusy] = useState<string | null>(null);
-  const file = useRef<HTMLInputElement>(null);
+  const file = useRef<HTMLInputElement>(null), camera=useRef<HTMLInputElement>(null);
+  const [photoOpen,setPhotoOpen]=useState<number|null>(null);
+  const viewLabels:Record<string,string>={front:"Front",angle:"Angled",side:"Side",back:"Back",detail:"Close-up",other:"Other"};
   const [view, setView] = useState("angle");
 
   async function save(extra: Record<string, unknown> = {}) {
@@ -29,10 +33,10 @@ export function ProductEditor({ product, photos }: {
   }
 
   async function addPhotos(files: FileList | null) {
-    if (!files?.length) return;
+    if (!files?.length || busy || photos.length>=6) return;
     setBusy("upload");
     try {
-      const keys = await uploadFiles(Array.from(files).slice(0, Math.max(0, 6 - photos.length)));
+      const keys = await uploadFiles(await Promise.all(Array.from(files).slice(0, Math.max(0, 6 - photos.length)).map(shrinkPhoto)));
       await api(`/api/products/${product.id}/photos`, { method: "POST", json: { uploads: keys.map((k) => ({ key: k, viewType: view })) } });
       router.refresh();
     } catch (e) { toast((e as Error).message, true); }
@@ -42,18 +46,18 @@ export function ProductEditor({ product, photos }: {
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr]">
       <div>
-        <div className="pe-head"><h2 className="h5">Product photos <span className="sm muted" style={{ fontWeight: 400 }}>· {photos.length} of 6</span></h2>{photos.length < 6 && <div className="pills" role="group" aria-label="The next photo shows"><span className="xs muted nowrap">Next photo:</span>{([["angle", "Angle"], ["back", "Back"], ["detail", "Close-up"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx("pill sm", view === v && "on")} onClick={() => setView(v)}>{l}</button>)}</div>}</div><p className="xs muted" style={{ marginBottom: 12 }}>We use every photo, so more angles keep the back, sides and small details true.</p>
+        <div className="pe-head"><h2 className="h5">Product photos <span className="sm muted" style={{ fontWeight: 400 }}>· {photos.length} of 6</span></h2>{photos.length < 6 && <div className="pills" role="group" aria-label="The next photo shows"><span className="xs muted nowrap">Next photo:</span>{([["front", "Front"],["angle", "Angled"],["side", "Side"], ["back", "Back"], ["detail", "Close-up"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx("pill sm", view === v && "on")} onClick={() => setView(v)}>{l}</button>)}</div>}</div><p className="xs muted" style={{ marginBottom: 12 }}>Add clear views to preserve the back, sides and small details. Label each photo below; we choose relevant references for each shot.</p>
         <div className="grid grid-cols-3 gap-3">
-          {photos.map((p) => (
+          {photos.map((p,i) => (
             <div key={p.id} className="group relative">
-              <div className="ph r11" style={{ borderRadius: 12 }}>
+              <button type="button" aria-label={"Open product photo "+(i+1)} onClick={()=>setPhotoOpen(i)} className="ph r11" style={{ borderRadius: 12 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {p.url && <FitImg src={p.url} alt={`${p.view} view`} />}
-              </div>
-              <div className="xs muted" style={{ marginTop: 6, fontWeight: 600 }}>{({ front: "Front", angle: "Angle", back: "Back", detail: "Close-up", other: "Other" } as Record<string, string>)[p.view] ?? p.view}</div>
+              </button>
+              <select aria-label={"View shown in product photo "+(i+1)} className="input" style={{marginTop:6,minHeight:36,fontSize:13}} value={p.view} disabled={!!busy} onChange={async e=>{setBusy("view");try{await api("/api/products/"+product.id+"/photos",{method:"PATCH",json:{assetId:p.id,viewType:e.target.value}});router.refresh();}catch(err){toast((err as Error).message,true);}finally{setBusy(null);}}}>{Object.entries(viewLabels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select>
               {photos.length > 1 && (
                 <button aria-label="Delete photo" onClick={async () => { await api(`/api/products/${product.id}/photos?assetId=${p.id}`, { method: "DELETE" }).catch((e) => toast(e.message, true)); router.refresh(); }}
-                  className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-paper/90 opacity-0 transition-opacity group-hover:opacity-100"><Trash size={13} /></button>
+                  className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full bg-paper/90"><Trash size={13} /></button>
               )}
             </div>
           ))}
@@ -63,7 +67,10 @@ export function ProductEditor({ product, photos }: {
             </button>
           )}
         </div>
-        <input ref={file} type="file" hidden multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => addPhotos(e.target.files)} />
+        <input ref={file} type="file" hidden multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => {void addPhotos(e.target.files);e.target.value="";}} />
+        <input ref={camera} type="file" hidden accept="image/*" capture="environment" onChange={e=>{void addPhotos(e.target.files);e.target.value="";}}/>
+        {photos.length<6&&<div className="row" style={{gap:8,marginTop:12,flexWrap:"wrap"}}><Button disabled={!!busy} onClick={()=>camera.current?.click()}><Camera size={17}/>Take {viewLabels[view].toLowerCase()} photo</Button><Button disabled={!!busy} onClick={()=>file.current?.click()}><ImagePlus size={17}/>Upload photo</Button></div>}
+        {photoOpen!==null&&<ReferenceViewer photos={photos.filter(p=>!!p.url).map(p=>({url:p.url!,label:viewLabels[p.view]??"Photo"}))} index={photoOpen} onIndex={setPhotoOpen} onClose={()=>setPhotoOpen(null)}/>} 
       </div>
       <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">

@@ -234,7 +234,9 @@ export async function retryItem(ctx: AuthContext, jobId: string, itemId: string,
   const job = (item as unknown as { generation_jobs: ParentJob & { product_id: string; parent_asset_id: string | null; settings: ParentJob["settings"] & { suggestions?: string[]; edit?: { assetId: string; instruction: string } } } }).generation_jobs;
   // Reuse a good stored result before buying another image. Old false rejections cost no customer credit.
   const { tryRecoverFailedItem } = await import("./generation-recovery");
-  const recovered = await tryRecoverFailedItem(itemId, ctx.orgId);
+  let recovered;
+  try{recovered=await tryRecoverFailedItem(itemId, ctx.orgId);}
+  catch(e){if(/budget|spend|cost scope/i.test((e as Error).message))throw new ApiError(409,"This photo has reached its generation budget. No additional paid request was made.","cost_budget");throw e;}
   if (recovered) {
     await refreshJobStatus(jobId);
     await audit(ctx, "job.recovered", { type: "job", id: jobId }, { item: itemId, noImageRequest: true, noCreditCharge: true });

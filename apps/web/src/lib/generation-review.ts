@@ -5,6 +5,8 @@ export const REVIEW_VERSION = "2026-10-31.evidence-4";
 export interface ReviewContext {
   recipe?: (Omit<Partial<CategoryLook>, "framing"> & { framing?: ShotDirection["framing"] }) | null; shot?: ShotDirection | null; selectedStyle?: ShootStyleId;
   analysis?: ProductAnalysis | null;
+  customerNotes?:string|null;
+  theme?:string;
   /** Seller-confirmed only, never the analyser's estimate. */
   confirmedSubjectCount?: number | null;
 }
@@ -38,7 +40,7 @@ ${ctx.confirmedSubjectCount ? `Seller confirmed ${ctx.confirmedSubjectCount} uni
 CROP: ${crop ? "INTENTIONAL DETAIL CROP. Parts/units outside the crop are expected. They MUST NOT set missing items, same_product=false, design_changed, framing_match=false or brief_followed=false. Compare only the visible resolved detail to its corresponding reference region. Invented parts INSIDE the crop still fail." : "Full product: preserve all supplied components. Natural overlap/perspective is allowed; genuinely absent pieces fail."}
 MARKINGS: compare only the SAME exposed physical product surface. Text on source hands, rooms, backdrop or display stands is NOT product text. An unprinted reverse/side, occluded or out-of-crop mark is not removed text. Visible misspelling/replacement/erasure on an exposed marked surface fails: name the surface and exact change. Unreadable source text is not a mandatory inscription.
 DESIGN: preserve visible motifs, construction, colours, parts, material and proportions. Perspective, plausible folds, highlights and intentional crops are not redesigns. No invented variants/components.
-CUSTOMER CONTRACT, above optional shot styling: ${JSON.stringify({ title: ctx.recipe?.title, brief: crop ? "Detail crop of an actually visible feature. Full inventory and full-product framing are explicitly NOT required in this crop." : ctx.recipe?.brief?.split(" Product details")[0], environment: ctx.recipe?.environment, human: ctx.recipe?.human, framing: ctx.shot?.framing ?? ctx.recipe?.framing, selectedStyle: ctx.selectedStyle })}
+CUSTOMER CONTRACT, above optional shot styling: ${JSON.stringify({ title: ctx.recipe?.title??ctx.theme, customerNotes:ctx.customerNotes, brief: crop ? "Detail crop of an actually visible feature. Full inventory and full-product framing are explicitly NOT required in this crop." : "Honor the selected shot purpose and required human action. Example surfaces/props in a preset are inspiration, not mandatory inventory.", environment: ctx.recipe?.environment, human: ctx.recipe?.human, framing: ctx.shot?.framing ?? ctx.recipe?.framing, selectedStyle: ctx.selectedStyle })}
 ${!ctx.recipe && ctx.selectedStyle ? styleRequirement(ctx.selectedStyle) : ""}
 HUMANS: judge RESULT only. No person means human_visible=false, natural_anatomy=true. A removed SOURCE hand is not defective anatomy. Model looks require an adult wearing/using the exact product. Product-only means no result hands. A neutral jewellery display support is allowed, not a product/person.
 ENVIRONMENT: indoor and studio both satisfy an indoor look. Outdoor needs open air, not a window/indoor plant. Studio requires seamless white when specified.

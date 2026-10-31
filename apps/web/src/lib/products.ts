@@ -11,7 +11,7 @@ import { rateLimit, track } from "./observe";
 import { productSchema } from "./jobs";
 import { getProduct as getShopifyProduct } from "./shopify/admin";
 
-export const VIEW_TYPES = ["front", "angle", "back", "detail", "other"] as const;
+export const VIEW_TYPES = ["front", "angle", "side", "back", "detail", "other"] as const;
 /** Photos per product. Every one is studied and sent to the image engine. */
 export const MAX_PRODUCT_PHOTOS = 6;
 
@@ -195,4 +195,13 @@ export async function importShopifyProducts(ctx: AuthContext, productIds: string
 
 export function categoryOrOther(v: string): CategoryId {
   return isCategoryId(v) ? v : "other";
+}
+
+/** Scope both identifiers to this workspace; labels never move photos between products. */
+export async function updatePhotoView(ctx: AuthContext, productId: string, assetId: string, viewType: typeof VIEW_TYPES[number]) {
+ assertRole(ctx,"editor"); const db=admin();
+ const {data,error}=await db.from("product_assets").update({view_type:viewType}).eq("id",assetId).eq("product_id",productId).eq("organization_id",ctx.orgId).select("id");
+ if(error)throw error; if(!data?.length)throw new ApiError(404,"Photo not found");
+ const {data:p}=await db.from("products").select("attributes").eq("id",productId).eq("organization_id",ctx.orgId).single();
+ if(p){ const attrs={...(p.attributes??{})}; delete attrs.analysis; await db.from("products").update({attributes:attrs}).eq("id",productId).eq("organization_id",ctx.orgId); }
 }

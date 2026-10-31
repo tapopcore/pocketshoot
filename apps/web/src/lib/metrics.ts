@@ -12,7 +12,7 @@ export async function kpis(days = 30) {
     const { count } = (await f(db.from(table).select("id", { count: "exact", head: true }))) as { count: number | null };
     return count ?? 0;
   };
-  const [signups, events, orders, attempts, items, refunds, wallets, assets] = await Promise.all([
+  const [signups, events, orders, attempts, items, refunds, wallets, assets, textSpend] = await Promise.all([
     count("profiles", (q) => q.gte("created_at", since)),
     db.from("analytics_events").select("name, organization_id, created_at").gte("created_at", since).in("name", ["generation_completed", "purchase_completed", "repeat_purchase", "image_downloaded", "trial_issued"]).limit(50000),
     db.from("orders").select("organization_id, total_minor, taxable_minor, currency, credits, channel, created_at").eq("status", "paid").gte("paid_at", since),
@@ -21,6 +21,7 @@ export async function kpis(days = 30) {
     count("refund_requests", (q) => q.gte("created_at", since)),
     db.from("wallet_balances").select("paid_available, promo_available, consumed"),
     count("generated_assets", (q) => q.gte("created_at", since).neq("quality_status", "fail")),
+    db.from("ai_spend_events").select("stage,status,actual_usd,fx_rate").gte("created_at",since).limit(50000),
   ]);
   const ev = events.data ?? [];
   const activated = new Set(ev.filter((e) => e.name === "generation_completed").map((e) => e.organization_id)).size;
@@ -29,7 +30,8 @@ export async function kpis(days = 30) {
   const revenueInr = (orders.data ?? []).filter((o) => o.currency === "INR").reduce((a, o) => a + o.taxable_minor, 0);
   const revenueUsd = (orders.data ?? []).filter((o) => o.currency === "USD").reduce((a, o) => a + o.taxable_minor, 0);
   const creditsSold = (orders.data ?? []).reduce((a, o) => a + o.credits, 0);
-  const spend = (attempts.data ?? []).reduce((a, x) => a + Number(x.cost_inr ?? 0), 0);
+  const spend = (attempts.data ?? []).reduce((a, x) => a + Number(x.cost_inr ?? 0), 0) + (textSpend.data??[]).filter(e=>e.stage!=="image"&&e.status==="complete").reduce((sum,e)=>sum+Number(e.actual_usd)*Number(e.fx_rate),0);
+  const unknownAiCalls=(textSpend.data??[]).filter(e=>["unknown","reserved"].includes(e.status)).length;
   const latencies = (attempts.data ?? []).filter((a) => a.status === "succeeded" && a.latency_ms).map((a) => a.latency_ms as number).sort((a, b) => a - b);
   const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : null;
   const delivered = (items.data ?? []).filter((i) => i.status === "delivered").length;
@@ -39,6 +41,7 @@ export async function kpis(days = 30) {
   const outstandingPromo = (wallets.data ?? []).reduce((a, w) => a + w.promo_available, 0);
   return {
     days, signups, activated, paying: paying.size, repeat, revenueInr, revenueUsd, creditsSold, spendInr: spend,
+    unknownAiCalls, costCoverage:"Token-priced estimates, including failed image attempts and newly tracked analysis/planning/checks; historic text usage is incomplete. Provider taxes/fees are excluded.",
     costPerApproved: delivered ? spend / delivered : null, p95Ms: p95, delivered, failed,
     failureRate: delivered + failed ? failed / (delivered + failed) : 0, reviewRate: delivered ? review / delivered : 0,
     refundRate: assets ? refunds / assets : 0, refunds, outstandingPaid, outstandingPromo,
@@ -56,9 +59,10 @@ export async function funnel(days = 30) {
 
 export async function dailySpend(days = 30) {
   const since = new Date(Date.now() - days * DAY).toISOString();
-  const [{ data: attempts }, { data: items }] = await Promise.all([
+  const [{ data: attempts }, { data: items }, {data: textSpend}] = await Promise.all([
     admin().from("generation_attempts").select("provider, status, cost_inr, created_at").gte("created_at", since).limit(100000),
     admin().from("generation_items").select("status, updated_at").eq("status", "delivered").gte("updated_at", since).limit(100000),
+    admin().from("ai_spend_events").select("stage,status,actual_usd,fx_rate,created_at").neq("stage","image").gte("created_at",since).limit(100000),
   ]);
   const byDay = new Map<string, { day: string; spend: number; attempts: number; failed: number; delivered: number; byProvider: Record<string, number> }>();
   const key = (d: string) => d.slice(0, 10);
@@ -70,6 +74,11 @@ export async function dailySpend(days = 30) {
     if (a.status === "failed") row.failed++;
     row.byProvider[a.provider] = (row.byProvider[a.provider] ?? 0) + Number(a.cost_inr ?? 0);
     byDay.set(k, row);
+  }
+  for(const e of textSpend??[]){
+    const k=key(e.created_at),row=byDay.get(k)??{day:k,spend:0,attempts:0,failed:0,delivered:0,byProvider:{}};
+    const cost=e.status==="complete"?Number(e.actual_usd)*Number(e.fx_rate):0;
+    row.spend+=cost;row.byProvider["openai-text"]=(row.byProvider["openai-text"]??0)+cost;byDay.set(k,row);
   }
   for (const i of items ?? []) {
     const k = key(i.updated_at);

@@ -13,9 +13,10 @@ export default async function Costs() {
   const perAttempt = totalAttempts ? k.spendInr / totalAttempts : 15;
   return (
     <div>
-      <PageHeader eyebrow="Last 30 days" title="Provider costs">Real recorded costs per attempt, converted to INR with the exchange rate of the day. Use this to set prices, not the spec&apos;s guesses.</PageHeader>
+      <PageHeader eyebrow="Last 30 days" title="Provider costs">Token-priced estimates converted to INR. Includes failed image attempts and newly tracked product analysis, planning and accuracy checks. Historic text usage is incomplete; provider taxes and fees are excluded.</PageHeader>
+      {k.unknownAiCalls>0&&<p role="status" className="mb-4 text-sm text-warn">{k.unknownAiCalls} AI calls have pending or unknown charges. They are reserved in the budget and are not counted as free.</p>}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Spend" value={`₹${k.spendInr.toFixed(0)}`} />
+        <Stat label="Known AI spend" value={`₹${k.spendInr.toFixed(0)}`} />
         <Stat label="Attempts" value={totalAttempts} />
         <Stat label="Cost per attempt" value={`₹${perAttempt.toFixed(2)}`} />
         <Stat label="Cost per delivered image" value={k.costPerApproved ? `₹${k.costPerApproved.toFixed(2)}` : "n/a"} sub={`${(acceptance * 100).toFixed(0)}% of attempts delivered`} />

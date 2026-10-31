@@ -59,7 +59,7 @@ const DEFAULTS: Settings = {
     openai: {
       model: "gpt-image-2.5-sunburst",
       models: ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "gpt-image-2"],
-      quality: "high",
+      quality: "medium",
       legacyQuality: "medium",
       prices: {
         "gpt-image-2.5-sunburst": { input: 8, output: 30 },
@@ -69,7 +69,7 @@ const DEFAULTS: Settings = {
       },
     },
     llm: { models: ["gpt-5-mini", "gpt-4.1-mini"] },
-    render: { trialEdge: 1024, paidEdge: 1536, cutoutQuality: "medium" },
+    render: { trialEdge: 1024, paidEdge: 1024, cutoutQuality: "medium" },
     fal: { model: "fal-ai/flux-pro/kontext", segmentModel: "fal-ai/birefnet" },
     costUsdPerImage: { gemini: 0.039, openai: 0.06, fal: 0.04, mock: 0 },
     concurrency: 4,

@@ -16,5 +16,7 @@ export * from "./shoots";
 export * from "./product-looks";
 
 export * from "./studio-directions";
+export * from "./creative-world";
+export * from "./look-preview";
 
 export * from "./art-direction";
