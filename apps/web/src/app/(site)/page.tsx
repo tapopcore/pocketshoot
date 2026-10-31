@@ -7,9 +7,9 @@ import { StyleGallery } from "@/components/style-gallery";
 export const revalidate = 300;
 const money = (minor: number) => "₹" + Math.round(minor / 100).toLocaleString("en-IN");
 const worlds = [
-  { image: "/looks/footwear-2.webp", title: "Made for the street", type: "Footwear", href: "fashion" },
-  { image: "/looks/skincare-5.webp", title: "A little more character", type: "Beauty", href: "beauty" },
-  { image: "/looks/saree-2.webp", title: "Let the fabric move", type: "Indian fashion", href: "fashion" },
+  { image: "/looks/footwear-2.webp", title: "Made for the street", type: "Footwear", href: "/examples?category=footwear" },
+  { image: "/looks/skincare-5.webp", title: "A little more character", type: "Beauty", href: "/examples?category=skincare" },
+  { image: "/looks/saree-2.webp", title: "Let the fabric move", type: "Indian fashion", href: "/examples?category=saree" },
 ];
 export default async function Home() {
   const packs = await webPacks();
@@ -22,7 +22,7 @@ export default async function Home() {
         <div className="campaign-actions"><Link href="/sign-in?next=%2Fapp%2Fnew" className="btn btn-lime btn-lg">Create your shoot <ArrowUpRight size={20} /></Link><a href="#looks" className="link">Find your direction <ArrowRight size={18} /></a></div>
         <div className="campaign-assurance"><span><Check size={15} />Your first 2 photos are free</span><span><Check size={15} />No card needed</span></div>
       </div>
-      <div className="campaign-triptych">{worlds.map((world, n) => <Link href={"/examples?industry=" + world.href} className={"campaign-frame frame-" + n} key={world.type}>
+      <div className="campaign-triptych">{worlds.map((world, n) => <Link href={world.href} className={"campaign-frame frame-" + n} key={world.type}>
         <img src={world.image} alt={world.type + " — original illustrative campaign example"} width={640} height={640} fetchPriority={n === 0 ? "high" : "auto"} decoding="async" />
         <div><span>{world.type}</span><b>{world.title}</b><ArrowUpRight size={20} /></div>
       </Link>)}</div>
