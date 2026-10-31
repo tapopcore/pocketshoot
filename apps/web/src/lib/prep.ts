@@ -188,17 +188,17 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
   if (!integrations.openai) return fallback();
   try {
     const settings = await getSettings();
-    const res = await jsonCall({
-      models: settings.providers.llm.models,
-      prompt: directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined }),
-      schemaName: "shot_briefs",
-      schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>,
-      timeoutMs: 45_000,
-    });
-    const shots = parseDirections(res.data, input.count);
-    if (!shots) return fallback();
-    const directed = shots.map((shot, index) => ({ ...shot, framing: input.assignments?.[index]?.framing ?? input.framing ?? "full", human_presence: input.assignments?.[index]?.humanPresence ?? input.humanPresence ?? "none" }));
-    return directed.every((shot, index) => { const selected = input.assignments?.[index]?.shootStyle ?? input.shootStyle; return !selected || shotMatchesStyle(selected, shot); }) ? { shots: directed, source: "ai" } : fallback();
+    const prompt = directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined });
+    // Repair text planning once before any image request. One bad slot cannot silently poison a pack.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await jsonCall({ models: settings.providers.llm.models, prompt: prompt + (attempt ? "\nThe previous plan was invalid. Return exactly one distinct shot per assignment, in order. Respect each assignment's environment, human action and framing independently. For outdoor slots use an explicitly exterior location with no indoor/window staging. Keep camera directions complete and concise." : ""), schemaName: "shot_briefs", schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 35_000 });
+      const shots = parseDirections(res.data, input.count);
+      if (!shots) continue;
+      const directed = shots.map((shot, index) => ({ ...shot, framing: input.assignments?.[index]?.framing ?? input.framing ?? "full", human_presence: input.assignments?.[index]?.humanPresence ?? input.humanPresence ?? "none" }));
+      if (directed.every((shot, index) => { const selected = input.assignments?.[index]?.shootStyle ?? input.shootStyle; return !selected || shotMatchesStyle(selected, shot); })) return { shots: directed, source: "ai" };
+    }
+    await logError("prep.direction", "Shot plan failed count, distinctness or selected-style validation", { count: input.count });
+    return fallback();
   } catch (e) {
     await logError("prep.direction", (e as Error).message, {});
     return fallback();

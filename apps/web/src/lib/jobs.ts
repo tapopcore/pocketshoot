@@ -232,6 +232,14 @@ export async function retryItem(ctx: AuthContext, jobId: string, itemId: string,
   if (params.retryJobId) return { jobId: params.retryJobId, duplicate: true };
   if (item.status !== "failed") throw new ApiError(400, "Only photos that failed can be tried again.");
   const job = (item as unknown as { generation_jobs: ParentJob & { product_id: string; parent_asset_id: string | null; settings: ParentJob["settings"] & { suggestions?: string[]; edit?: { assetId: string; instruction: string } } } }).generation_jobs;
+  // Reuse a good stored result before buying another image. Old false rejections cost no customer credit.
+  const { tryRecoverFailedItem } = await import("./generation-recovery");
+  const recovered = await tryRecoverFailedItem(itemId, ctx.orgId);
+  if (recovered) {
+    await refreshJobStatus(jobId);
+    await audit(ctx, "job.recovered", { type: "job", id: jobId }, { item: itemId, noImageRequest: true, noCreditCharge: true });
+    return recovered;
+  }
   const idea = !job.settings?.recipeId && !params.lookId && params.brief && params.ideaTitle && item.style && item.style in STYLES
     ? { ideas: [{ title: params.ideaTitle.slice(0, 60), description: params.brief.slice(0, 300), human_presence: params.humanPresence ?? "none", base_scene: item.style }] } : {};
   const res = await createJob(

@@ -15,6 +15,7 @@ export interface JsonCall {
   models: string[];
   prompt: string;
   images?: Buffer[];
+  imageLabels?: string[];
   /** "high" reads small label text; "low" is cheaper for rough checks. */
   detail?: "low" | "high" | "auto";
   schemaName: string;
@@ -43,7 +44,10 @@ function isModelMissing(e: unknown) {
 /** One structured-output call to a small OpenAI model, with vision when images are given. */
 export async function jsonCall(call: JsonCall): Promise<JsonResult> {
   const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{ type: "text", text: call.prompt }];
-  for (const img of call.images ?? []) content.push({ type: "image_url", image_url: { url: await visionUrl(img), detail: call.detail ?? "high" } });
+  for (const [index, img] of (call.images ?? []).entries()) {
+    if (call.imageLabels?.[index]) content.push({ type: "text", text: call.imageLabels[index] });
+    content.push({ type: "image_url", image_url: { url: await visionUrl(img), detail: call.detail ?? "high" } });
+  }
   let lastError: unknown = null;
   for (const model of call.models) {
     try {

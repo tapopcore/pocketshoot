@@ -3,7 +3,7 @@ import { CATEGORIES, LOCKS, type CategoryId, type LockId } from "./categories";
 import { OUTPUTS, STYLES, type OutputId, type StyleId } from "./presets";
 import { fallbackDirections, type ProductAnalysis, type ShotDirection } from "./director";
 
-export const PROMPT_TEMPLATE_VERSION = "2026-10-27.6";
+export const PROMPT_TEMPLATE_VERSION = "2026-10-31.7";
 
 export type Mode = "preserve" | "creative";
 
@@ -72,7 +72,7 @@ export function buildPrompt(input: PromptInput): BuiltPrompt {
     input.mode === "preserve"
       ? input.productPlaced
         ? `Image 1 shows the product already placed on a plain grey background: ${what}. Replace the grey with the scene below and photograph the product inside it. Keep the product exactly where it is, at the same size and angle, with identical shape, proportions, colours, materials and design. ${text} Light it with the scene's light: matching highlights, reflections, colour spill and a physically correct contact shadow where it touches the surface, so it truly sits in the scene. Do not add a second product.`
-        : `Image 1 is a photo of the product: ${what}. Recreate this exact product in the scene below, cleaned up like a retouched studio product: identical shape, proportions, colours, materials and design. ${text} Remove the old background, source-photo hands and glare. Any new adult interaction must follow the selected shot brief.`
+        : `Image 1 is a photo of the product: ${what}. Recreate this exact product in the scene below, with only source-photo distractions cleaned up, photographed naturally in the SELECTED scene (not automatically a studio): identical shape, proportions, colours, materials and design. ${text} Remove the old background, source-photo hands and glare. Any new adult interaction must follow the selected shot brief.`
       : `Image 1 is a photo of the product: ${what}. Keep it clearly the same product with its logo and label legible and unchanged, in a more imaginative, scroll-stopping composition. ${text}`;
 
   const detail = shot.framing === "close" || shot.framing === "macro";

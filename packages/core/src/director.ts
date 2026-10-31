@@ -346,9 +346,9 @@ export function parseDirections(raw: unknown, count: number): ShotDirection[] | 
   if (!Array.isArray(v?.shots) || v.shots.length === 0) return null;
   const clamp = (n: unknown, lo: number, hi: number, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d);
   const shots = v.shots.slice(0, count).map((s: Record<string, unknown>) => ({
-    scene: clean(String(s.scene ?? "")).slice(0, 600),
-    lighting: clean(String(s.lighting ?? "")).slice(0, 260),
-    camera: clean(String(s.camera ?? "")).slice(0, 160),
+    scene: clean(String(s.scene ?? "")).slice(0, 1200),
+    lighting: clean(String(s.lighting ?? "")).slice(0, 500),
+    camera: clean(String(s.camera ?? "")).slice(0, 400),
     product_scale: clamp(s.product_scale, 0.38, 0.78, 0.6),
     offset_x: clamp(s.offset_x, -0.2, 0.2, 0),
     baseline: clamp(s.baseline, 0.68, 0.9, 0.84),

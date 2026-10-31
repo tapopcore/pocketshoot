@@ -112,7 +112,7 @@ describe("quality and status", () => {
     expect(parseJudgeJson("nope")).toBeNull();
   });
   it("rolls up job status honestly", () => {
-    expect(rollupJobStatus([{ status: "delivered", decision: "pass" }, { status: "failed" }])).toBe("completed");
+    expect(rollupJobStatus([{ status: "delivered", decision: "pass" }, { status: "failed" }])).toBe("review_needed");
     expect(rollupJobStatus([{ status: "failed" }, { status: "failed" }])).toBe("failed");
     expect(rollupJobStatus([{ status: "delivered", decision: "review" }])).toBe("review_needed");
     expect(rollupJobStatus([{ status: "generating" }, { status: "queued" }])).toBe("generating");

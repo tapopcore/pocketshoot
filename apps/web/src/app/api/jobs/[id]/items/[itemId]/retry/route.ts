@@ -1,3 +1,4 @@
+export const maxDuration = 180;
 import { z } from "zod";
 import { body, handler } from "@/lib/api";
 import { retryItem } from "@/lib/jobs";
