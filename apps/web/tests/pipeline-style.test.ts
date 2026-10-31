@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const f = vi.hoisted(() => ({ edit: vi.fn(), judge: vi.fn(), cutout: vi.fn(), canvas: vi.fn(), composite: vi.fn(), put: vi.fn(), rpc: vi.fn(), assets: vi.fn(), checks: vi.fn(), patches: vi.fn(), image: Buffer.alloc(0), studio:false, direct:vi.fn() }));
+const f = vi.hoisted(() => ({ edit: vi.fn(), judge: vi.fn(), cutout: vi.fn(), canvas: vi.fn(), composite: vi.fn(), put: vi.fn(), rpc: vi.fn(), assets: vi.fn(), checks: vi.fn(), patches: vi.fn(), image: Buffer.alloc(0), studio:false, rules:false, direct:vi.fn() }));
 const shot = { scene: "A dry natural rock ledge in an open-air mountain landscape with visible sky", lighting: "Outdoor daylight", framing: "full", human_presence: "none", product_scale: 0.65, offset_x: 0, baseline: 0.85 };
 vi.mock("@/lib/supabase", () => ({ admin: () => ({ rpc: f.rpc, from: (table: string) => {
   let value: unknown; let op = "read"; let selection = "";
@@ -8,9 +8,9 @@ vi.mock("@/lib/supabase", () => ({ admin: () => ({ rpc: f.rpc, from: (table: str
     select: (s = "") => { selection = s; return chain; }, eq: () => chain, neq: () => chain, order: () => chain, limit: () => chain, is: () => chain, in: () => chain,
     insert: (v: unknown) => { value = v; op = "insert"; if (table === "generated_assets") f.assets(v); if (table === "quality_checks") f.checks(v); return chain; },
     update: (v: unknown) => { op = "update"; value = v; if (table === "generation_items") f.patches(v); return chain; },
-    single: async () => ({ data: table === "generation_jobs" ? { id: "job", organization_id: "org", product_id: "p", mode: "preserve", style: "natural_sunlight", output: "square", settings: f.studio ? {recipe:categoryLook("studio-front"),subjectCount:2} : { shootStyle: "outdoor" }, is_trial: true, status: "generating", created_by: "u" } : table === "products" ? { id: "p", name: "Bottle", category: "home_kitchen", locks: [] } : table === "generation_items" ? { style: "natural_sunlight", params: f.studio?{shot:studioDirection(categoryLook("studio-front")!),lookId:"studio-front"}:{shot} } : { id: "new-id" }, error: null }),
+    single: async () => ({ data: table === "generation_jobs" ? { id: "job", organization_id: "org", product_id: "p", mode: "preserve", style: "natural_sunlight", output: "square", settings: f.studio ? {recipe:categoryLook("studio-front"),subjectCount:2} : { shootStyle: "outdoor" }, is_trial: true, status: "generating", created_by: "u" } : table === "products" ? { id: "p", name: "Bottle", category: "home_kitchen", locks: [] } : table === "generation_items" ? { style: "natural_sunlight", params: f.studio?{shot:studioDirection(categoryLook("studio-front")!),lookId:"studio-front"}:{shot,shotSource:f.rules?"rules":"ai"} } : { id: "new-id" }, error: null }),
     maybeSingle: async () => ({ data: { rate: 83, rate_date: "2026-10-27" } }),
-    then: (resolve: (v: unknown) => unknown) => resolve({ data: op !== "read" ? value : table === "product_assets" ? [{ id: "ref", view_type: "front", storage_key: "original" }] : table === "generation_items" && selection.includes("idx") ? [{ id: "item", idx: 0, style: "natural_sunlight", params: { shot } }] : [], error: null }),
+    then: (resolve: (v: unknown) => unknown) => resolve({ data: op !== "read" ? value : table === "product_assets" ? [{ id: "ref", view_type: "front", storage_key: "original" }] : table === "generation_items" && selection.includes("idx") ? [{ id: "item", idx: 0, style: "natural_sunlight", params: { shot,shotSource:f.rules?"rules":"ai" } }] : [], error: null }),
   }; return chain;
 } }) }));
 vi.mock("@/lib/settings", () => ({ getSettings: async () => ({ providers: { render: { trialEdge: 1024, paidEdge: 1536 }, llm: { models: [] }, costUsdPerImage: {}, timeoutMs: 5000 }, quality: { useJudge: true }, fx_fallback: { USDINR: 83 } }) }));
@@ -29,7 +29,7 @@ import { processItem } from "@/lib/pipeline";
 const verdict = { same_product: true, text_changed: false, logo_changed: false, colour_changed: false, shape_changed: false, extra_or_missing_items: false, artefacts: false, notes: "", photographic: true, natural_anatomy: true, brief_followed: true, style_match: true, environment: "outdoor", human_visible: false, framing_match: true };
 const item = { id: "item", job_id: "job", organization_id: "org", idx: 0, attempts: 0, max_attempts: 3 };
 beforeEach(async () => {
-  vi.clearAllMocks();f.studio=false;
+  vi.clearAllMocks();f.studio=false;f.rules=false;
   f.image = await sharp({ create: { width: 1024, height: 1024, channels: 3, background: "#336699" } }).png().toBuffer();
   f.edit.mockResolvedValue({ image: f.image, model: "test", costUsd: 0.01 });
   f.judge.mockResolvedValue({ data: verdict });
@@ -72,13 +72,9 @@ describe("selected style production pipeline", () => {
     expect(await sharp(delivered).raw().toBuffer()).toEqual(await sharp(f.image).raw().toBuffer());
     expect(f.rpc).toHaveBeenCalledWith("settle_item", { p_item: "item", p_capture: true });
   });
-  it("tries an indoor image once more, then rejects it and releases the credit", async () => {
+  it("rejects an indoor result immediately without an automatic paid retry", async () => {
     f.judge.mockResolvedValue({ data: { ...verdict, environment: "indoor" } });
     await processItem(item);
-    expect(f.rpc).not.toHaveBeenCalledWith("settle_item", { p_item: "item", p_capture: false });
-    expect(f.patches.mock.calls).not.toContainEqual([expect.objectContaining({ status: "failed" })]);
-    vi.clearAllMocks(); f.judge.mockResolvedValue({ data: { ...verdict, environment: "indoor" } });
-    await processItem({ ...item, attempts: 2 });
     expect(f.edit).toHaveBeenCalledTimes(1);
     expect(f.assets.mock.calls[0][0]).toMatchObject({ quality_status: "fail", approval_status: "rejected" });
     expect(f.checks.mock.calls[0][0]).toContainEqual(expect.objectContaining({ check_type: "style_adherence", decision: "fail" }));
@@ -86,4 +82,28 @@ describe("selected style production pipeline", () => {
     expect(f.rpc).not.toHaveBeenCalledWith("settle_item", { p_item: "item", p_capture: true });
     expect(f.patches.mock.calls).toContainEqual([expect.objectContaining({ status: "failed" })]);
   });
+  it("rejects an implausible photograph or a missed action without charging the customer", async () => {
+    for (const failure of [{ photographic: false }, { brief_followed: false }]) {
+      vi.clearAllMocks(); f.judge.mockResolvedValue({ data: { ...verdict, ...failure } });
+      await processItem(item);
+      expect(f.edit).toHaveBeenCalledTimes(1);
+      expect(f.rpc).toHaveBeenCalledWith("settle_item", { p_item: "item", p_capture: false });
+      expect(f.patches.mock.calls).toContainEqual([expect.objectContaining({ status: "failed" })]);
+    }
+  });
+  it("rejects a studio frame that misses the requested view", async () => {
+    f.studio = true;
+    f.judge.mockResolvedValue({ data: { ...verdict, environment: "studio", reference_product_count: 2, output_product_count: 2, studio_view_match: false } });
+    await processItem(item);
+    expect(f.edit).toHaveBeenCalledTimes(1);
+    expect(f.rpc).toHaveBeenCalledWith("settle_item", { p_item: "item", p_capture: false });
+  });
+
+  it("does not spend an image request when creative direction falls back to generic rules", async () => {
+    f.rules=true; f.direct.mockResolvedValue({shots:[shot],source:"rules"});
+    await processItem(item);
+    expect(f.edit).not.toHaveBeenCalled();
+    expect(f.rpc).toHaveBeenCalledWith("settle_item",{p_item:"item",p_capture:false});
+  });
+
 });

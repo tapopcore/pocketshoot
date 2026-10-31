@@ -16,3 +16,5 @@ export * from "./shoots";
 export * from "./product-looks";
 
 export * from "./studio-directions";
+
+export * from "./art-direction";
