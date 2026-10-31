@@ -166,7 +166,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
                   <div className="fail">
                     <span className="ico"><AlertTriangle size={20} /></span>
                     <b>This photo failed</b>
-                    <span className="why">{it.last_error ?? "Nothing was charged."}</span>
+                    <span className="why">{it.last_error?.split(/(?<=\.)\s/)[0] ?? "Nothing was charged."}</span>
                     <button type="button" className="btn btn-lime btn-sm" disabled={!!retrying} onClick={() => retry([it])}>{retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={16} />}Try again</button>
                     <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
                   </div>
