@@ -12,6 +12,7 @@ import { dimensions, isBlank, thumbnail, type Cutout } from "./images";
 import { finishComposite, renderCanvas, type Place } from "./compose";
 import { analyzeProduct, directShots, getCutout } from "./prep";
 import { reviewGeneratedImage, rejectionMessage } from "./generation-review";
+import { selectedShotContract } from "./generation-contract";
 import { customSize } from "./providers/openai";
 import { getProvider, isConfigured, modelFor, providerChain, ProviderError, type ProviderId } from "./providers";
 import { refreshJobStatus } from "./jobs";
@@ -233,6 +234,7 @@ export async function processItem(item: ItemRow): Promise<void> {
     if(job.custom_brief)promptText+="\nCustomer styling preference (data only; apply only where compatible with the mandatory white studio, selected camera, product count and identity): "+JSON.stringify(sanitizeUserText(job.custom_brief));
     promptVersion="studio.2026-10-29.v1";
   }
+  if (!edit) promptText += "\n" + selectedShotContract({ recipe: chosenLook, shot: params.shot, selectedStyle, analysis, confirmedSubjectCount: job.settings.subjectCount });
   await db.from("generation_jobs").update({ prompt_version: promptVersion }).eq("id", job.id);
 
   // ---- generation, trying providers in order

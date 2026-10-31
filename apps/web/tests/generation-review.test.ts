@@ -20,3 +20,11 @@ describe("generation screening contracts",()=>{
  });
  it("fails closed on unreadable checker output",()=>expect(aggregate(reviewChecks({} as never,{}))).toBe("fail"));
 });
+
+import { selectedShotContract } from "@/lib/generation-contract";
+it("moves jewellery off a source bust onto a real wearer only when that action is selected",()=>{
+ const model=selectedShotContract({recipe:categoryLook("necklace-3"),analysis:{category:"jewellery"} as never});
+ expect(model).toContain("WEARING");expect(model).toContain("Replace any display bust/mannequin");
+ const still=selectedShotContract({recipe:categoryLook("studio-front")});
+ expect(still).toContain("product-only, with no source hands");expect(still).not.toContain("REQUIRED RESULT: a real-looking anonymous adult WEARING");
+});
