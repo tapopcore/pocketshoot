@@ -1,7 +1,7 @@
 import "server-only";
 import { type CategoryLook, type ProductAnalysis, type ShotDirection, type ShootStyleId, type CheckResult, type JudgeVerdict, parseJudgeJson, judgeDecision, styleRequirement } from "@packshot/core";
 import { jsonCall } from "./llm";
-export const REVIEW_VERSION = "2026-10-31.evidence-3";
+export const REVIEW_VERSION = "2026-10-31.evidence-4";
 export interface ReviewContext {
   recipe?: (Omit<Partial<CategoryLook>, "framing"> & { framing?: ShotDirection["framing"] }) | null; shot?: ShotDirection | null; selectedStyle?: ShootStyleId;
   analysis?: ProductAnalysis | null;
@@ -12,6 +12,7 @@ export interface GenerationReview extends JudgeVerdict {
   reference_product_count?: number; output_product_count?: number;
   reference_inventory?: string[]; output_inventory?: string[]; output_description?: string;
   failure_evidence?: { check: string; evidence: string }[];
+  inventory_confirmation?: unknown; marking_confirmation?: unknown;
   studio_view_match?: boolean; photographic?: boolean; natural_anatomy?: boolean;
   brief_followed?: boolean; style_match?: boolean; human_visible?: boolean; framing_match?: boolean;
   environment?: "indoor" | "outdoor" | "studio" | "unknown";
@@ -69,13 +70,36 @@ export async function reviewGeneratedImage(input: { refs: Buffer[]; image: Buffe
   const first = await call();
   let verdict = first.data as GenerationReview, checks = reviewChecks(verdict, input.context);
   const isCrop = ["close", "macro"].includes(input.context.shot?.framing ?? input.context.recipe?.framing ?? "full");
-  const countConflict = !isCrop && !!verdict.output_product_count && verdict.output_product_count !== (input.context.confirmedSubjectCount ?? input.context.analysis?.subject_count ?? verdict.reference_product_count);
+  const countConflict = !isCrop && !!verdict.output_product_count && verdict.output_product_count !== (input.context.confirmedSubjectCount ?? verdict.reference_product_count);
   if (checks.some(c => c.decision === "fail") || countConflict) {
     try {
       const second = await call(true);
       verdict = second.data as GenerationReview;
       checks = reviewChecks(verdict, input.context).map(c => ({ ...c, details: { ...c.details, initialVerdict: first.data, confirmed: true } }));
     } catch (e) { checks = checks.map(c => ({ ...c, details: { ...c.details, confirmationError: (e as Error).message.slice(0, 160) } })); }
+  }
+  // Resolve two known contradictory signals with a focused comparison, not another generated photo.
+  const oldEvidence = JSON.stringify(verdict.failure_evidence ?? []);
+  const disputedInventory = verdict.extra_or_missing_items && (!(verdict.failure_evidence?.length) || /coaster|bowl|prop|background|display stand/i.test(oldEvidence));
+  const disputedMarking = (verdict.text_changed || verdict.logo_changed) && (isCrop || (input.context.recipe?.collection === "studio" && input.context.recipe.id !== "studio-front"));
+  if (disputedInventory || disputedMarking) {
+    try {
+      const result = await jsonCall({ models: input.models, images: [...input.refs, input.image], imageLabels: labels, detail: "high", schemaName: "focused_product_comparison", timeoutMs: 30_000,
+        schema: {type:"object",additionalProperties:false,required:["same_merchandise_components","missing_merchandise","invented_merchandise","marking_region","evidence"],properties:{same_merchandise_components:{type:"boolean"},missing_merchandise:{type:"array",items:{type:"string"}},invented_merchandise:{type:"array",items:{type:"string"}},marking_region:{type:"string",enum:["unchanged","changed","outside_result_view","uncertain"]},evidence:{type:"string"}}},
+        prompt: "The labelled originals precede the final GENERATED RESULT. Answer ONLY two objective product questions. (1) Are all MERCHANDISE components that should be visible present? A styling coaster, bowl, snack, stand, background object, hand, shadow or reflection is NEVER extra merchandise and must NEVER enter missing_merchandise/invented_merchandise. Name each actual sold product component before concluding. " + (isCrop ? "This result is an intentional DETAIL CROP; products or parts outside the crop are allowed, not missing. " : "This is a full-product shot; real omitted or duplicated merchandise is a defect. ") + "(2) Is the exact REGION of a product's physical marking visible inside the RESULT frame? Seeing an upper part of a physical face does NOT mean the lower-centre logo region is inside the crop. If that region is outside the frame, turned away or occluded, marking_region=outside_result_view, never changed. If the corresponding region is exposed and a visible original mark is erased/replaced, changed. Source backdrop/hand/stand writing is not product marking. Do not compare scene styling or incidental planner props. Give concrete visual evidence."
+      });
+      const focused = result.data as {same_merchandise_components:boolean;missing_merchandise:string[];invented_merchandise:string[];marking_region:string;evidence:string};
+      if (disputedInventory && focused.same_merchandise_components === true && focused.missing_merchandise?.length === 0 && focused.invented_merchandise?.length === 0) {
+        verdict = {...verdict,extra_or_missing_items:false,inventory_confirmation:focused};
+      }
+      if (disputedMarking && ["outside_result_view","unchanged"].includes(focused.marking_region)) {
+        verdict = {...verdict,text_changed:false,logo_changed:false,marking_confirmation:focused};
+        const onlyMarkingEvidence = !!verdict.failure_evidence?.length && verdict.failure_evidence.every(e => /text|logo|mark|inscrip/i.test(e.check + " " + e.evidence));
+        if (onlyMarkingEvidence) { verdict.design_changed = false; verdict.brief_followed = true; }
+      }
+      if ((verdict.inventory_confirmation || verdict.marking_confirmation) && ![verdict.text_changed,verdict.logo_changed,verdict.design_changed,verdict.colour_changed,verdict.shape_changed,verdict.extra_or_missing_items,verdict.artefacts].some(Boolean)) verdict.same_product = true;
+      checks = reviewChecks(verdict,input.context).map(c=>({...c,details:{...c.details,initialVerdict:first.data,focusedConfirmation:focused}}));
+    } catch (e) { checks=checks.map(c=>({...c,details:{...c.details,focusedConfirmationError:(e as Error).message.slice(0,160)}})); }
   }
   return { verdict, checks };
 }
