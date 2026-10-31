@@ -1,14 +1,20 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight, Check, Plus, Minus } from "lucide-react";
 import { PRODUCT_COLLECTIONS } from "@packshot/core";
 import { INDUSTRIES, signInToShoot } from "@/lib/shoot-catalog";
-export function StyleGallery(){
- const [industry,setIndustry]=useState("fashion"),[type,setType]=useState("saree"),[more,setMore]=useState(false);
- const collection=PRODUCT_COLLECTIONS.find(c=>c.id===type&&c.category===industry)??PRODUCT_COLLECTIONS.find(c=>c.category===industry)!;
- return <div><div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:px-0" aria-label="Choose your industry">{INDUSTRIES.map(i=><button key={i.id} aria-pressed={industry===i.id} onClick={()=>{setIndustry(i.id);setType(PRODUCT_COLLECTIONS.find(c=>c.category===i.id)!.id);setMore(false);}} className={"flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm "+(industry===i.id?"border-ink bg-ink text-paper":"border-line bg-card")}>{industry===i.id&&<Check size={13}/>} {i.title}</button>)}</div>
- <label className="mb-6 block max-w-md text-sm font-medium">Product type<select className="studio-input" value={collection.id} onChange={e=>{setType(e.target.value);setMore(false);}}>{PRODUCT_COLLECTIONS.filter(c=>c.category===industry).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
- <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-6">{collection.looks.slice(0,more?5:3).map(l=><Link key={l.id} href={signInToShoot(industry,l.id)} className="group min-w-0"><div className="relative aspect-square overflow-hidden rounded-2xl bg-paper-2"><div role="img" aria-label={l.title+" — illustrative "+collection.label+" reference"} className="size-full transition-transform duration-200 group-hover:scale-[1.02]" style={{backgroundImage:'url("'+l.atlas+'")',backgroundSize:"300% 200%",backgroundPosition:["0% 0%","50% 0%","100% 0%","0% 100%","50% 100%"][l.tile]}}/><span className="absolute bottom-3 right-3 grid size-9 place-items-center rounded-full bg-white text-black"><ArrowUpRight size={17}/></span></div><h3 className="mt-3 text-sm font-semibold tracking-tight sm:text-lg">{l.title}</h3><p className="mt-1 text-xs text-ink-2 sm:text-sm">{l.subtitle}</p></Link>)}</div>
- <button className="mt-5 min-h-11 text-sm font-medium underline underline-offset-4" onClick={()=>setMore(!more)}>{more?"Show recommended looks":"More looks for "+collection.label.toLowerCase()}</button><p className="mt-2 text-xs leading-relaxed text-mute">Illustrative examples; people shown are synthetic adults. Some directions need additional references. Your product photo is used only after you confirm the shoot and its price.</p></div>;
+import { LookImage } from "./look-image";
+export function StyleGallery() {
+  const [industry,setIndustry]=useState("fashion"), [type,setType]=useState("saree"), [more,setMore]=useState(false);
+  const types = PRODUCT_COLLECTIONS.filter(c=>c.category===industry);
+  const collection=types.find(c=>c.id===type) ?? types[0];
+  if (!collection) return null;
+  return <div className="look-browser">
+    <div className="look-industries" aria-label="Choose your industry">{INDUSTRIES.map(i=><button type="button" key={i.id} aria-pressed={industry===i.id} onClick={()=>{setIndustry(i.id);setType(PRODUCT_COLLECTIONS.find(c=>c.category===i.id)!.id);setMore(false);}}>{industry===i.id&&<Check size={15}/>} {i.title}</button>)}</div>
+    <label className="look-type">What do you sell?<select value={collection.id} onChange={e=>{setType(e.target.value);setMore(false);}}>{types.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+    <div className="look-cards">{collection.looks.slice(0,more?collection.looks.length:4).map(l=><Link key={l.id} href={signInToShoot(industry,l.id)}><div className="look-card-photo"><LookImage look={l}/><span><ArrowUpRight size={18}/></span></div><h3>{l.title}</h3><p>{l.subtitle}</p></Link>)}</div>
+    <button type="button" className="look-more" aria-expanded={more} onClick={()=>setMore(!more)}>{more?<Minus size={16}/>:<Plus size={16}/>} {more?"Show recommended looks":"More looks for "+collection.label.toLowerCase()}</button>
+    <p className="look-disclosure">Original illustrative examples. People shown are synthetic adults. Some views need additional reference photos.</p>
+  </div>;
 }

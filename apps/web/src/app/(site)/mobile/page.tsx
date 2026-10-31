@@ -1,20 +1,16 @@
-import { LinkButton } from "@/components/ui";
+/* eslint-disable @next/next/no-img-element -- showcase images are pre-sized webp files */
+import Link from "next/link";
+import { Ic } from "@/components/site/ic";
+import { BeforeAfter } from "@/components/site/before-after";
 
-export const metadata = { title: "iPhone & Android" };
+export const metadata = { title: "PocketShoot for iPhone and Android", description: "Make product photos from your phone. Same account and credits as the web app." };
 
 export default function Mobile() {
   const ios = process.env.NEXT_PUBLIC_IOS_URL;
   const android = process.env.NEXT_PUBLIC_ANDROID_URL;
   return (
-    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-8">
-      <div className="eyebrow">iPhone & Android</div>
-      <h1 className="display mt-4 max-w-3xl text-6xl">Shoot it on your desk. Get the studio shot on your phone.</h1>
-      <p className="mt-5 max-w-2xl text-lg text-ink-2">The app opens straight to the camera with a guide that helps you frame the product. Pick a look, and the finished images arrive on the same phone, ready to save to your gallery or share on WhatsApp.</p>
-      <div className="mt-8 flex flex-wrap gap-3">
-        {ios ? <LinkButton href={ios}>Download on the App Store</LinkButton> : <span className="rounded-full border border-line px-5 py-2.5 text-sm">iPhone app: coming soon</span>}
-        {android ? <LinkButton href={android}>Get it on Google Play</LinkButton> : <span className="rounded-full border border-line px-5 py-2.5 text-sm">Android app: coming soon</span>}
-      </div>
-      <p className="mt-6 text-sm text-mute">Same account and credits as the website. Credits bought in the app go through Apple or Google.</p>
+    <div className="pg-apps">
+<section className="phero"><div className="wrap ap"><div><span className="kicker"><i></i>iPhone and Android</span><h1 className="h1 s">Product photos from <span className="it">your phone</span></h1><p className="lead">Take the photo, pick a style and share it to Instagram or WhatsApp. Same account and credits as the web.</p><div className="row" style={{ marginTop: 'var(--s6)', flexWrap: 'wrap' }}>{ios ? <Link href={ios} className="btn btn-lg btn-dark"><Ic n="phone" />App Store</Link> : <span className="btn btn-lg btn-soft">iPhone app coming soon</span>}{android ? <Link href={android} className="btn btn-lg btn-dark"><Ic n="phone" />Google Play</Link> : <span className="btn btn-lg btn-soft">Android app coming soon</span>}</div></div><div className="phs"><div className="pf a"><img src="/showcase/saree-3.webp" alt="" aria-hidden className="fit-bg" loading="lazy" decoding="async" /><img src="/showcase/saree-3.webp" alt="Saree border close-up made with PocketShoot" className="fit-fg" loading="lazy" decoding="async" /><span className="pill glass" style={{ position: 'absolute', left: '14px', bottom: '14px' }}>Border close-up</span></div><div className="pf b"><BeforeAfter before="/showcase/rings-before.webp" after="/showcase/rings-3.webp" start={44} labels={null} style={{ position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', aspectRatio: 1, borderRadius: 0 }} /></div></div></div></section><section style={{ height: 'var(--section)' }}></section>
     </div>
   );
 }

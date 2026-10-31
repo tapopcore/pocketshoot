@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireWeb } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { withAssetUrls } from "@/lib/views";
@@ -24,10 +25,10 @@ export default async function Library({ searchParams }: { searchParams: Promise<
   const assets = await withAssetUrls((data ?? []) as unknown as { id: string; storage_key: string; thumb_key: string | null; width: number; height: number; quality_status: string; approval_status: string; watermarked: boolean; job_id: string; products: { name: string } }[]);
   return (
     <div>
-      <PageHeader eyebrow={`${count ?? 0} images`} title="Image library">Every image you&apos;ve made. Select several to download them together.</PageHeader>
-      <div className="mb-6 flex flex-wrap gap-2">
+      <PageHeader title="All photos">{count ? `${count} photo${count === 1 ? "" : "s"} so far. ` : ""}Select several to download them together.</PageHeader>
+      <div className="lfilt">
         {Object.entries(FILTERS).map(([k, label]) => (
-          <LinkButton key={k} href={`/app/library?f=${k}`} size="sm" variant={f === k ? "primary" : "ghost"}>{label}</LinkButton>
+          <Link key={k} href={`/app/library?f=${k}`} className={`pill${f === k ? " on" : ""}`} aria-current={f === k ? "page" : undefined}>{label}</Link>
         ))}
       </div>
       {assets.length === 0 ? <Empty title="Nothing here yet" action={<LinkButton href="/app/new">Start a shoot</LinkButton>} /> : (

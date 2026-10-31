@@ -1,22 +1,70 @@
+/* eslint-disable @next/next/no-img-element -- Showcase images. */
 import Link from "next/link";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { requireWeb, clientIp } from "@/lib/auth";
 import { grantTrialIfEligible } from "@/lib/credits";
 import { recentJobs, productList } from "@/lib/views";
 import { JobCard } from "@/components/job-card";
 import { ResumeDraft } from "@/components/resume-draft";
-export const metadata={title:"Your studio"};
-export default async function Home({searchParams}:{searchParams:Promise<{product?:string;industry?:string;look?:string;denied?:string}>}){
- const sp=await searchParams;
- const ctx=await requireWeb();
- if(sp.product){const {redirect}=await import("next/navigation");redirect("/app/new?product="+encodeURIComponent(sp.product));}
- const [jobs,products,granted]=await Promise.all([recentJobs(ctx.orgId,6),productList(ctx.orgId,{limit:4}),grantTrialIfEligible(ctx,await clientIp())]);
- return <div className="mx-auto max-w-5xl">
-  {sp.denied&&<p role="alert" className="mb-5 rounded-xl bg-warn/10 p-4 text-sm">Your role cannot open that page. Workspace tools are available in Account.</p>}
-  {granted>0&&<p role="status" className="mb-5 rounded-xl bg-good/10 p-4 text-sm">{granted} free credits added. Your credit balance updates on the next page.</p>}
-  <section className="mb-9 flex flex-col items-start justify-between gap-6 border-b border-line pb-8 sm:flex-row sm:items-end"><div><p className="tracked mb-3 text-accent">Your studio</p><h1 className="text-[38px] font-semibold leading-[1.05] tracking-[-.045em] sm:text-6xl">What will you<br/><span className="serif-i font-normal">shoot next?</span></h1><p className="mt-4 max-w-md text-sm leading-relaxed text-ink-2">Start with a photo. Find a direction made for your product.</p></div>{ctx.role!=="viewer"&&<Link href="/app/new" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-accent px-7 text-sm font-semibold text-white"><Plus size={19}/>Create a shoot</Link>}</section>
-  <ResumeDraft scope={ctx.orgId}/>
-  <section><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold">Your shoots</h2><Link href="/app/shoots" className="inline-flex min-h-11 items-center gap-2 text-sm">View all <ArrowRight size={15}/></Link></div>{jobs.length?<div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-5">{jobs.map((j,i)=><JobCard key={j.id} job={j} index={i}/>)}</div>:<div className="rounded-2xl border border-line bg-card p-6 sm:p-9"><h3 className="text-lg font-semibold">Your first shoot starts with one photo.</h3><p className="mt-2 max-w-md text-sm leading-relaxed text-mute">Take a photo or choose one from your library. You will see the direction and price before creating.</p><Link href="/app/new" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent">Start a shoot <ArrowRight size={15}/></Link></div>}</section>
-  {products.products.length>0&&<section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold">Shoot it again</h2><Link href="/app/products" className="min-h-11 py-3 text-sm">All products →</Link></div><div className="grid gap-3 sm:grid-cols-2">{products.products.filter(p=>p.photoCount>0).map(p=><Link key={p.id} href={"/app/new?product="+p.id} className="flex items-center gap-4 rounded-2xl border border-line bg-card p-3">{p.coverUrl&&<img src={p.coverUrl} alt="" className="size-16 rounded-xl object-cover"/>}<span className="flex-1 text-sm font-semibold">{p.name}</span><ArrowRight size={17}/></Link>)}</div></section>}
- </div>;
+import { StartBox, FirstActions } from "@/components/home-start";
+import { BeforeAfter } from "@/components/site/before-after";
+import { BulkCta } from "@/components/bulk-cta";
+import { getFlag } from "@/lib/settings";
+
+export const metadata = { title: "Home" };
+
+const IDEAS: [string, string, string, string][] = [
+  ["skincare-2", "On skin", "Skincare", "beauty"], ["beverage-3", "Pouring", "Drinks", "food"], ["saree-3", "Fabric close-up", "Sarees", "fashion"],
+  ["fragrance-3", "Held up", "Perfume", "beauty"], ["rings-2", "On the hand", "Jewellery", "jewellery"],
+];
+
+function greeting() {
+  const h = Number(new Intl.DateTimeFormat("en-IN", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Kolkata" }).format(new Date()));
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
+
+export default async function Home({ searchParams }: { searchParams: Promise<{ product?: string; industry?: string; look?: string; denied?: string }> }) {
+  const sp = await searchParams;
+  const ctx = await requireWeb();
+  if (sp.product) { const { redirect } = await import("next/navigation"); redirect("/app/new?product=" + encodeURIComponent(sp.product)); }
+  const [jobs, products, granted, bulkOn] = await Promise.all([recentJobs(ctx.orgId, 4), productList(ctx.orgId, { limit: 6 }), grantTrialIfEligible(ctx, await clientIp()), getFlag("batch_jobs", ctx.orgId)]);
+  const canEdit = ctx.role !== "viewer";
+  const busy = jobs.filter((j) => ["queued", "preparing", "generating", "checking"].includes(j.status)).length;
+  const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" }).format(new Date());
+  const notices = <>
+    {sp.denied && <div role="alert" className="note">Your role cannot open that page. Ask a workspace admin for access.</div>}
+    {granted > 0 && <div role="status" className="note good"><Check size={16} />{granted} free photos added to your account.</div>}
+  </>;
+
+  if (!jobs.length && !products.products.length) return <div className="pg-ahome">
+    {notices}
+    <div className="wel">
+      <div>
+        {!granted && <span className="pill good">2 free photos to start</span>}
+        <h1 className="h1">Let&apos;s make your first <span className="it">product photos</span></h1>
+        <p className="lead">It takes about a minute. Take a photo of the product you sell most, near a window. Add the back and sides too if you like.</p>
+        <div className="chk">{([["done", "Create your account", "Done. Your free photos are ready to use"], ["on", "Upload photos of your product", "One is enough. More angles give better results"], ["", "Pick a style and ideas", "Browsing is free"], ["", "Download your photos", "Square, portrait, story and wide sizes"]] as const).map(([c, h, p], n) =>
+          <div key={h} className={"ck " + c}><i>{c === "done" ? <Check size={14} strokeWidth={3} /> : n + 1}</i><div><b>{h}</b><span>{p}</span></div></div>)}</div>
+        <FirstActions canEdit={canEdit} />
+      </div>
+      <BeforeAfter before="/showcase/beverage-before.webp" after="/showcase/beverage-2.webp" alt="Iced tea bottle" demo labels={["Phone photo", "PocketShoot"]} className="ba-wel" />
+    </div>
+    <h2 className="h3" style={{ marginTop: "var(--s8)" }}>What makes a good photo</h2>
+    <div className="tips">{([["skincare-before", "Good", "good", "Whole product in frame, label facing you"], ["fragrance-before", "Good", "good", "Soft daylight from a window"], ["bags-before", "Avoid", "warn", "Cut-off edges or fingers over the logo"]] as const).map(([k, t, c, p]) =>
+      <div key={k} className="tip card"><div className="ph r11"><img src={`/showcase/${k}.webp`} alt="" loading="lazy" decoding="async" /></div><div><span className={"pill sm " + c}>{t}</span><p className="sm" style={{ marginTop: 8 }}>{p}</p></div></div>)}</div>
+  </div>;
+
+  return <div className="pg-ahome">
+    {notices}
+    <div className="hi"><div><p className="sm muted">{today}</p><h1 className="h2">{greeting()}</h1></div>{busy > 0 && <span className="pill line d-only"><span className="live" />{busy} shoot{busy === 1 ? "" : "s"} in progress</span>}</div>
+    <StartBox canEdit={canEdit} products={products.products.filter((p) => p.photoCount > 0).slice(0, 5).map((p) => ({ id: p.id, name: p.name, coverUrl: p.coverUrl }))} />
+    <ResumeDraft scope={ctx.orgId} />
+    {bulkOn && canEdit && products.products.length > 1 && <BulkCta />}
+    {jobs.length > 0 && <>
+      <div className="between hsec"><h2 className="h3">Recent shoots</h2><Link href="/app/shoots" className="link sm">View all <ArrowRight size={16} /></Link></div>
+      <div className="gx c4" style={{ marginTop: "var(--s4)" }}>{jobs.map((j, i) => <JobCard key={j.id} job={j} index={i} />)}</div>
+    </>}
+    <div className="between hsec"><h2 className="h3">Styles to try next</h2><Link href="/examples" className="link sm d-only">See examples <ArrowRight size={16} /></Link></div>
+    <div className="ideas">{IDEAS.map(([k, n, c, ind]) => <Link key={k} href={"/app/new?industry=" + ind}><div className="ph r11 zoom"><img src={`/showcase/${k}.webp`} alt="" loading="lazy" /></div><b>{n}</b><span>{c}</span></Link>)}</div>
+  </div>;
 }

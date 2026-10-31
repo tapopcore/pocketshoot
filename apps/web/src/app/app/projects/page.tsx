@@ -15,7 +15,7 @@ export default async function Projects() {
   ]);
   return (
     <div>
-      <PageHeader eyebrow="Organise" title="Projects">Group shoots by campaign, launch or client. Agencies can keep each client separate.</PageHeader>
+      <PageHeader title="Projects">Group shoots by launch, season or client.</PageHeader>
       <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr]">
         <div className="grid gap-3">
           {(projects ?? []).length === 0 && <Empty title="No projects yet">Create one for your next launch or a client.</Empty>}

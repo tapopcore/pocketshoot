@@ -6,6 +6,8 @@
 export type Decision = "pass" | "review" | "fail";
 
 export type CheckType =
+  | "studio_view"
+  | "product_inventory"
   | "dimensions"
   | "product_alignment"
   | "colour_delta"
@@ -68,12 +70,11 @@ export interface JudgeVerdict {
   notes?: string;
 }
 
-export function judgeDecision(v: JudgeVerdict, mode: "preserve" | "creative"): Decision {
+export function judgeDecision(v: JudgeVerdict, _mode: "preserve" | "creative"): Decision {
   if (!v.same_product) return "fail";
   const serious = [v.text_changed, v.logo_changed, v.design_changed, v.extra_or_missing_items].filter(Boolean).length;
   const minor = [v.colour_changed, v.shape_changed, v.artefacts].filter(Boolean).length;
-  if (mode === "preserve" && serious > 0) return "review";
-  if (serious + minor > 0) return "review";
+  if (serious + minor > 0) return "fail";
   return "pass";
 }
 

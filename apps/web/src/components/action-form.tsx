@@ -5,7 +5,7 @@ import { Button, Notice, Spinner } from "./ui";
 import type { ActionState } from "@/app/app/actions";
 
 /** Wraps a server action with pending state and inline result messages. */
-export function ActionForm({ action, children, submit, className, resetOnSuccess, variant = "primary" }: {
+export function ActionForm({ action, children, submit, className, resetOnSuccess, variant = "accent" }: {
   action: (state: ActionState, form: FormData) => Promise<ActionState>;
   children: React.ReactNode;
   submit: string;

@@ -1,3 +1,4 @@
+import { requirePlatform } from "@/lib/auth";
 import { CATEGORIES, isCategoryId } from "@packshot/core";
 import { admin } from "@/lib/supabase";
 import { signedUrls } from "@/lib/storage";
@@ -6,6 +7,8 @@ import { featureAssetAction, rateOutputAction } from "../actions";
 
 /** Human QA: rate a random sample of outputs and see usable-rate by category against the launch gates. */
 export default async function Quality() {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const db = admin();
   const month = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const [{ data: items }, { data: ratings }, { data: sample }] = await Promise.all([

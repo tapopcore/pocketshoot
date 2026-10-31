@@ -1,9 +1,11 @@
+import { rateLimit } from "@/lib/observe";
 import { CATEGORIES, STYLES, scenesFor, type ProductAnalysis } from "@packshot/core";
 import { ApiError, handler } from "@/lib/api";
 import { assertRole } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { analyzeProduct } from "@/lib/prep";
 import { heroState } from "@/lib/hero";
+import { withRefUrls } from "@/lib/views";
 
 export const maxDuration = 300;
 
@@ -13,6 +15,8 @@ export const maxDuration = 300;
  */
 export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   assertRole(ctx, "editor");
+  // Each call can run a vision model; cap it per workspace so it can't be used to burn API spend.
+  if (!(await rateLimit(`prepare:${ctx.orgId}`, 120, 3600))) throw new ApiError(429, "Too many product checks this hour. Please wait a few minutes.");
   const db = admin();
   const { data: product } = await db.from("products").select("id, name, category, attributes").eq("id", id).eq("organization_id", ctx.orgId).maybeSingle();
   if (!product) throw new ApiError(404, "Product not found");
@@ -36,7 +40,8 @@ export const POST = handler<{ id: string }>(async (_req, ctx, { id }) => {
   const suggested = [...new Set([...(analysis?.suggested_scenes ?? []), ...ranked])].filter((s) => s in STYLES).slice(0, 7);
   return {
     product: { id, name: (patch.name as string | undefined) ?? product.name, category, shootProfile: (product.attributes as Record<string, unknown> | null)?.shootProfile ?? null },
-    references: refs.map(r => ({ id: r.id, view_type: r.view_type })),
+    references: await withRefUrls(refs.map((r) => ({ id: r.id, storage_key: r.storage_key, view_type: r.view_type }))),
+    suggestions: analysis?.suggestions ?? [],
     analysis,
     ideas: analysis?.ideas ?? [],
     suggestedScenes: suggested,

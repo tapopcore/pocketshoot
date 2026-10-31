@@ -1,8 +1,11 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import { admin } from "@/lib/supabase";
 import { Card, PageHeader, formatDate } from "@/components/ui";
 
 export default async function Abuse() {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const db = admin();
   const month = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const [{ data: trials }, { data: reports }, { data: delivered }, { data: limits }, { data: blocked }] = await Promise.all([

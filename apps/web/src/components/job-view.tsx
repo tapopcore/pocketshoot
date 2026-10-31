@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReferenceViewer } from "./reference-viewer";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -16,20 +17,20 @@ interface Asset {
   approval_status: string; watermarked: boolean; remakes_used: number; delivered_at: string; pushed_to_shopify_at: string | null;
   quality_checks: Check_[]; refund_requests: { status: string }[] | { status: string } | null;
 }
-interface Item { id: string; idx: number; status: string; attempts: number; last_error: string | null; decision: string | null; delivered_asset_id: string | null; style: string | null; params?: { ideaTitle?: string } | null }
+interface Item { id: string; job_id: string; idx: number; status: string; attempts: number; last_error: string | null; decision: string | null; delivered_asset_id: string | null; style: string | null; params?: { ideaTitle?: string; retryJobId?: string } | null; retryOf?: string | null; tries?: number }
 interface JobData {
   job: {
     id: string; status: string; statusLabel: string; statusTone: string; mode: string; style: string; output: string; requested_count: number; is_trial: boolean;
-    created_at: string; custom_brief: string | null; parent_asset_id: string | null; settings: { edit?: { instruction: string } } | null; products: { id: string; name: string; category: string };
+    created_at: string; custom_brief: string | null; parent_asset_id: string | null; settings: { edit?: { instruction: string }; pack?: "studio" | "variety" | null } | null; products: { id: string; name: string; category: string };
   };
   items: Item[]; assets: Asset[]; references: { id: string; url: string | null; view_type: string }[];
 }
 
 const STAGE: Record<string, string[]> = {
-  queued: ["In the queue"],
-  preparing: ["Preparing your shoot"],
-  generating: ["Creating your image"],
-  checking: ["Reviewing product details and direction"],
+  queued: ["In queue"],
+  preparing: ["Preparing"],
+  generating: ["Creating"],
+  checking: ["Checking"],
 };
 const REASONS: [string, string][] = [
   ["wrong_style", "The selected style or setting is wrong"], ["unrealistic_interaction", "The person or handling looks wrong"], ["design_changed", "Fabric, embroidery or design changed"],
@@ -43,10 +44,12 @@ const styleName = (id?: string | null) => (id && STYLES[id as StyleId]?.name) ||
 
 export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = false }: { jobId: string; surface?: "web" | "shopify"; freeRemakes?: number; embedded?: boolean }) {
   const router = useRouter();
+  const [referenceOpen,setReferenceOpen]=useState<number|null>(null);
   const [data, setData] = useState<JobData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(false);
   const request = useRef<AbortController | null>(null);
@@ -63,7 +66,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
       if (!alive.current || controller.signal.aborted) return;
       setData(d);
       setError(null);
-      const done = ["completed", "review_needed", "failed", "cancelled"].includes(d.job.status);
+      const done = ["completed", "review_needed", "failed", "cancelled"].includes(d.job.status) && d.items.every((i) => ["delivered", "failed", "cancelled"].includes(i.status));
       if (!done) timer.current = setTimeout(load, 5000);
     } catch (e) {
       if (!alive.current || controller.signal.aborted) return;
@@ -73,7 +76,8 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   }, [jobId]);
 
   useEffect(() => { alive.current=true;void load();const visible=()=>{if(!document.hidden)void load();};document.addEventListener("visibilitychange",visible);return () => {alive.current=false;request.current?.abort();if(timer.current)clearTimeout(timer.current);document.removeEventListener("visibilitychange",visible);}; }, [load]);
-  useEffect(() => { if(!data||["completed","review_needed","failed","cancelled"].includes(data.job.status))return;const t = setInterval(() => setTick((n) => n + 1), 1000); return () => clearInterval(t); }, [data?.job.status]);
+  const settled = !!data && ["completed","review_needed","failed","cancelled"].includes(data.job.status) && data.items.every((i) => ["delivered","failed","cancelled"].includes(i.status));
+  useEffect(() => { if(!data||settled)return;const t = setInterval(() => setTick((n) => n + 1), 1000); return () => clearInterval(t); }, [data, settled]);
 
   const byId = useMemo(() => new Map((data?.assets ?? []).map((a) => [a.id, a])), [data]);
   if (!data) {
@@ -93,96 +97,109 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   const order = delivered.map((i) => i.delivered_asset_id!) as string[];
   const pct = Math.round(((delivered.length + failed) / Math.max(1, items.length)) * 100);
   const ref = references[0]?.url ?? null;
+  const failedItems = items.filter((i) => i.status === "failed");
+  const retry = async (list: Item[]) => {
+    if (retrying) return;
+    setRetrying(list.length === 1 ? list[0].id : "all");
+    let started = 0, last: string | null = null;
+    for (const it of list) {
+      try { await api(`/api/jobs/${it.job_id}/items/${it.id}/retry`, { method: "POST", json: { idempotencyKey: "retry-" + it.id } }); started++; }
+      catch (e) { last = e instanceof ClientApiError ? e.message : "Couldn't start the retry. Try again in a moment."; }
+    }
+    setRetrying(null);
+    if (started) toast(started === 1 ? "Trying that photo again" : `Trying ${started} photos again`);
+    if (last) toast(last, true);
+    void load();
+  };
+
+  const elapsed = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 1000));
+  const styles = job.settings?.edit ? [] : job.settings?.pack ? [job.settings.pack === "studio" ? "Studio pack" : "Photo set"] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
+  const allChecked = active.length === 0 && failed === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
 
   return (
-    <div>
-      <header className="mb-6">
-        {!embedded && <button type="button" onClick={() => router.push(surface === "shopify" ? "/shopify" : "/app")} className="mb-3 inline-flex items-center gap-1 text-sm text-mute hover:text-ink">
-          <ArrowLeft size={15} /> {surface === "shopify" ? "Products" : "Studio"}
-        </button>}
-        <div className={clsx("flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", embedded && "hidden")}>
-          <div className="min-w-0">
-            <h1 className="display truncate text-3xl sm:text-4xl">{job.products.name}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-              {job.settings?.edit ? <span className="rounded-full bg-accent/10 px-2.5 py-1 font-medium text-accent">Edit: “{job.settings.edit.instruction}”</span>
-                : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))].map((s) => <span key={s} className="rounded-full bg-paper-2 px-2.5 py-1 font-medium">{s}</span>)}
-              <span className="rounded-full bg-paper-2 px-2.5 py-1">{output?.name} {output?.ratio}</span>
-              {job.mode === "preserve" && <span className="inline-flex items-center gap-1 rounded-full bg-good/10 px-2.5 py-1 font-medium text-good"><ShieldCheck size={12} /> Product reference</span>}
-            </div>
+    <div className="jobv">
+      {!embedded && <button type="button" onClick={() => router.push(surface === "shopify" ? "/shopify" : "/app/shoots")} className="link sm" style={{ color: "var(--muted)" }}>
+        <ArrowLeft size={18} /> {surface === "shopify" ? "Products" : "My shoots"}
+      </button>}
+      <header className={clsx("jhead", embedded && "hidden")}>
+        <div style={{ minWidth: 0 }}>
+          <h1>{job.products.name}</h1>
+          <div className="pills" style={{ marginTop: "var(--s3)" }}>
+            
+            {allChecked && <span className="pill good sm"><ShieldCheck size={14} />{delivered.length === 1 ? "Photo checked" : delivered.length === 2 ? "Both photos checked" : `All ${delivered.length} photos checked`}</span>}
+            {active.length === 0 && failed > 0 && <span className="pill sm" role="status">{delivered.length} of {items.length} ready · {failed} need attention</span>}
+            {job.settings?.edit && <span className="pill sm">Edit: {job.settings.edit.instruction.slice(0, 40)}</span>}
+            {styles.map((s) => <span key={s} className="pill sm">{s}</span>)}
+            <span className="pill sm">{output?.name} {output?.ratio}</span>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            {order.length > 1 && surface === "web" && <ZipButton ids={order} />}
-            <Button variant="outline" size="sm" onClick={() => router.push(surface === "shopify" ? "/shopify" : `/app/new?product=${job.products.id}`)}><Sparkles size={14} /> New scenes</Button>
-          </div>
+          {references.length > 0 && <div className="refs">
+            <div className="rimgs">{references.slice(0, 4).map((r,ri) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              r.url && <button key={r.id} type="button" aria-label={"Open original photo "+(ri+1)} onClick={()=>setReferenceOpen(ri)}><img src={r.url} alt={r.view_type + " view"} /></button>
+            ))}</div>
+            <span className="xs muted">Your original{references.length>1?"s":""} · tap to view</span>
+          </div>}
         </div>
-        {active.length > 0 && (
-          <div className="mt-5">
-            <div className="h-1.5 overflow-hidden rounded-full bg-paper-2"><div className="h-full rounded-full bg-gradient-to-r from-[#ffc27a] via-accent to-[#ff4f7b] transition-all duration-700" style={{ width: `${Math.max(6, pct)}%` }} /></div>
-            <div role="status" className="mt-2 text-xs text-mute">{delivered.length} of {items.length} ready · {Math.max(0,Math.floor((Date.now()-new Date(job.created_at).getTime())/1000))}s elapsed · saved in Shoots; you can leave this page</div>
+        {active.length === 0 && (
+          <div className="acts">
+            {failedItems.length > 1 && <button type="button" className="btn btn-lime" disabled={!!retrying} onClick={() => retry(failedItems)}>{retrying === "all" ? <Spinner /> : <RefreshCw size={18} />}Try {failedItems.length} failed again</button>}
+            {order.length > 1 && surface === "web" && <ZipButton ids={order} primary={failedItems.length <= 1} />}
           </div>
         )}
       </header>
+      {active.length > 0 && <div className="job-progress" role="status"><div><b>{delivered.length} of {items.length} ready</b><span>Creating · {elapsed}s · safe to leave</span></div><div className="pb" role="progressbar" aria-label="Photos processed" aria-valuenow={delivered.length+failed} aria-valuemin={0} aria-valuemax={items.length}><i style={{width:pct+"%"}}/></div></div>}
 
-      <div className={clsx("grid gap-3 sm:gap-4", items.length === 1 ? "mx-auto w-full max-w-2xl grid-cols-1" : output && output.width > output.height * 1.3 ? "sm:grid-cols-2" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
+      <div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
         {items.map((it, i) => {
           const a = it.delivered_asset_id ? byId.get(it.delivered_asset_id) : undefined;
           const stages = STAGE[it.status] ?? [it.status];
           return (
-            <div key={it.id} className="animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
-              <div className="group relative overflow-hidden rounded-2xl bg-paper-2 ring-1 ring-black/5" style={{ aspectRatio: ratio }}>
+            <div key={it.id} className="jt animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
+              <div className="ph" style={{ aspectRatio: ratio }}>
                 {a?.thumbUrl ? (
-                  <button type="button" className="size-full" onClick={() => setOpen(a.id)} aria-label="Open image">
+                  <button type="button" className="open" onClick={() => setOpen(a.id)} aria-label={`Open photo ${i + 1}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.thumbUrl} alt={`${job.products.name} ${i + 1}`} className="size-full object-cover animate-develop transition-transform duration-500 group-hover:scale-[1.03]" />
-                    <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/55 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                      {it.params?.ideaTitle ?? styleName(it.style ?? job.style)}<Maximize2 size={14} />
-                    </span>
+                    <img src={a.thumbUrl} alt={`${job.products.name} ${i + 1}`} className="animate-develop" />
+                    <span className="hov">{it.params?.ideaTitle ?? styleName(it.style ?? job.style)}<Maximize2 size={15} /></span>
                   </button>
                 ) : it.status === "failed" ? (
-                  <div className="flex size-full flex-col items-center justify-center gap-1.5 p-4 text-center text-sm">
-                    <AlertTriangle size={20} className="text-bad" />
-                    <span className="font-medium">Couldn&apos;t make this one</span>
-                    <span className="text-xs text-mute">{it.last_error ?? "No credit was used"}</span>
+                  <div className="fail">
+                    <span className="ico"><AlertTriangle size={20} /></span>
+                    <b>This photo failed</b>
+                    <span className="why">{it.last_error?.split(/(?<=\.)\s/)[0] ?? "Nothing was charged."}</span>
+                    <button type="button" className="btn btn-lime btn-sm" disabled={!!retrying} onClick={() => retry([it])}>{retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={16} />}Try again</button>
+                    <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
                   </div>
                 ) : it.status === "cancelled" ? (
-                  <div className="grid size-full place-items-center text-sm text-mute">Cancelled</div>
+                  <div className="fail"><b>Cancelled</b><span className="why">Nothing was charged.</span></div>
                 ) : (
-                  <div className="relative size-full">
+                  <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {ref && <img src={ref} alt="" className="absolute inset-0 size-full scale-110 object-cover opacity-40 blur-2xl" />}
-                    <div className="skeleton absolute inset-0 opacity-70" />
-                    <div className="scanline absolute inset-0" />
-                    <div className="absolute inset-x-3 bottom-3">
-                      <div className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium shadow-sm">
-                        <Spinner className="size-3 text-accent" /> {stages[tick % stages.length]}
-                      </div>
-                      {it.attempts > 1 && <div className="mt-1.5 text-[11px] text-ink-2">Trying again for a better result</div>}
-                    </div>
-                  </div>
+                    {ref && <img src={ref} alt="" className="ghost" />}
+                    <div className="skeleton shim" />
+                    <div className="scanline shim" />
+                    <span className="pill glass sm st">{it.status === "queued" ? null : <span className="spin" />}{it.status === "queued" ? "In queue" : stages[tick % stages.length]}</span>
+                  </>
                 )}
-                {a && (
-                  <div className="pointer-events-none absolute left-2 top-2 flex gap-1">
-                    {a.quality_status === "review" && <span className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[11px] font-medium text-warn">Check label</span>}
-                    {a.approval_status === "approved" && <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-good"><Check size={11} /> Approved</span>}
-                    {a.pushed_to_shopify_at && <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-good"><Store size={11} /> In store</span>}
-                  </div>
-                )}
+                {a && <div className="tags">
+                  {a.quality_status === "review" && <span className="pill warn sm">{a.quality_checks.some(c=>c.check_type==="studio_view"&&c.decision!=="pass")?"Check angle":"Review photo"}</span>}
+                  {a.approval_status === "approved" && <span className="pill glass sm"><Check size={13} />Approved</span>}
+                  {a.pushed_to_shopify_at && <span className="pill glass sm"><Store size={13} />In store</span>}
+                </div>}
               </div>
             </div>
           );
         })}
       </div>
 
-      {references.length > 0 && (
-        <div className="mt-10 flex items-center gap-3">
-          <span className="text-xs font-medium text-mute">Your photo</span>
-          {references.slice(0, 3).map((r) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            r.url && <img key={r.id} src={r.url} alt="" className="size-12 rounded-lg border border-line object-cover" />
-          ))}
-        </div>
-      )}
+      {active.length > 0 && !embedded && <p className="leave2"><Check size={16} /><span><b>You can leave.</b> Photos land in My shoots.</span></p>}
 
+      {active.length === 0 && !embedded && <div className="nx card">
+        <div><h2 className="h5">{delivered.length ? "Happy with these photos?" : "Want to try a different look?"}</h2><p className="sm muted" style={{ marginTop: 2 }}>Try another style for the same product. Your photos and details are saved.</p></div>
+        <div className="row">{surface === "web" && <button type="button" className="btn btn-dark" onClick={() => router.push(`/app/new?product=${job.products.id}`)}><Sparkles size={18} />Try another style</button>}</div>
+      </div>}
+
+      {referenceOpen!==null&&<ReferenceViewer photos={references.filter(r=>r.url).map(r=>({url:r.url,label:r.view_type+" view"}))} index={referenceOpen} onIndex={setReferenceOpen} onClose={()=>setReferenceOpen(null)}/>}
       {open && byId.get(open) && (
         <Viewer
           asset={byId.get(open)!}
@@ -203,10 +220,10 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   );
 }
 
-function ZipButton({ ids }: { ids: string[] }) {
+function ZipButton({ ids, primary }: { ids: string[]; primary?: boolean }) {
   const [busy, setBusy] = useState(false);
   return (
-    <Button variant="ghost" size="sm" disabled={busy} onClick={async () => {
+    <Button variant={primary ? "accent" : "ghost"} disabled={busy} onClick={async () => {
       setBusy(true);
       try { saveBlob(await api<Blob>("/api/assets/zip", { method: "POST", json: { ids, format: "jpg" } }), "photos.zip"); } catch (e) { toast((e as Error).message, true); }
       setBusy(false);
@@ -291,11 +308,11 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
                 <img src={reference} alt="Your photo" className="size-full bg-[#0c0c0e] object-contain" />
               </div>
               <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.6)]" style={{ left: `${split}%` }}>
-                <span className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-ink">⟷</span>
+                <span className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-2 py-1 text-xs font-semibold text-ink">⟷</span>
               </div>
               <input type="range" min={0} max={100} value={split} onChange={(e) => setSplit(Number(e.target.value))} aria-label="Compare" className="absolute inset-0 size-full cursor-ew-resize opacity-0" />
-              <span className="absolute left-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white">Your photo</span>
-              <span className="absolute right-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] text-white">PocketShoot</span>
+              <span className="absolute left-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">Your photo</span>
+              <span className="absolute right-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">PocketShoot</span>
             </div>
           ) : (
             <div
@@ -314,7 +331,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={asset.url ?? ""} alt={productName} className="size-full object-contain transition-transform duration-200"
                 style={zoom ? { transform: "scale(2.6)", transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined} />
-              {!zoom && <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[11px] text-white"><ZoomIn size={12} /> Click to check the label</span>}
+              {!zoom && <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-3 py-1.5 text-[13px] text-white"><ZoomIn size={14} /> <span className="d-only">Click</span><span className="m-only">Tap</span> to zoom in</span>}
             </div>
           )}
         </div>
@@ -324,7 +341,8 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
       </div>
 
       <aside inert={reporting} className="max-h-[52dvh] w-full shrink-0 overflow-y-auto rounded-t-3xl bg-card p-4 lg:max-h-none lg:w-[380px] lg:rounded-none lg:p-5">
-        <div className="text-xs font-medium text-mute">{sceneName} · {asset.width}×{asset.height}</div>
+        <h2 className="h4" style={{ paddingRight: 8 }}>{productName}</h2>
+        <div className="mt-1 text-sm text-mute">{sceneName} · {asset.width} × {asset.height} px</div>
         {exact ? (
           <div className="mt-2 flex items-start gap-2 rounded-xl bg-good/10 px-3 py-2 text-sm text-good"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><span>Product alignment checked. Inspect fine details before publishing.</span></div>
         ) : warnings.length ? (
@@ -332,7 +350,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         ) : null}
 
         <div className="mt-4 flex gap-2">
-          <Button className="flex-1" disabled={!!busy} onClick={() => run("dl", async () => saveBlob(await api<Blob>(`/api/assets/${asset.id}/download?format=${format}`), `${fileBase}.${format}`))}>
+          <Button variant="accent" className="flex-1" disabled={!!busy} onClick={() => run("dl", async () => saveBlob(await api<Blob>(`/api/assets/${asset.id}/download?format=${format}`), `${fileBase}.${format}`))}>
             {busy === "dl" ? <Spinner /> : <Download size={16} />} Download
           </Button>
           <select value={format} onChange={(e) => setFormat(e.target.value as typeof format)} aria-label="Format" className="rounded-full border border-line bg-card px-3 text-sm font-medium outline-none">
@@ -346,7 +364,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
         )}
 
         <button type="button" className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 text-sm" onClick={()=>setReporting(true)}><Flag size={15}/>Report a product, style or realism issue</button>
-        <details className="mt-3 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Edit, variations & export sizes</summary>
+        <details open className="group mt-3 border-t border-line pt-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between py-3 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">Edit, remake or resize<ChevronRight size={18} className="text-mute transition-transform group-open:rotate-90" aria-hidden /></summary>
         <div className="mt-3 rounded-2xl border border-line p-3">
           <div className="flex items-center gap-1.5 text-sm font-semibold"><Wand2 size={15} className="text-accent" /> Edit with words</div>
           <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={2} maxLength={500}
@@ -354,7 +372,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
             className="mt-2 w-full resize-none rounded-xl bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30" />
           <div className="no-scrollbar mt-1 flex gap-1.5 overflow-x-auto">
             {EDIT_IDEAS.map((idea) => (
-              <button key={idea} type="button" onClick={() => setInstruction(idea)} className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-[11px] font-medium text-ink-2 hover:bg-line">{idea}</button>
+              <button key={idea} type="button" onClick={() => setInstruction(idea)} className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-line">{idea}</button>
             ))}
           </div>
           <Button size="sm" className="mt-2.5 w-full" disabled={!!busy || asset.watermarked || instruction.trim().length < 3}
@@ -392,7 +410,7 @@ function Viewer({ asset, order, onNavigate, reference, productName, sceneName, c
 
         <div className="mt-5 border-t border-line pt-3">
           {!reported ? (
-            <button type="button" className={clsx(panelBtn, "text-mute")} onClick={() => setReporting(true)}><Flag size={15} /> Report an issue for review</button>
+            <span className="px-3 text-xs text-mute">Wrong label, colour or shape? Use Report above and the credit comes back after review.</span>
           ) : (
             <div className="px-3 text-xs text-mute">Report {reported.status.replace("_", " ")}</div>
           )}

@@ -1,8 +1,11 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import { admin } from "@/lib/supabase";
 import { Badge, Card, Input, PageHeader, formatDate } from "@/components/ui";
 
 export default async function Orgs({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   let q = admin().from("organizations").select("id, name, source, status, created_at, billing_gstin, wallet_balances(available, consumed), memberships(profiles(email))", { count: "exact" })

@@ -1,4 +1,5 @@
 "use client";
+import { FitImg } from "@/components/fit-img";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -12,9 +13,10 @@ export function ProductEditor({ product, photos }: {
   photos: { id: string; url: string | null; view: string; size: string; cutout: string | null }[];
 }) {
   const router = useRouter();
-  const [form, setForm] = useState({ name: product.name, category: product.category, sku: product.sku ?? "", locks: product.locks, mustNotChange: product.mustNotChange ?? "" });
+  const [form, setForm] = useState({ name: product.name, category: product.category, sku: product.sku ?? "", locks: product.locks ?? [], mustNotChange: product.mustNotChange ?? "" });
   const [busy, setBusy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
+  const [view, setView] = useState("angle");
 
   async function save(extra: Record<string, unknown> = {}) {
     setBusy("save");
@@ -30,8 +32,8 @@ export function ProductEditor({ product, photos }: {
     if (!files?.length) return;
     setBusy("upload");
     try {
-      const keys = await uploadFiles(Array.from(files).slice(0, 3));
-      await api(`/api/products/${product.id}/photos`, { method: "POST", json: { uploads: keys.map((k) => ({ key: k, viewType: "angle" })) } });
+      const keys = await uploadFiles(Array.from(files).slice(0, Math.max(0, 6 - photos.length)));
+      await api(`/api/products/${product.id}/photos`, { method: "POST", json: { uploads: keys.map((k) => ({ key: k, viewType: view })) } });
       router.refresh();
     } catch (e) { toast((e as Error).message, true); }
     setBusy(null);
@@ -40,22 +42,22 @@ export function ProductEditor({ product, photos }: {
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr]">
       <div>
-        <div className="eyebrow mb-3">Reference photos</div>
+        <div className="pe-head"><h2 className="h5">Product photos <span className="sm muted" style={{ fontWeight: 400 }}>· {photos.length} of 6</span></h2>{photos.length < 6 && <div className="pills" role="group" aria-label="The next photo shows"><span className="xs muted nowrap">Next photo:</span>{([["angle", "Angle"], ["back", "Back"], ["detail", "Close-up"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx("pill sm", view === v && "on")} onClick={() => setView(v)}>{l}</button>)}</div>}</div><p className="xs muted" style={{ marginBottom: 12 }}>We use every photo, so more angles keep the back, sides and small details true.</p>
         <div className="grid grid-cols-3 gap-3">
           {photos.map((p) => (
             <div key={p.id} className="group relative">
-              <div className="aspect-square overflow-hidden rounded-lg border border-line bg-card">
+              <div className="ph r11" style={{ borderRadius: 12 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {p.url && <img src={p.url} alt={`${p.view} view`} className="size-full object-cover" />}
+                {p.url && <FitImg src={p.url} alt={`${p.view} view`} />}
               </div>
-              <div className="frame-no mt-1">{p.view} · {p.size}{p.cutout === null ? "" : p.cutout ? " · cut out" : ""}</div>
+              <div className="xs muted" style={{ marginTop: 6, fontWeight: 600 }}>{({ front: "Front", angle: "Angle", back: "Back", detail: "Close-up", other: "Other" } as Record<string, string>)[p.view] ?? p.view}</div>
               {photos.length > 1 && (
                 <button aria-label="Delete photo" onClick={async () => { await api(`/api/products/${product.id}/photos?assetId=${p.id}`, { method: "DELETE" }).catch((e) => toast(e.message, true)); router.refresh(); }}
                   className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-paper/90 opacity-0 transition-opacity group-hover:opacity-100"><Trash size={13} /></button>
               )}
             </div>
           ))}
-          {photos.length < 5 && (
+          {photos.length < 6 && (
             <button onClick={() => file.current?.click()} className="grid aspect-square place-items-center rounded-lg border border-dashed border-line text-mute hover:text-ink">
               {busy === "upload" ? <Spinner /> : <ImagePlus />}
             </button>

@@ -1,3 +1,4 @@
+import { categoryArtDirection, campaignPlan } from "./art-direction";
 /**
  * AI art direction. Small text-model calls make every image specific to the product:
  *  1. Product analysis (vision): what the product is, its materials, colours, exact label text,
@@ -10,7 +11,9 @@ import { CATEGORY_LIST, type CategoryId } from "./categories";
 import type { OutputPreset, StylePreset } from "./presets";
 
 export type HumanPresence = "none" | "hands" | "model";
-export const CREATIVE_VERSION = "2026-10-27.directed-1";
+/** Reference photos per product. Every one is studied and sent to the image engine. */
+export const MAX_REFERENCE_PHOTOS = 6;
+export const CREATIVE_VERSION = "2026-10-31.product-led-1";
 
 export interface SceneIdea {
   purpose?: "hero" | "human" | "detail";
@@ -24,7 +27,24 @@ export interface SceneIdea {
   base_scene: string;
 }
 
+/** Kinds of written shoot idea a customer can add on top of a chosen look. One per kind is used. */
+export const SUGGESTION_KINDS = ["props", "setting", "angle", "detail", "mood", "human"] as const;
+export type SuggestionKind = (typeof SUGGESTION_KINDS)[number];
+export const SUGGESTION_KIND_LABEL: Record<SuggestionKind, string> = { props: "Props", setting: "Setting", angle: "Angle", detail: "Detail", mood: "Mood", human: "People" };
+
+/** A written idea made for this exact product, e.g. "Add sliced oranges to echo the Vitamin C on the label". */
+export interface ShootSuggestion {
+  id: string;
+  kind: SuggestionKind;
+  /** 3 to 6 words, e.g. "Fresh orange slices". */
+  title: string;
+  /** One plain sentence the customer reads and the image engine follows. */
+  text: string;
+}
+
 export interface ProductAnalysis {
+  /** Number of product units in the FIRST reference, not photo count or accessories. */
+  subject_count?: number;
   creative_version?: string;
   use_case?: string;
   audience?: string;
@@ -53,6 +73,10 @@ export interface ProductAnalysis {
   suggested_scenes: string[];
   /** Three campaign directions made for this product. */
   ideas: SceneIdea[];
+  /** Written shoot ideas for this product, picked by the customer as extra direction. */
+  suggestions?: ShootSuggestion[];
+  /** How many reference photos this analysis was made from. */
+  photo_count?: number;
   /** Problems with the photo that will hurt results, in plain words, e.g. "Held in a hand". */
   photo_issues: string[];
   /** 0..1, how readable the label is in the photo. */
@@ -63,7 +87,8 @@ export function analysisPrompt(sceneIds: string[]): string {
   return `You are a commercial photographer and creative director. Study the supplied product photos; create a small, coherent campaign a first-time founder can understand without writing prompts.
 
 PRODUCT INTELLIGENCE
-Identify the exact product, visible brand, physical materials, colours, label text, scale, orientation and viewpoint. Infer its practical use only when visually supported. Separate observed facts from inference in usage_confidence. Never invent ingredients, efficacy, certifications, medical claims, waterproofing, compatible devices or invisible construction. key_ingredients must contain only readable or clearly visible ingredients; an unknown list is empty.
+Identify function and physical source form before assigning a category. A cap or handle is not jewellery merely because it is circular; worn nail art is not a skincare bottle; fabric construction and garment type matter. When evidence is insufficient, use other and describe the uncertainty. Identify the exact product, visible brand, physical materials, colours, label text, scale, orientation and viewpoint. Infer its practical use only when visually supported. Separate observed facts from inference in usage_confidence. Never invent ingredients, efficacy, certifications, medical claims, waterproofing, compatible devices or invisible construction. key_ingredients must contain only readable or clearly visible ingredients; an unknown list is empty.
+subject_count: count physical PRODUCT units in photo 1 only. Alternate references do not add units. Ignore source hands, background objects, shadows, reflections and spare-looking shapes unless clearly product units. Preserve the supplied assembly state; a cap attached to a pen is part of one pen.
 name: a short store-ready name; brand: printed brand or null; category: one of ${CATEGORY_LIST.map(c => c.id).join(", ")}. description: physical form, closure, material and finish, excluding the old background and wear. visible_text: verbatim printed text, without completing illegible words. colours: 2–5 hex colours. size: tiny/small/medium/large. orientation: standing/lying/hanging. viewpoint: front/three_quarter/side/top_down/angled.
 use_case: one plain sentence describing what the product is for, or say that its use needs confirmation. audience: a plausible buyer context, never asserted customer research. visual_strategy: one specific sentence linking its product truth to an interesting visual story.
 
@@ -78,12 +103,13 @@ suggested_scenes: up to 3 relevant ids. photo_issues: plain phrases for visible 
 export const ANALYSIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["name", "brand", "category", "description", "materials", "colours", "visible_text", "size", "orientation", "viewpoint", "key_ingredients", "suggested_scenes", "ideas", "photo_issues", "label_legibility", "use_case", "audience", "visual_strategy", "usage_confidence"],
+  required: ["subject_count", "name", "brand", "category", "description", "materials", "colours", "visible_text", "size", "orientation", "viewpoint", "key_ingredients", "suggested_scenes", "ideas", "photo_issues", "label_legibility", "use_case", "audience", "visual_strategy", "usage_confidence"],
   properties: {
     use_case: { type: "string" },
     audience: { type: "string" },
     visual_strategy: { type: "string" },
     usage_confidence: { type: "string", enum: ["observed", "inferred", "unknown"] },
+    subject_count: { type: "integer", minimum: 1, maximum: 20 },
     name: { type: "string" },
     brand: { type: ["string", "null"] },
     category: { type: "string", enum: CATEGORY_LIST.map((c) => c.id) },
@@ -107,6 +133,43 @@ export const ANALYSIS_SCHEMA = {
     label_legibility: { type: "number" },
   },
 } as const;
+
+/** How the vision model should read several photos of one product. */
+export function photoSetPrompt(views: string[]): string {
+  if (views.length <= 1) return "";
+  return `\nPHOTO SET: you are given ${views.length} photos of ONE product, in this order: ${views.map((v, i) => `photo ${i + 1} = ${v} view`).join("; ")}. Combine every photo: read text, materials and construction from whichever angle shows them best, note details visible only on the back, side or close-up, and never treat the photos as different products.`;
+}
+
+/** Instructions for the written shoot ideas returned with the product facts. */
+export const SUGGESTIONS_PROMPT = `
+SHOOT IDEAS (suggestions): write 6 to 8 short ideas a seller can tick to add on top of any look they choose. Each must come from something you actually see in the photos (a material, a printed ingredient, a colour, a closure, a craft detail, a size, how it is used). Spread them across kinds: props, setting, angle, detail, mood, and at most two of kind human (hands or an adult model using it, only when its use is clear).
+Each idea: kind; title of 2 to 4 everyday words a shopper would say, starting with the thing that changes, for example "Fresh orange slices", "Morning sunlight", "Held in a hand"; text of one short plain sentence under 90 characters saying what appears in the photo, for example "A few orange slices around it, matching the Vitamin C on the label". No instructions to a photographer, no "place", "position", "shoot" or "frame". No camera jargon, no claims about effects or health, no brand names that are not printed on the product, no text overlays.`;
+
+export const SUGGESTIONS_SCHEMA = {
+  type: "array", minItems: 4, maxItems: 8,
+  items: {
+    type: "object", additionalProperties: false, required: ["kind", "title", "text"],
+    properties: { kind: { type: "string", enum: [...SUGGESTION_KINDS] }, title: { type: "string" }, text: { type: "string" } },
+  },
+} as const;
+
+/** Defensive parse of written shoot ideas. Ids are stable for the same text so selections survive reloads. */
+export function parseSuggestions(raw: unknown): ShootSuggestion[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: ShootSuggestion[] = [];
+  for (const r of raw as Record<string, unknown>[]) {
+    const kind = SUGGESTION_KINDS.includes(r?.kind as SuggestionKind) ? (r.kind as SuggestionKind) : null;
+    const title = typeof r?.title === "string" ? clean(r.title).slice(0, 48) : "";
+    const text = typeof r?.text === "string" ? clean(r.text).slice(0, 180) : "";
+    if (!kind || !title || text.length < 12) continue;
+    const id = kind + "-" + title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ id, kind, title, text });
+  }
+  return out.slice(0, 8);
+}
 
 /** Defensive parse of analysis JSON from a model. */
 export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis | null {
@@ -133,6 +196,7 @@ export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis
     : [];
   return {
     creative_version: CREATIVE_VERSION,
+    subject_count: typeof v.subject_count === "number" && Number.isInteger(v.subject_count) && v.subject_count >= 1 && v.subject_count <= 20 ? v.subject_count : undefined,
     use_case: str(v.use_case, 220),
     audience: str(v.audience, 180),
     visual_strategy: str(v.visual_strategy, 300),
@@ -140,7 +204,7 @@ export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis
     name: str(v.name, 60) || "Product",
     brand: str(v.brand, 60) || null,
     category: cat,
-    description: str(v.description, 300).replace(/[^.]*\b(dirt|dirty|wear|worn|scratch|stain|fingerprint|dust|smudge)\w*[^.]*\.?/gi, "").trim(),
+    description: str(v.description, 300).replace(/\b(?:shows|has|there (?:is|are))[^.]*\b(?:dirt|dirty|wear|scratch|stain|fingerprint|dust|smudge)\w*[^.]*\.?/gi, "").trim(),
     materials: list(v.materials, 5),
     colours: list(v.colours, 5, 9).filter((c) => /^#[0-9a-f]{6}$/i.test(c)),
     visible_text: list(v.visible_text, 30, 120),
@@ -150,6 +214,7 @@ export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis
     key_ingredients: list(v.key_ingredients, 5),
     suggested_scenes: list(v.suggested_scenes, 6).filter((s) => sceneIds.includes(s)),
     ideas,
+    suggestions: parseSuggestions(v.suggestions),
     photo_issues: list(v.photo_issues, 5, 120),
     label_legibility: Math.max(0, Math.min(1, Number(v.label_legibility) || 0)),
   };
@@ -195,6 +260,8 @@ export const DIRECTION_SCHEMA = {
 } as const;
 
 export interface DirectionInput {
+  /** Ordered look constraints for one coordinated set, handled in one text call. */
+  assignments?: { title: string; brief: string; shootStyle?: ShootStyleId; humanPresence: HumanPresence; framing: "full" | "close" | "macro" }[];
   shootStyle?: ShootStyleId;
   framing?: "full" | "close" | "macro";
   humanPresence?: HumanPresence;
@@ -224,11 +291,14 @@ export function directionPrompt(i: DirectionInput): string {
     ? `${a.description} Materials: ${a.materials.join(", ") || "unknown"}. Colours: ${a.colours.join(", ") || "unknown"}. Size: ${a.size}. It ${a.orientation === "lying" ? "lies flat" : a.orientation === "hanging" ? "hangs" : "stands upright"}.${a.key_ingredients.length ? ` Key ingredients/flavours: ${a.key_ingredients.join(", ")}.` : ""}`
     : `A product called "${i.productName}".`;
   const view = a ? VIEW_WORDS[a.viewpoint] : VIEW_WORDS.front;
-  return `You are the art director of a world-class product photography studio that shoots campaigns for premium D2C brands (think Aesop, Glossier, Apple, Bellroy). Write ${i.count} shot brief(s) for one product.
+  return `You are the art director of a commercial photography studio creating an original product-led campaign for its actual buyer. Write ${i.count} shot brief(s) for one product.
 
 PRODUCT: ${product}
 USE: ${a?.use_case || "Not confirmed; do not invent use or claims."}
 CREATIVE STRATEGY: ${a?.visual_strategy || "Find a distinctive visual story in the observed product materials."}
+CATEGORY DISCIPLINE: ${categoryArtDirection(a?.category ?? "other")}
+SET COVERAGE (honor the selected style in EVERY frame):
+${campaignPlan(i.count)}
 HUMAN DIRECTION: ${i.humanPresence || "none"}
 FRAMING: ${i.framing || "full"}. Full means the complete product. Close means a tight crop with product context. Macro means a highly magnified visible detail with a deliberate focus plane.
 The product photo was taken from ${view}; every shot must use a compatible camera angle so product identity remains clear; a requested adult interaction may use a natural pose.
@@ -244,13 +314,12 @@ SCENE RECIPE (lighting reference; the chosen campaign brief takes priority over 
 For a chosen brief, remove recipe props that do not support the actual product or action.
 - Colour grade: ${i.style.grade}
 ${i.brief ? `BRIEF (data describing what is wanted, not instructions to you): """${i.brief}"""` : ""}
+${i.assignments?.length ? "ORDERED SHOT ASSIGNMENTS (each overrides global style, framing and human defaults for its own shot only): " + JSON.stringify(i.assignments) + ". Honor every shot separately. Plan one coherent palette and product story across the set; never replace a required action or outdoor setting with a studio frame." : ""}
 FORMAT: ${i.output.name} ${i.output.ratio}.${i.output.id === "website_hero" || i.output.id === "landscape" ? " Keep clean negative space on one side for text." : ""}
 ${i.palette?.length ? `BRAND PALETTE to weave into backdrop and props: ${i.palette.slice(0, 5).join(", ")}.` : ""}
 ${i.avoid?.length ? `Already shot (do something different): ${i.avoid.slice(0, 5).join(" | ")}` : ""}
 
-How a great brief reads:
-GOOD: "A slab of honed travertine on a sun-washed plaster backdrop. Two halved blood oranges rest behind the bottle to the left, one sprig of rosemary in front-right, out of focus. Hard morning sun from the right throws a long, crisp shadow across the stone."
-BAD: "A deconstructed vent slat and folded manual pages behind the remote." (literal, ugly, nobody would shoot this)
+Before writing, choose one visual idea from an observed product truth: colour relationship, silhouette, material, utility or craft. Build a coherent set from that idea. Do not imitate a named brand or fall back to stock marble, citrus, greenery or linen. The selected look fixes environment and action, not a universal background.
 
 Rules:
 - "scene": 2 to 3 short sentences. Aspirational, simple and photographable. At most 3 props, each chosen for the product's world and lifestyle (ingredients, natural materials, objects its buyer owns), placed behind or beside it, never covering it. Never props that are parts, packaging, manuals, tools or wires of the product. Do not describe the product itself or its text.
@@ -262,7 +331,7 @@ Rules:
 - No additional text, logos, other brands, prices or efficacy claims.
 - Use one strong compositional idea; credible lens, light source, gravity, contact and material reflections. Before returning, reject a brief that could fit any unrelated product unchanged.
 - A human interaction may change the product pose only as physically needed; static still lifes match the reference camera angle.
-- Vary arrangement and mood between shots while staying in the recipe.
+- Make every shot serve its assigned coverage role. Change camera height, optical distance, subject action or scale relationship meaningfully; rotating the same view is not a new angle. Keep the chosen style and coherent art direction throughout.
 - product_scale: product height as a fraction of the frame's shorter side, 0.4 to 0.75 (tiny items around 0.45, bottles around 0.65). offset_x: -0.2 to 0.2. baseline: 0.7 to 0.9.`;
 }
 
@@ -277,15 +346,17 @@ export function parseDirections(raw: unknown, count: number): ShotDirection[] | 
   if (!Array.isArray(v?.shots) || v.shots.length === 0) return null;
   const clamp = (n: unknown, lo: number, hi: number, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d);
   const shots = v.shots.slice(0, count).map((s: Record<string, unknown>) => ({
-    scene: clean(String(s.scene ?? "")).slice(0, 600),
-    lighting: clean(String(s.lighting ?? "")).slice(0, 260),
-    camera: clean(String(s.camera ?? "")).slice(0, 160),
+    scene: clean(String(s.scene ?? "")).slice(0, 1200),
+    lighting: clean(String(s.lighting ?? "")).slice(0, 500),
+    camera: clean(String(s.camera ?? "")).slice(0, 400),
     product_scale: clamp(s.product_scale, 0.38, 0.78, 0.6),
     offset_x: clamp(s.offset_x, -0.2, 0.2, 0),
     baseline: clamp(s.baseline, 0.68, 0.9, 0.84),
   })).filter((s) => s.scene.length > 20);
   if (!shots.length) return null;
-  while (shots.length < count) shots.push({ ...shots[shots.length % shots.length] });
+  if (shots.length !== count) return null;
+  const fingerprints = shots.map(s => [s.scene, s.camera].join(" ").toLowerCase());
+  if (new Set(fingerprints).size !== fingerprints.length) return null;
   return shots;
 }
 
@@ -298,6 +369,7 @@ const VARIATIONS = [
 
 /** Deterministic direction when no text model is available. */
 export function fallbackDirections(i: DirectionInput): ShotDirection[] {
+  if (i.assignments?.length) return i.assignments.map((assignment) => fallbackDirections({ ...i, assignments: undefined, count: 1, brief: assignment.brief, shootStyle: assignment.shootStyle, humanPresence: assignment.humanPresence, framing: assignment.framing })[0]);
   const sizeScale = { tiny: 0.45, small: 0.55, medium: 0.62, large: 0.7 }[i.analysis?.size ?? "medium"];
   const scale = Math.min(sizeScale, i.output.productScale + 0.04);
   const ingredients = i.analysis?.key_ingredients.length && /ingredient/i.test(i.style.props) ? ` Props drawn from: ${i.analysis.key_ingredients.join(", ")}.` : "";

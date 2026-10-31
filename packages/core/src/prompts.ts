@@ -3,7 +3,7 @@ import { CATEGORIES, LOCKS, type CategoryId, type LockId } from "./categories";
 import { OUTPUTS, STYLES, type OutputId, type StyleId } from "./presets";
 import { fallbackDirections, type ProductAnalysis, type ShotDirection } from "./director";
 
-export const PROMPT_TEMPLATE_VERSION = "2026-10-27.6";
+export const PROMPT_TEMPLATE_VERSION = "2026-10-31.7";
 
 export type Mode = "preserve" | "creative";
 
@@ -72,7 +72,7 @@ export function buildPrompt(input: PromptInput): BuiltPrompt {
     input.mode === "preserve"
       ? input.productPlaced
         ? `Image 1 shows the product already placed on a plain grey background: ${what}. Replace the grey with the scene below and photograph the product inside it. Keep the product exactly where it is, at the same size and angle, with identical shape, proportions, colours, materials and design. ${text} Light it with the scene's light: matching highlights, reflections, colour spill and a physically correct contact shadow where it touches the surface, so it truly sits in the scene. Do not add a second product.`
-        : `Image 1 is a photo of the product: ${what}. Recreate this exact product in the scene below, cleaned up like a retouched studio product: identical shape, proportions, colours, materials and design. ${text} Remove the old background, source-photo hands and glare. Any new adult interaction must follow the selected shot brief.`
+        : `Image 1 is a photo of the product: ${what}. Recreate this exact product in the scene below, with only source-photo distractions cleaned up, photographed naturally in the SELECTED scene (not automatically a studio): identical shape, proportions, colours, materials and design. ${text} Remove the old background, source-photo hands and glare. Any new adult interaction must follow the selected shot brief.`
       : `Image 1 is a photo of the product: ${what}. Keep it clearly the same product with its logo and label legible and unchanged, in a more imaginative, scroll-stopping composition. ${text}`;
 
   const detail = shot.framing === "close" || shot.framing === "macro";
@@ -126,4 +126,4 @@ All images except the LAST are ORIGINAL product references. The LAST image is th
 Compare only the product itself (ignore background, props and lighting style) and also judge whether the result looks like a real photograph.
 Answer only with JSON:
 {"same_product": boolean, "text_changed": boolean, "logo_changed": boolean, "design_changed": boolean, "colour_changed": boolean, "shape_changed": boolean, "extra_or_missing_items": boolean, "artefacts": boolean, "notes": string}
-Rules: any misspelt, missing, blurred-into-gibberish or invented printed text counts as text_changed. Changed fabric print, motif registration, embroidery, zari/border/pallu layout, weave, opacity or gemstone setting counts as design_changed. Changed necklines, sleeves, seams, panels, hem, closures, attachment or included components count as shape_changed. Never infer a correct hidden design without a supporting reference: uncertainty about a critical visible identity detail counts as artefacts. A second copy of the product or a missing part counts as extra_or_missing_items. Floating products without shadow, melted shapes or obvious AI glitches count as artefacts. Ordinary perspective and physically plausible folds may change; garment design cannot. "notes": one short sentence for the customer.`;
+Rules: compare only markings on the SAME visible physical surface. A naturally unprinted side, back or sole, foreshortened text, legitimate occlusion and text outside an intentional crop are not changed text. Visibly misspelt, replaced, blurred-into-gibberish or invented printed text on an exposed marked surface counts as text_changed. Changed fabric print, motif registration, embroidery, zari/border/pallu layout, weave, opacity or gemstone setting counts as design_changed. Changed necklines, sleeves, seams, panels, hem, closures, attachment or included components count as shape_changed. Never infer a correct hidden design without a supporting reference: uncertainty about a critical visible identity detail counts as artefacts. A second copy of the product or a missing part counts as extra_or_missing_items. Floating products without shadow, melted shapes or obvious AI glitches count as artefacts. Ordinary perspective and physically plausible folds may change; garment design cannot. "notes": one short sentence for the customer.`;

@@ -9,11 +9,13 @@ import { admin } from "@/lib/supabase";
 import { audit } from "@/lib/observe";
 import { randomToken, sha256 } from "@/lib/crypto";
 import { env } from "@/lib/env";
-import { sendEmail } from "@/lib/email";
+import { emailLayout, sendEmail } from "@/lib/email";
 import { putObject } from "@/lib/storage";
 import sharp from "sharp";
+import { BRAND_MOODS } from "@/lib/brand-moods";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string; link?: string } | null;
+
 
 export async function switchOrg(form: FormData) {
   const ctx = await requireWeb();
@@ -63,7 +65,14 @@ export async function inviteMember(_: ActionState, form: FormData): Promise<Acti
   const token = randomToken();
   await admin().from("invitations").insert({ organization_id: ctx.orgId, email, role, token_hash: sha256(token), invited_by: ctx.userId });
   const link = `${env.appUrl}/invite/${token}`;
-  const sent = await sendEmail(email, `${ctx.orgName} invited you to ${env.appName}`, `<p>You've been invited to join <b>${ctx.orgName}</b> on ${env.appName} as ${role}.</p><p><a href="${link}">Accept the invitation</a> (valid for 7 days)</p>`);
+  const org = ctx.orgName.replace(/[&<>"]/g, "");
+  const sent = await sendEmail(email, `${org} invited you to ${env.appName}`, emailLayout({
+    preheader: `Join ${org} on ${env.appName}.`,
+    title: `Join ${org} on ${env.appName}`,
+    body: `<p style="margin:0">${ctx.email ? ctx.email.replace(/[<>]/g, "") + " invited you" : "You are invited"} to the <b>${org}</b> workspace as ${role === "viewer" ? "a viewer, so you can see and download photos" : role === "admin" ? "an admin" : "an editor, so you can create shoots"}.</p><p style="margin:12px 0 0">The invitation works for 7 days.</p>`,
+    cta: { label: "Accept the invitation", href: link },
+    footer: `If you were not expecting this, you can ignore this email.`,
+  }));
   await audit(ctx, "team.invite", { type: "invitation", id: email }, { role });
   revalidatePath("/app/team");
   return { ok: true, message: sent ? `Invitation sent to ${email}` : "Invitation created. Email isn't set up, so share this link:", link: sent ? undefined : link };
@@ -106,12 +115,13 @@ export async function saveBrandKit(_: ActionState, form: FormData): Promise<Acti
   const id = String(form.get("id") ?? "");
   const name = String(form.get("name") ?? "").trim();
   if (!name) return { error: "Give the kit a name" };
-  const palette = String(form.get("palette") ?? "").split(/[\s,]+/).map((c) => c.trim()).filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 6);
+  const palette = [...new Set(form.getAll("palette").flatMap((v) => String(v).split(/[\s,]+/)).map((c) => c.trim().toUpperCase()).filter((c) => /^#[0-9A-F]{6}$/.test(c)))].slice(0, 6);
   const row: Record<string, unknown> = {
     organization_id: ctx.orgId, name, palette,
     style_rules: String(form.get("styleRules") ?? "").slice(0, 600) || null,
     default_style: String(form.get("defaultStyle") ?? "") || null,
     default_output: String(form.get("defaultOutput") ?? "") || null,
+    moods: form.getAll("moods").map(String).filter((m) => BRAND_MOODS.includes(m as (typeof BRAND_MOODS)[number])).slice(0, 4),
   };
   const logo = form.get("logo");
   if (logo instanceof File && logo.size > 0) {
@@ -139,7 +149,12 @@ export async function createProject(_: ActionState, form: FormData): Promise<Act
   const ctx = await requireWeb("editor");
   const name = String(form.get("name") ?? "").trim();
   if (!name) return { error: "Give the project a name" };
-  await admin().from("projects").insert({ organization_id: ctx.orgId, name: name.slice(0, 120), brand_kit_id: String(form.get("brandKitId") ?? "") || null });
+  let kitId: string | null = String(form.get("brandKitId") ?? "") || null;
+  if (kitId) {
+    const { data: kit } = await admin().from("brand_kits").select("id").eq("id", kitId).eq("organization_id", ctx.orgId).maybeSingle();
+    if (!kit) kitId = null;
+  }
+  await admin().from("projects").insert({ organization_id: ctx.orgId, name: name.slice(0, 120), brand_kit_id: kitId });
   revalidatePath("/app/projects");
   return { ok: true };
 }
@@ -158,7 +173,12 @@ export async function createTicket(_: ActionState, form: FormData): Promise<Acti
   const body = String(form.get("body") ?? "").trim().slice(0, 4000);
   if (!subject || !body) return { error: "Add a subject and a message" };
   const db = admin();
-  const { data: t } = await db.from("support_tickets").insert({ organization_id: ctx.orgId, created_by: ctx.userId, subject, related_job_id: String(form.get("jobId") ?? "") || null }).select("id").single();
+  let jobId: string | null = String(form.get("jobId") ?? "") || null;
+  if (jobId) {
+    const { data: j } = await db.from("generation_jobs").select("id").eq("id", jobId).eq("organization_id", ctx.orgId).maybeSingle();
+    if (!j) jobId = null;
+  }
+  const { data: t } = await db.from("support_tickets").insert({ organization_id: ctx.orgId, created_by: ctx.userId, subject, related_job_id: jobId }).select("id").single();
   await db.from("support_messages").insert({ ticket_id: t!.id, author_id: ctx.userId, body });
   if (env.alertEmail) await sendEmail(env.alertEmail, `Support: ${subject}`, `<p>${ctx.orgName} (${ctx.email})</p><p>${body.replace(/</g, "&lt;")}</p>`);
   redirect(`/app/support/${t!.id}`);
@@ -186,4 +206,15 @@ export async function requestDeletion(_: ActionState, form: FormData): Promise<A
   await db.from("support_messages").insert({ ticket_id: t!.id, author_id: ctx.userId, body: "Please delete this workspace, its product photos and generated images. (Invoices are kept as required by tax law.)" });
   await audit(ctx, "org.deletion_requested", { type: "org", id: ctx.orgId });
   return { ok: true, message: "We've received your request and will confirm by email within 7 days." };
+}
+
+/** Email preferences for the signed-in person, not the whole workspace. */
+export async function saveNotifications(_: ActionState, form: FormData): Promise<ActionState> {
+  const ctx = await requireWeb();
+  if (!ctx.userId) return { error: "Sign in again to change notifications" };
+  const on = (k: string) => form.get(k) === "on";
+  const { error } = await admin().from("profiles").update({ notify_ready: on("ready"), notify_low_credits: on("low"), notify_news: on("news") }).eq("id", ctx.userId);
+  if (error) return { error: "Couldn't save. Try again." };
+  revalidatePath("/app/settings");
+  return { ok: true, message: "Notifications saved" };
 }

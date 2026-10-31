@@ -1,8 +1,11 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import { admin } from "@/lib/supabase";
 import { Card, PageHeader, formatDate } from "@/components/ui";
 
 export default async function Ledger({ searchParams }: { searchParams: Promise<{ type?: string; before?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const sp = await searchParams;
   let q = admin().from("credit_ledger").select("id, entry_type, quantity, created_at, note, job_id, order_id, organization_id, organizations(name), credit_lots(kind)").order("id", { ascending: false }).limit(100);
   if (sp.type) q = q.eq("entry_type", sp.type);

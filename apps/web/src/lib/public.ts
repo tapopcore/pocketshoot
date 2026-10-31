@@ -23,6 +23,16 @@ export async function webPacks(): Promise<PublicPack[]> {
   }
 }
 
+/** Shopify app packs (billed in USD through Shopify). Empty if the database can't be reached. */
+export async function shopifyPacks(): Promise<PublicPack[]> {
+  try {
+    const { data, error } = await admin().from("pricing_packs").select("id, code, name, credits, price_minor, currency, badge").eq("channel", "shopify").eq("active", true).order("sort");
+    return error || !data ? [] : data;
+  } catch {
+    return [];
+  }
+}
+
 export interface Showcase { assetId: string; caption: string; category: string; url?: string }
 
 /** Real customer images an admin has chosen to show, with the customer's permission. */

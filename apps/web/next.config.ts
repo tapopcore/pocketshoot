@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["@packshot/core"],
   serverExternalPackages: ["sharp", "@electric-sql/pglite"],
-  images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }] },
+  images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }], minimumCacheTTL: 2592000 },
   experimental: { serverActions: { bodySizeLimit: "4mb" } },
   async headers() {
     const security = [

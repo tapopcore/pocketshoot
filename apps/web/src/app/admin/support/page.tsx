@@ -1,3 +1,4 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import clsx from "clsx";
 import { admin } from "@/lib/supabase";
@@ -6,6 +7,8 @@ import { ActionForm } from "@/components/action-form";
 import { staffReplyAction } from "../actions";
 
 export default async function AdminSupport({ searchParams }: { searchParams: Promise<{ t?: string; status?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const sp = await searchParams;
   const status = sp.status ?? "open";
   const db = admin();

@@ -62,8 +62,10 @@ export function openaiProvider(cfg: OpenAIImageSettings): ImageProvider {
           lastError = e;
           if (e instanceof ProviderError) throw e;
           if (!isModelMissing(e)) {
-            const err = e as { status?: number; message?: string };
-            throw classifyHttpError(err.status, err.message ?? String(e));
+            const err = e as { status?: number; message?: string; request_id?: string };
+            const failure = classifyHttpError(err.status, err.message ?? String(e));
+            failure.requestId = err.request_id;
+            throw failure;
           }
         }
       }
@@ -87,13 +89,14 @@ async function callEdit(req: EditRequest, model: string, cfg: OpenAIImageSetting
   };
   if (req.mask) params.mask = await toFile(req.mask, "mask.png", { type: "image/png" });
   if (req.transparent) params.background = "transparent";
-  const res = await openai().images.edit(params as never, { timeout: req.timeoutMs });
+  const { data: res, request_id: requestId } = await openai().images.edit(params as never, { timeout: req.timeoutMs, maxRetries: 0 }).withResponse();
   const out = res as unknown as { data?: { b64_json?: string }[]; usage?: { input_tokens?: number; output_tokens?: number } };
   const b64 = out.data?.[0]?.b64_json;
   if (!b64) throw new ProviderError("OpenAI returned no image", "empty_response", true);
   const input = out.usage?.input_tokens ?? 0, output = out.usage?.output_tokens ?? 0;
   return {
     image: Buffer.from(b64, "base64"),
+    requestId: requestId ?? undefined,
     model,
     inputTokens: input,
     outputTokens: output,

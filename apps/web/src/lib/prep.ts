@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import {
-  CREATIVE_VERSION, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
+  CREATIVE_VERSION, MAX_REFERENCE_PHOTOS, SUGGESTIONS_PROMPT, SUGGESTIONS_SCHEMA, photoSetPrompt, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
   sanitizeUserText, type DirectionInput, type ProductAnalysis, type ShotDirection,
 } from "@packshot/core";
 import { admin } from "./supabase";
@@ -21,8 +21,11 @@ const SUMMARY_SCHEMA = {
   properties: { ...ANALYSIS_SCHEMA.properties,
     ideas: { type: "array", maxItems: 0, items: ANALYSIS_SCHEMA.properties.ideas.items },
     suggested_scenes: { type: "array", maxItems: 0, items: { type: "string" } },
+    suggestions: SUGGESTIONS_SCHEMA,
   },
+  required: [...ANALYSIS_SCHEMA.required, "suggestions"],
 };
+
 
 export interface ProductAssetRow {
   id: string;
@@ -156,24 +159,26 @@ export async function analyzeProduct(productId: string, force = false): Promise<
   const { data: product } = await db.from("products").select("id, organization_id, attributes").eq("id", productId).single();
   if (!product) return null;
   const attrs = (product.attributes ?? {}) as { analysis?: ProductAnalysis };
-  // Re-run analyses made by older versions (no campaign ideas or camera angle).
-  if (attrs.analysis && !force && Array.isArray(attrs.analysis.ideas) && attrs.analysis.viewpoint && attrs.analysis.creative_version === CREATIVE_VERSION) return attrs.analysis;
-  if (!integrations.openai) return null;
-  const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(3);
+  const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(MAX_REFERENCE_PHOTOS);
   if (!refs?.length) return null;
+  // Re-run when the product gains or loses a photo, or when the analysis comes from an older version.
+  if (attrs.analysis && !force && attrs.analysis.viewpoint && attrs.analysis.creative_version === CREATIVE_VERSION && (attrs.analysis.photo_count ?? 1) === refs.length) return attrs.analysis;
+  if (!integrations.openai) return attrs.analysis ?? null;
   try {
     const settings = await getSettings();
-    const images = await Promise.all(refs.map((r) => getObject("originals", r.storage_key)));
-    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + "\nReturn only concise product facts. ideas and suggested_scenes must be empty arrays. Leave audience and visual_strategy empty. Do not plan a campaign or generate an image. Report uncertainties in photo_issues; do not invent hidden details.";
-    const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 30_000 });
+    const ordered = [...refs].sort((a, b) => Number(b.view_type === "front") - Number(a.view_type === "front"));
+    const images = await Promise.all(ordered.map((r) => getObject("originals", r.storage_key)));
+    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nReturn concise product facts. ideas and suggested_scenes must be empty arrays. Give a concise buyer context and one product-specific visual_strategy grounded in visible materials, form or utility. Preserve the observed source form (worn, loose, packaged or assembled); flag uncertainty instead of guessing a different product. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
+    const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 45_000 });
     const analysis = parseAnalysis(res.data, SCENE_IDS);
     if (!analysis) return null;
+    analysis.photo_count = refs.length;
     await db.from("products").update({ attributes: { ...attrs, analysis, analysisModel: res.model, analysedAt: new Date().toISOString() } }).eq("id", productId);
     await recordCost(product.organization_id, "analysis", res.model, (res.inputTokens * 0.25 + res.outputTokens * 2) / 1_000_000);
     return analysis;
   } catch (e) {
     await logError("prep.analysis", (e as Error).message, { product: productId });
-    return null;
+    return attrs.analysis ?? null;
   }
 }
 
@@ -183,15 +188,17 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
   if (!integrations.openai) return fallback();
   try {
     const settings = await getSettings();
-    const res = await jsonCall({
-      models: settings.providers.llm.models,
-      prompt: directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined }),
-      schemaName: "shot_briefs",
-      schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>,
-      timeoutMs: 45_000,
-    });
-    const shots = parseDirections(res.data, input.count);
-    return shots && (!input.shootStyle || shots.every(shot => shotMatchesStyle(input.shootStyle!, shot))) ? { shots: shots.map(shot => ({ ...shot, framing: input.framing ?? "full", human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
+    const prompt = directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined });
+    // Repair text planning once before any image request. One bad slot cannot silently poison a pack.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await jsonCall({ models: settings.providers.llm.models, prompt: prompt + (attempt ? "\nThe previous plan was invalid. Return exactly one distinct shot per assignment, in order. Respect each assignment's environment, human action and framing independently. For outdoor slots use an explicitly exterior location with no indoor/window staging. Keep camera directions complete and concise." : ""), schemaName: "shot_briefs", schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 35_000 });
+      const shots = parseDirections(res.data, input.count);
+      if (!shots) continue;
+      const directed = shots.map((shot, index) => ({ ...shot, framing: input.assignments?.[index]?.framing ?? input.framing ?? "full", human_presence: input.assignments?.[index]?.humanPresence ?? input.humanPresence ?? "none" }));
+      if (directed.every((shot, index) => { const selected = input.assignments?.[index]?.shootStyle ?? input.shootStyle; return !selected || shotMatchesStyle(selected, shot); })) return { shots: directed, source: "ai" };
+    }
+    await logError("prep.direction", "Shot plan failed count, distinctness or selected-style validation", { count: input.count });
+    return fallback();
   } catch (e) {
     await logError("prep.direction", (e as Error).message, {});
     return fallback();

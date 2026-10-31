@@ -1,70 +1,45 @@
-/* eslint-disable @next/next/no-img-element -- Catalogue images are pre-sized and compressed. */
+/* eslint-disable @next/next/no-img-element -- original, pre-sized campaign examples */
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { StyleGallery } from "@/components/style-gallery";
-import { INDUSTRIES, signInToShoot } from "@/lib/shoot-catalog";
+import { ArrowUpRight, ArrowRight, Check, Camera, Fingerprint, Layers3 } from "lucide-react";
 import { webPacks } from "@/lib/public";
+import { StyleGallery } from "@/components/style-gallery";
+
 export const revalidate = 300;
+const money = (minor: number) => "₹" + Math.round(minor / 100).toLocaleString("en-IN");
+const worlds = [
+  { image: "/looks/footwear-2.webp", title: "Made for the street", type: "Footwear", href: "/examples?category=footwear" },
+  { image: "/looks/skincare-5.webp", title: "A little more character", type: "Beauty", href: "/examples?category=skincare" },
+  { image: "/looks/saree-2.webp", title: "Let the fabric move", type: "Indian fashion", href: "/examples?category=saree" },
+];
 export default async function Home() {
   const packs = await webPacks();
-  return <>
-    <section className="mx-auto grid max-w-7xl items-center gap-8 px-4 pb-12 pt-9 sm:px-8 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:py-20">
-      <div>
-        <div className="mb-5 flex items-center gap-2 text-xs font-medium text-ink-2"><span className="size-1.5 rounded-full bg-accent" /> The creative studio in your pocket</div>
-        <h1 className="text-[45px] font-semibold leading-[0.99] tracking-[-0.055em] sm:text-[68px] lg:text-[76px]">Your product.<br />Worth a<br /><span className="serif-i text-accent-ink">second look.</span></h1>
-        <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-2 sm:text-lg">Turn a simple product photo into a considered campaign. Real-world settings, human moments and details worth getting closer to.</p>
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row"><Link href={signInToShoot()} className="inline-flex min-h-13 items-center justify-center gap-3 rounded-full bg-accent px-7 text-sm font-semibold text-white hover:bg-accent-ink">Create your first shoot <ArrowRight size={18} /></Link><a href="#styles" className="inline-flex min-h-13 items-center justify-center gap-2 px-5 text-sm font-medium">Explore the styles <ArrowUpRight size={16} /></a></div>
-        <p className="mt-4 text-xs text-mute">No prompt writing. No subscription. Credit cost shown before you create.</p>
+  const featured = ["creator", "brand", "business"].map(code => packs.find(p => p.code === code)).filter(p => !!p);
+  return <div className="campaign-site">
+    <section className="campaign-hero wrap">
+      <div className="campaign-intro"><span className="kicker"><i />Product photography, with a point of view</span>
+        <h1>Your product.<br />A world <span className="it">of its own.</span></h1>
+        <p>A clean catalogue. A candid moment. A campaign with character. Create a shoot around what makes your product yours.</p>
+        <div className="campaign-actions"><Link href="/sign-in?next=%2Fapp%2Fnew" className="btn btn-lime btn-lg">Create your shoot <ArrowUpRight size={20} /></Link><a href="#looks" className="link">Find your direction <ArrowRight size={18} /></a></div>
+        <div className="campaign-assurance"><span><Check size={15} />Your first 2 photos are free</span><span><Check size={15} />No card needed</span></div>
       </div>
-      <div className="relative">
-        <div className="grid grid-cols-[1.15fr_0.85fr] gap-2.5 sm:gap-4">
-          <figure className="row-span-2 overflow-hidden rounded-2xl bg-paper-2"><img src="/catalog/model.webp" alt="AI-created editorial example: an adult model holding a cosmetic bottle in natural light" width={512} height={512} fetchPriority="high" className="h-full min-h-[310px] w-full object-cover object-[58%_center] sm:min-h-[470px]" /></figure>
-          <figure className="overflow-hidden rounded-2xl bg-paper-2"><img src="/catalog/graphic.webp" alt="AI-created graphic campaign example with a coral sneaker" width={512} height={512} className="aspect-square size-full object-cover" /></figure>
-          <figure className="overflow-hidden rounded-2xl bg-paper-2"><img src="/catalog/outdoor.webp" alt="AI-created outdoor bottle photography example" width={512} height={512} className="aspect-square size-full object-cover" /></figure>
-        </div>
-        <p className="mt-3 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-mute"><span>Art direction, in every frame</span><span>AI-created examples</span></p>
-      </div>
+      <div className="campaign-triptych">{worlds.map((world, n) => <Link href={world.href} className={"campaign-frame frame-" + n} key={world.type}>
+        <img src={world.image} alt={world.type + " — original illustrative campaign example"} width={640} height={640} fetchPriority={n === 0 ? "high" : "auto"} decoding="async" />
+        <div><span>{world.type}</span><b>{world.title}</b><ArrowUpRight size={20} /></div>
+      </Link>)}</div>
+      <p className="campaign-caption">Original AI-created examples. Explore the direction, then make it your product.</p>
     </section>
-    <section id="styles" className="scroll-mt-24 border-y border-line bg-card">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
-        <div className="mb-8"><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">Made for what you sell</p><h2 className="text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">The right direction.<br /><span className="serif-i font-normal">For your kind of product.</span></h2></div>
-        <StyleGallery />
-      </div>
-    </section>
-    <section className="mx-auto max-w-7xl px-4 py-14 sm:px-8 sm:py-20">
-      <div className="mb-9"><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">A little input. A clear direction.</p><h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">You bring the product.<br />We direct the scene.</h2></div>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4">{[
-        ["01", "Your photo", "Take or choose a clear photo. Keep it visible as we understand it."],
-        ["02", "Your product", "Confirm its type, visible details and useful references."],
-        ["03", "Your direction", "Choose from photographic looks compatible with your product."],
-        ["04", "Your shoot", "Check the credit cost, create, review and download."],
-      ].map(([n,t,d]) => <div key={n} className="border-t border-ink/20 pt-4"><span className="font-mono text-xs text-accent-ink">{n}</span><h3 className="mt-3 text-lg font-semibold">{t}</h3><p className="mt-2 text-sm leading-relaxed text-ink-2">{d}</p></div>)}</div>
-    </section>
-    <section className="bg-[#20251f] text-[#f6f4ec]">
-      <div className="mx-auto grid max-w-7xl gap-9 px-4 py-12 sm:px-8 sm:py-20 md:grid-cols-2 md:gap-16">
-        <img src="/catalog/closeup.webp" alt="AI-created close-up example showing leather grain and stitching" width={512} height={512} loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" />
-        <div className="self-center"><p className="text-xs uppercase tracking-[0.14em] text-[#c5ccbf]">The details make the difference</p><h2 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">Less AI gloss.<br /><span className="serif-i font-normal">More photographic intent.</span></h2><p className="mt-5 max-w-md text-sm leading-relaxed text-[#d9ded4]">Light with a source. Materials with texture. Human poses that make sense. Each style has a specific direction, while your reference guides the product&apos;s identity.</p><p className="mt-4 max-w-md text-sm leading-relaxed text-[#c5ccbf]">Automatic checks flag product changes and visual issues. You review the result before it goes anywhere.</p><Link href="/how-it-works" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium underline underline-offset-4">See how we make a shoot <ArrowRight size={16} /></Link></div>
-      </div>
-    </section>
-    <section className="mx-auto max-w-7xl px-4 py-14 sm:px-8 sm:py-20">
-      <div className="mb-7 flex items-end justify-between"><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Made for what you make.</h2></div>
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6 sm:gap-5">{INDUSTRIES.map(i => <Link href={signInToShoot(i.id)} key={i.id} className="group"><img src={i.image} alt={i.title + " industry example"} width={512} height={512} loading="lazy" className="aspect-square w-full rounded-xl object-cover" /><span className="mt-2 block text-xs font-semibold leading-relaxed sm:text-sm">{i.title}</span></Link>)}</div>
-    </section>
-    <section className="border-y border-line bg-card">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-8 sm:py-16 lg:grid-cols-[0.85fr_1.15fr]">
-        <div><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-accent-ink">Pay when you create</p><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Your next campaign.<br />At your own pace.</h2><p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-2">Browse every style before spending credits. The total is visible before you create a shoot.</p><Link href="/pricing" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-medium underline underline-offset-4">View packs and terms <ArrowRight size={15} /></Link></div>
-        <div className="grid gap-3 sm:grid-cols-3">{packs.slice(0,3).map(p => <Link key={p.id} href="/pricing" className="rounded-2xl border border-line p-5"><div className="text-xs text-mute">{p.name}</div><div className="mt-4 text-3xl font-semibold tracking-tight">₹{(p.price_minor/100).toLocaleString("en-IN")}</div><div className="mt-2 text-sm text-ink-2">{p.credits} credits</div><div className="mt-4 text-xs text-mute">+ GST · no subscription</div></Link>)}</div>
-      </div>
-    </section>
-    <section className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-8 sm:py-20 md:grid-cols-[0.8fr_1.2fr]">
-      <h2 className="text-3xl font-semibold tracking-tight">A few good questions.</h2>
-      <div>{[
-        ["Do I need to write prompts?", "No. Start with a product photo and choose a compatible visual direction. A creative note is optional."],
-        ["Are the style images my final result?", "They are reusable AI-created examples that explain each look. Your own image is generated from your product photo after you press Create."],
-        ["Can the product details change?", "AI can change fine details. We run automatic checks, and you should review labels, logos, jewellery settings and human interactions before publishing."],
-        ["When do I spend credits?", "You see the total before pressing Create. Credits are reserved for the shoot and captured for delivered images. See the pricing and refunds pages for the full policy."],
-      ].map(([q,a]) => <details key={q} className="border-t border-line py-1"><summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-5 text-sm font-semibold">{q}<span className="text-lg font-normal text-mute">+</span></summary><p className="pb-5 text-sm leading-relaxed text-ink-2">{a}</p></details>)}</div>
-    </section>
-    <section className="mx-auto max-w-7xl px-4 sm:px-8"><div className="rounded-3xl bg-[#e9e5da] px-6 py-12 text-center sm:py-16"><h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Give your product<br /><span className="serif-i font-normal">its next great photograph.</span></h2><Link href={signInToShoot()} className="mt-6 inline-flex min-h-13 items-center gap-3 rounded-full bg-ink px-7 text-sm font-semibold text-paper">Find your style <ArrowRight size={17} /></Link></div></section>
-  </>;
+    <section className="campaign-proof wrap"><div><Fingerprint /><b>Your details matter</b><span>Shape, colour, construction and print are checked against your photos.</span></div><div><Camera /><b>Choose the purpose</b><span>Studio, real-life context or a closer look. Each photo has a job.</span></div><div><Layers3 /><b>One product or a whole range</b><span>Create one shoot, a coordinated set, or a batch for your catalogue.</span></div></section>
+    <section className="sec" id="looks"><div className="wrap"><div className="campaign-section-head"><div><span className="kicker">A direction for your category</span><h2 className="h2">Different products.<br /><span className="it">Different worlds.</span></h2></div><p>Start with your industry. See examples made for that kind of product, from Indian textiles and everyday jewellery to beauty, food and footwear.</p></div><div className="sec-body"><StyleGallery /></div></div></section>
+    <section className="campaign-process"><div className="wrap"><div className="campaign-section-head"><div><span className="kicker">From your camera roll to your next campaign</span><h2 className="h2">A good shoot starts<br />with <span className="it">your product.</span></h2></div><Link href="/sign-in?next=%2Fapp%2Fnew" className="btn btn-lime">Start a shoot <ArrowRight size={18} /></Link></div><ol className="campaign-steps">
+      <li><span>01</span><h3>Show us what makes it yours.</h3><p>Upload a clear photo or take one on your phone. Add the back, sides or details when the design needs them.</p></li>
+      <li><span>02</span><h3>Pick a direction. See the price.</h3><p>Confirm the product, choose a visual style and a photo size. Shared examples are free to browse.</p></li>
+      <li><span>03</span><h3>Make a set worth using.</h3><p>Your photos are created and checked. Download individual images or the complete set; rejected photos use no customer credit.</p></li>
+    </ol></div></section>
+    <section className="sec"><div className="wrap"><div className="campaign-section-head"><div><span className="kicker">Built for the way you sell</span><h2 className="h2">A photo for <span className="it">every job.</span></h2></div><p>Choose a clean main image for your listing, an in-use moment for your store, or a closer detail for the customer who wants to be sure.</p></div><div className="campaign-formats">
+      {[['/showcase/studio/front.webp','The catalogue','Clean product. Clear details.'],['/looks/footwear-2.webp','The campaign','Context, character and movement.'],['/looks/earrings-4.webp','The close-up','Material that feels tangible.']].map(([image,title,copy])=><Link href="/sign-in?next=%2Fapp%2Fnew" key={title}><div><img src={image} alt={title + ' — illustrative example'} width={640} height={640} loading="lazy" decoding="async" /></div><h3>{title}<ArrowUpRight size={20}/></h3><p>{copy}</p></Link>)}
+    </div></div></section>
+    <section className="sec campaign-pricing"><div className="wrap"><div className="sec-head c"><span className="kicker">Know the price before you create</span><h2 className="h2">Your shoot. <span className="it">Your pace.</span></h2><p className="lead">1 credit per photo. No subscription required.</p></div><div className="campaign-price-grid sec-body">{featured.map(p=>p&&<div key={p.id} className="card p"><span className="kicker">{p.name}</span><h3>{money(p.price_minor)}</h3><p>{p.credits} photo credits</p><ul><li><Check size={16}/>Studio and category-specific looks</li><li><Check size={16}/>Full-size downloads, no added watermark</li><li><Check size={16}/>Credits valid for 12 months</li></ul><Link href="/sign-in?next=%2Fapp%2Fwallet" className="btn btn-soft btn-block">Choose {p.name}<ArrowRight size={17}/></Link></div>)}</div><Link href="/pricing" className="link">See all credit packs <ArrowRight size={17}/></Link></div></section>
+    <section className="wrap campaign-faq"><h2 className="h2">Before your <span className="it">first shoot.</span></h2><div className="qa"><details><summary>Will the design stay the same?<i>+</i></summary><p>We use your reference photos and check the visible shape, colour, construction, print and inventory. AI can still make mistakes. Extra views help with different camera angles; a rejected result is not charged to your credits.</p></details><details><summary>Do examples cost me credits?<i>+</i></summary><p>No. Style examples are shared demonstration images. Uploading your product does not generate a paid image preview. You see the photo count and credit price before you create.</p></details><details><summary>Are the example people real models?<i>+</i></summary><p>The examples are AI-created and people shown are synthetic adults. They illustrate a photographic direction, not a guarantee of an identical result.</p></details><details><summary>Can I create several products together?<i>+</i></summary><p>Use Bulk shoots for separate products in your catalogue. Use multiple reference photos in a single shoot for different views of the same product.</p></details></div></section>
+    <section className="wrap campaign-end"><span className="kicker">Make something your customers can picture.</span><h2>Give your product<br /><span className="it">its next chapter.</span></h2><Link href="/sign-in?next=%2Fapp%2Fnew" className="btn btn-lime btn-lg">Create your first shoot <ArrowUpRight size={20}/></Link></section>
+  </div>;
 }

@@ -1,9 +1,12 @@
+import { requirePlatform } from "@/lib/auth";
 import { contributionPerAcceptedImage } from "@packshot/core";
 import { dailySpend, kpis } from "@/lib/metrics";
 import { admin } from "@/lib/supabase";
 import { Card, PageHeader, Stat } from "@/components/ui";
 
 export default async function Costs() {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const [days, k, { data: packs }] = await Promise.all([dailySpend(30), kpis(30), admin().from("pricing_packs").select("name, credits, price_minor, currency").eq("channel", "web").eq("active", true).order("sort")]);
   const totalAttempts = days.reduce((a, d) => a + d.attempts, 0);
   const acceptance = k.delivered && totalAttempts ? k.delivered / totalAttempts : 0.8;

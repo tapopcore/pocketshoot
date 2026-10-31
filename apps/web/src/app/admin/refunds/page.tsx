@@ -1,3 +1,4 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import { admin } from "@/lib/supabase";
 import { signedUrls } from "@/lib/storage";
@@ -6,6 +7,8 @@ import { Badge, Card, Empty, Input, PageHeader, formatDate } from "@/components/
 import { decideRefundAction } from "../actions";
 
 export default async function Refunds({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const status = (await searchParams).status ?? "open";
   const { data } = await admin().from("refund_requests")
     .select("id, reason, details, status, resolution, evidence, created_at, organization_id, organizations(name), generated_assets(id, storage_key, job_id, product_id, quality_status)")

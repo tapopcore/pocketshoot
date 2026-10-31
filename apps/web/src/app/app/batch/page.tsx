@@ -1,6 +1,6 @@
 import { requireWeb } from "@/lib/auth";
 import { getWallet } from "@/lib/credits";
-import { getFlag } from "@/lib/settings";
+import { getSettings, getFlag } from "@/lib/settings";
 import { admin } from "@/lib/supabase";
 import { productList } from "@/lib/views";
 import { Badge, Card, Notice, PageHeader, formatDate } from "@/components/ui";
@@ -21,11 +21,11 @@ export default async function Batch() {
   ]);
   return (
     <div>
-      <PageHeader eyebrow="Many products, one look" title="Batch jobs">
-        Pick products (or import a CSV with photos), choose one style, and shoot them all. Good for catalogues and marketplace listings.
+      <PageHeader title="Bulk shoots">
+        Pick products or import a CSV, choose what each one gets, and shoot them all at once. Good for catalogues and marketplace listings.
       </PageHeader>
-      {!enabled ? <Notice>Batch jobs are turned off for this workspace.</Notice> : (
-        <BatchBuilder products={list.products.filter((p) => p.photoCount > 0)} balance={wallet.available} creativeEnabled={creative} brandKits={kits ?? []} />
+      {!enabled ? <Notice>Bulk shoots are not switched on for your workspace yet. <Link className="font-semibold underline" href="/app/support">Message us</Link> and we will turn them on.</Notice> : (
+        <BatchBuilder creditsPerImage={(await getSettings()).credit_policy.creditsPerImage} products={list.products.filter((p) => p.photoCount > 0)} balance={wallet.available} creativeEnabled={creative} brandKits={kits ?? []} />
       )}
       {(batches ?? []).length > 0 && (
         <section className="mt-14">
