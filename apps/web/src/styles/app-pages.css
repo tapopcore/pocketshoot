@@ -824,3 +824,6 @@ input[type=file]::file-selector-button{height:38px;margin-right:12px;padding:0 1
 @media(prefers-reduced-motion:reduce){.create .sty:active .ph{transform:none}.create .mode{transition:none}}
 
 @media(max-width:700px){.create .modes{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.create .mode{display:block;min-height:88px;padding:14px 8px 10px;border-radius:13px;text-align:left}.create .mode .mv,.create .mode .mp,.create .mode .mr,.create .mode .mt em,.create .mode .mt>span:not(.mpm){display:none!important}.create .mode .mt>b{display:block;font-size:13px;line-height:1.3}.create .mode .mt .mpm{display:block;font-size:10px;line-height:1.4;margin-top:7px;color:var(--muted)}.create .mode.on{background:var(--brand-soft);box-shadow:none}.create .packsec{margin-top:24px}.create .packsec>.h5{margin-bottom:14px}}
+
+/* Failure explanations must remain visible on compact/mobile result cards. */
+.jobv .fail .why{display:block;font-size:11px;line-height:1.45;max-width:230px;text-wrap:pretty;-webkit-line-clamp:unset;overflow:visible}.jobv .fail .xs{display:block;font-size:10px}

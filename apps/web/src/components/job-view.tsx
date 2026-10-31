@@ -114,7 +114,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
 
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 1000));
   const styles = job.settings?.edit ? [] : job.settings?.pack ? [job.settings.pack === "studio" ? "Studio pack" : "Photo set"] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
-  const allChecked = active.length === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
+  const allChecked = active.length === 0 && failed === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
 
   return (
     <div className="jobv">
@@ -127,6 +127,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
           <div className="pills" style={{ marginTop: "var(--s3)" }}>
             
             {allChecked && <span className="pill good sm"><ShieldCheck size={14} />{delivered.length === 1 ? "Photo checked" : delivered.length === 2 ? "Both photos checked" : `All ${delivered.length} photos checked`}</span>}
+            {active.length === 0 && failed > 0 && <span className="pill sm" role="status">{delivered.length} of {items.length} ready · {failed} need attention</span>}
             {job.settings?.edit && <span className="pill sm">Edit: {job.settings.edit.instruction.slice(0, 40)}</span>}
             {styles.map((s) => <span key={s} className="pill sm">{s}</span>)}
             <span className="pill sm">{output?.name} {output?.ratio}</span>
