@@ -16,9 +16,10 @@ const CATS: [string, string, string][] = [
 ];
 
 /** One compare slider driven by category pills; every tile below opens its product in the slider. */
-export function ExamplesGallery() {
-  const [cat, setCat] = useState("skincare");
-  const [n, setN] = useState(BEST.skincare);
+export function ExamplesGallery({initialCategory="skincare"}:{initialCategory?:string}) {
+  const initial=CATS.some(c=>c[0]===initialCategory)?initialCategory:"skincare";
+  const [cat, setCat] = useState(initial);
+  const [n, setN] = useState(BEST[initial]??1);
   const top = useRef<HTMLDivElement>(null);
   const [, label, product] = CATS.find((c) => c[0] === cat)!;
   const open = (k: string, i = BEST[k] ?? 1, scroll = true) => {
@@ -33,12 +34,12 @@ export function ExamplesGallery() {
     <>
       <div className="exx" ref={top}>
         <div className="exba">
-          <BeforeAfter key={cat + n} before={shot(`${cat}-before`)} after={shot(`${cat}-${n}`)} alt={`${product} product photo, ${SHOT_LABELS[cat][n].toLowerCase()}`} labels={["Phone photo", "PocketShoot"]} style={{ aspectRatio: "1" }} />
+          <BeforeAfter key={cat + n} before={shot(`${cat}-before`)} after={shot(`${cat}-${n}`)} alt={`${product} product photo, ${SHOT_LABELS[cat][n].toLowerCase()}`} labels={["Source example", "Styled example"]} style={{ aspectRatio: "1" }} />
         </div>
         <div className="exside">
           <span className="pill sm">{label}</span>
           <h2 className="h3">{product}</h2>
-          <p className="body muted">The phone photo is on the left. Pick any of the six photos made from it, then drag the orange handle to compare.</p>
+          <p className="body muted">Explore six illustrative directions using the same demo product. Drag the handle to compare framing and styling.</p>
           <div className="exthumbs" role="list">
             {SHOT_LABELS[cat].map((s, i) => (
               <button key={cat + i} type="button" className={`exth${i === n ? " on" : ""}`} onClick={() => setN(i)} aria-pressed={i === n}>
