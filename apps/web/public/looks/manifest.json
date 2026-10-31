@@ -1,0 +1,643 @@
+{
+  "version": "2026-10-31",
+  "originalCampaigns": [
+    "footwear",
+    "skincare",
+    "earrings",
+    "prepared-food",
+    "saree",
+    "general"
+  ],
+  "looks": [
+    {
+      "look": "saree-1",
+      "source": "saree",
+      "tile": 0
+    },
+    {
+      "look": "saree-2",
+      "source": "saree",
+      "tile": 1
+    },
+    {
+      "look": "saree-3",
+      "source": "saree",
+      "tile": 2
+    },
+    {
+      "look": "saree-4",
+      "source": "saree",
+      "tile": 3
+    },
+    {
+      "look": "saree-5",
+      "source": "saree",
+      "tile": 4
+    },
+    {
+      "look": "suit-1",
+      "source": "suit",
+      "tile": 0
+    },
+    {
+      "look": "suit-2",
+      "source": "suit",
+      "tile": 1
+    },
+    {
+      "look": "suit-3",
+      "source": "suit",
+      "tile": 2
+    },
+    {
+      "look": "suit-4",
+      "source": "suit",
+      "tile": 3
+    },
+    {
+      "look": "suit-5",
+      "source": "suit",
+      "tile": 4
+    },
+    {
+      "look": "unstitched-1",
+      "source": "unstitched",
+      "tile": 0
+    },
+    {
+      "look": "unstitched-2",
+      "source": "unstitched",
+      "tile": 1
+    },
+    {
+      "look": "unstitched-3",
+      "source": "unstitched",
+      "tile": 2
+    },
+    {
+      "look": "unstitched-4",
+      "source": "unstitched",
+      "tile": 3
+    },
+    {
+      "look": "unstitched-5",
+      "source": "unstitched",
+      "tile": 4
+    },
+    {
+      "look": "lehenga-1",
+      "source": "lehenga",
+      "tile": 0
+    },
+    {
+      "look": "lehenga-2",
+      "source": "lehenga",
+      "tile": 1
+    },
+    {
+      "look": "lehenga-3",
+      "source": "lehenga",
+      "tile": 2
+    },
+    {
+      "look": "lehenga-4",
+      "source": "lehenga",
+      "tile": 3
+    },
+    {
+      "look": "lehenga-5",
+      "source": "lehenga",
+      "tile": 4
+    },
+    {
+      "look": "mens-modern-1",
+      "source": "mens-modern",
+      "tile": 0
+    },
+    {
+      "look": "mens-modern-2",
+      "source": "mens-modern",
+      "tile": 1
+    },
+    {
+      "look": "mens-modern-3",
+      "source": "mens-modern",
+      "tile": 2
+    },
+    {
+      "look": "mens-modern-4",
+      "source": "mens-modern",
+      "tile": 3
+    },
+    {
+      "look": "mens-modern-5",
+      "source": "mens-modern",
+      "tile": 4
+    },
+    {
+      "look": "womens-modern-1",
+      "source": "womens-modern",
+      "tile": 0
+    },
+    {
+      "look": "womens-modern-2",
+      "source": "womens-modern",
+      "tile": 1
+    },
+    {
+      "look": "womens-modern-3",
+      "source": "womens-modern",
+      "tile": 2
+    },
+    {
+      "look": "womens-modern-4",
+      "source": "womens-modern",
+      "tile": 3
+    },
+    {
+      "look": "womens-modern-5",
+      "source": "womens-modern",
+      "tile": 4
+    },
+    {
+      "look": "mens-ethnic-1",
+      "source": "mens-ethnic",
+      "tile": 0
+    },
+    {
+      "look": "mens-ethnic-2",
+      "source": "mens-ethnic",
+      "tile": 1
+    },
+    {
+      "look": "mens-ethnic-3",
+      "source": "mens-ethnic",
+      "tile": 2
+    },
+    {
+      "look": "mens-ethnic-4",
+      "source": "mens-ethnic",
+      "tile": 3
+    },
+    {
+      "look": "mens-ethnic-5",
+      "source": "mens-ethnic",
+      "tile": 4
+    },
+    {
+      "look": "activewear-1",
+      "source": "activewear",
+      "tile": 0
+    },
+    {
+      "look": "activewear-2",
+      "source": "activewear",
+      "tile": 1
+    },
+    {
+      "look": "activewear-3",
+      "source": "activewear",
+      "tile": 2
+    },
+    {
+      "look": "activewear-4",
+      "source": "activewear",
+      "tile": 3
+    },
+    {
+      "look": "activewear-5",
+      "source": "activewear",
+      "tile": 4
+    },
+    {
+      "look": "footwear-1",
+      "source": "footwear",
+      "tile": 0
+    },
+    {
+      "look": "footwear-2",
+      "source": "footwear",
+      "tile": 1
+    },
+    {
+      "look": "footwear-3",
+      "source": "footwear",
+      "tile": 2
+    },
+    {
+      "look": "footwear-4",
+      "source": "footwear",
+      "tile": 3
+    },
+    {
+      "look": "footwear-5",
+      "source": "footwear",
+      "tile": 4
+    },
+    {
+      "look": "bags-1",
+      "source": "bags",
+      "tile": 0
+    },
+    {
+      "look": "bags-2",
+      "source": "bags",
+      "tile": 1
+    },
+    {
+      "look": "bags-3",
+      "source": "bags",
+      "tile": 2
+    },
+    {
+      "look": "bags-4",
+      "source": "bags",
+      "tile": 3
+    },
+    {
+      "look": "bags-5",
+      "source": "bags",
+      "tile": 4
+    },
+    {
+      "look": "skincare-1",
+      "source": "skincare",
+      "tile": 0
+    },
+    {
+      "look": "skincare-2",
+      "source": "skincare",
+      "tile": 1
+    },
+    {
+      "look": "skincare-3",
+      "source": "skincare",
+      "tile": 2
+    },
+    {
+      "look": "skincare-4",
+      "source": "skincare",
+      "tile": 3
+    },
+    {
+      "look": "skincare-5",
+      "source": "skincare",
+      "tile": 4
+    },
+    {
+      "look": "makeup-1",
+      "source": "makeup",
+      "tile": 0
+    },
+    {
+      "look": "makeup-2",
+      "source": "makeup",
+      "tile": 1
+    },
+    {
+      "look": "makeup-3",
+      "source": "makeup",
+      "tile": 2
+    },
+    {
+      "look": "makeup-4",
+      "source": "makeup",
+      "tile": 3
+    },
+    {
+      "look": "makeup-5",
+      "source": "makeup",
+      "tile": 4
+    },
+    {
+      "look": "fragrance-1",
+      "source": "fragrance",
+      "tile": 0
+    },
+    {
+      "look": "fragrance-2",
+      "source": "fragrance",
+      "tile": 1
+    },
+    {
+      "look": "fragrance-3",
+      "source": "fragrance",
+      "tile": 2
+    },
+    {
+      "look": "fragrance-4",
+      "source": "fragrance",
+      "tile": 3
+    },
+    {
+      "look": "fragrance-5",
+      "source": "fragrance",
+      "tile": 4
+    },
+    {
+      "look": "packaged-food-1",
+      "source": "packaged-food",
+      "tile": 0
+    },
+    {
+      "look": "packaged-food-2",
+      "source": "packaged-food",
+      "tile": 1
+    },
+    {
+      "look": "packaged-food-3",
+      "source": "packaged-food",
+      "tile": 2
+    },
+    {
+      "look": "packaged-food-4",
+      "source": "packaged-food",
+      "tile": 3
+    },
+    {
+      "look": "packaged-food-5",
+      "source": "packaged-food",
+      "tile": 4
+    },
+    {
+      "look": "prepared-food-1",
+      "source": "prepared-food",
+      "tile": 4
+    },
+    {
+      "look": "prepared-food-2",
+      "source": "prepared-food",
+      "tile": 2
+    },
+    {
+      "look": "prepared-food-3",
+      "source": "prepared-food",
+      "tile": 1
+    },
+    {
+      "look": "prepared-food-4",
+      "source": "prepared-food",
+      "tile": 3
+    },
+    {
+      "look": "prepared-food-5",
+      "source": "prepared-food",
+      "tile": 0
+    },
+    {
+      "look": "beverage-1",
+      "source": "beverage",
+      "tile": 0
+    },
+    {
+      "look": "beverage-2",
+      "source": "beverage",
+      "tile": 1
+    },
+    {
+      "look": "beverage-3",
+      "source": "beverage",
+      "tile": 2
+    },
+    {
+      "look": "beverage-4",
+      "source": "beverage",
+      "tile": 3
+    },
+    {
+      "look": "beverage-5",
+      "source": "beverage",
+      "tile": 4
+    },
+    {
+      "look": "rings-1",
+      "source": "rings",
+      "tile": 0
+    },
+    {
+      "look": "rings-2",
+      "source": "rings",
+      "tile": 1
+    },
+    {
+      "look": "rings-3",
+      "source": "rings",
+      "tile": 2
+    },
+    {
+      "look": "rings-4",
+      "source": "rings",
+      "tile": 3
+    },
+    {
+      "look": "rings-5",
+      "source": "rings",
+      "tile": 4
+    },
+    {
+      "look": "bracelets-1",
+      "source": "bracelets",
+      "tile": 0
+    },
+    {
+      "look": "bracelets-2",
+      "source": "bracelets",
+      "tile": 1
+    },
+    {
+      "look": "bracelets-3",
+      "source": "bracelets",
+      "tile": 2
+    },
+    {
+      "look": "bracelets-4",
+      "source": "bracelets",
+      "tile": 3
+    },
+    {
+      "look": "bracelets-5",
+      "source": "bracelets",
+      "tile": 4
+    },
+    {
+      "look": "earrings-1",
+      "source": "earrings",
+      "tile": 0
+    },
+    {
+      "look": "earrings-2",
+      "source": "earrings",
+      "tile": 1
+    },
+    {
+      "look": "earrings-3",
+      "source": "earrings",
+      "tile": 2
+    },
+    {
+      "look": "earrings-4",
+      "source": "earrings",
+      "tile": 3
+    },
+    {
+      "look": "earrings-5",
+      "source": "earrings",
+      "tile": 4
+    },
+    {
+      "look": "necklace-1",
+      "source": "necklace",
+      "tile": 0
+    },
+    {
+      "look": "necklace-2",
+      "source": "necklace",
+      "tile": 1
+    },
+    {
+      "look": "necklace-3",
+      "source": "necklace",
+      "tile": 2
+    },
+    {
+      "look": "necklace-4",
+      "source": "necklace",
+      "tile": 3
+    },
+    {
+      "look": "necklace-5",
+      "source": "necklace",
+      "tile": 4
+    },
+    {
+      "look": "bottle-1",
+      "source": "bottle",
+      "tile": 0
+    },
+    {
+      "look": "bottle-2",
+      "source": "bottle",
+      "tile": 1
+    },
+    {
+      "look": "bottle-3",
+      "source": "bottle",
+      "tile": 2
+    },
+    {
+      "look": "bottle-4",
+      "source": "bottle",
+      "tile": 3
+    },
+    {
+      "look": "bottle-5",
+      "source": "bottle",
+      "tile": 4
+    },
+    {
+      "look": "cookware-1",
+      "source": "cookware",
+      "tile": 0
+    },
+    {
+      "look": "cookware-2",
+      "source": "cookware",
+      "tile": 1
+    },
+    {
+      "look": "cookware-3",
+      "source": "cookware",
+      "tile": 2
+    },
+    {
+      "look": "cookware-4",
+      "source": "cookware",
+      "tile": 3
+    },
+    {
+      "look": "cookware-5",
+      "source": "cookware",
+      "tile": 4
+    },
+    {
+      "look": "decor-1",
+      "source": "decor",
+      "tile": 0
+    },
+    {
+      "look": "decor-2",
+      "source": "decor",
+      "tile": 1
+    },
+    {
+      "look": "decor-3",
+      "source": "decor",
+      "tile": 2
+    },
+    {
+      "look": "decor-4",
+      "source": "decor",
+      "tile": 3
+    },
+    {
+      "look": "decor-5",
+      "source": "decor",
+      "tile": 4
+    },
+    {
+      "look": "electronics-1",
+      "source": "electronics",
+      "tile": 0
+    },
+    {
+      "look": "electronics-2",
+      "source": "electronics",
+      "tile": 1
+    },
+    {
+      "look": "electronics-3",
+      "source": "electronics",
+      "tile": 2
+    },
+    {
+      "look": "electronics-4",
+      "source": "electronics",
+      "tile": 3
+    },
+    {
+      "look": "electronics-5",
+      "source": "electronics",
+      "tile": 4
+    },
+    {
+      "look": "general-1",
+      "source": "general",
+      "tile": 0
+    },
+    {
+      "look": "general-2",
+      "source": "general",
+      "tile": 1
+    },
+    {
+      "look": "general-3",
+      "source": "general",
+      "tile": 2
+    },
+    {
+      "look": "general-4",
+      "source": "general",
+      "tile": 3
+    },
+    {
+      "look": "general-5",
+      "source": "general",
+      "tile": 4
+    },
+    {
+      "look": "general-6",
+      "source": "general",
+      "tile": 5
+    }
+  ]
+}

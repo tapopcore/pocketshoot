@@ -168,7 +168,7 @@ export async function analyzeProduct(productId: string, force = false): Promise<
     const settings = await getSettings();
     const ordered = [...refs].sort((a, b) => Number(b.view_type === "front") - Number(a.view_type === "front"));
     const images = await Promise.all(ordered.map((r) => getObject("originals", r.storage_key)));
-    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nReturn concise product facts. ideas and suggested_scenes must be empty arrays. Leave audience and visual_strategy empty. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
+    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nReturn concise product facts. ideas and suggested_scenes must be empty arrays. Give a concise buyer context and one product-specific visual_strategy grounded in visible materials, form or utility. Preserve the observed source form (worn, loose, packaged or assembled); flag uncertainty instead of guessing a different product. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
     const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 45_000 });
     const analysis = parseAnalysis(res.data, SCENE_IDS);
     if (!analysis) return null;
@@ -196,7 +196,9 @@ export async function directShots(input: DirectionInput): Promise<{ shots: ShotD
       timeoutMs: 45_000,
     });
     const shots = parseDirections(res.data, input.count);
-    return shots && (!input.shootStyle || shots.every(shot => shotMatchesStyle(input.shootStyle!, shot))) ? { shots: shots.map(shot => ({ ...shot, framing: input.framing ?? "full", human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
+    if (!shots) return fallback();
+    const directed = shots.map((shot, index) => ({ ...shot, framing: input.assignments?.[index]?.framing ?? input.framing ?? "full", human_presence: input.assignments?.[index]?.humanPresence ?? input.humanPresence ?? "none" }));
+    return directed.every((shot, index) => { const selected = input.assignments?.[index]?.shootStyle ?? input.shootStyle; return !selected || shotMatchesStyle(selected, shot); }) ? { shots: directed, source: "ai" } : fallback();
   } catch (e) {
     await logError("prep.direction", (e as Error).message, {});
     return fallback();

@@ -28,6 +28,7 @@ export interface EditResult {
 }
 
 export class ProviderError extends Error {
+  requestId?: string;
   constructor(
     message: string,
     public code: string,

@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Local previews and signed storage URLs. */
 "use client";
+import { LookImage } from "@/components/look-image";
 import { ReferenceViewer } from "@/components/reference-viewer";
 import { BulkCta } from "@/components/bulk-cta";
 import { FitImg } from "@/components/fit-img";
@@ -33,14 +34,8 @@ const VIEW_LABEL: Record<string, string> = { front: "Front", angle: "Angle", bac
 const SHAPES: [OutputId, string, string, number, number][] = [["square", "Square", "Amazon, Flipkart", 30, 30], ["portrait", "Portrait", "Instagram post", 26, 33], ["story", "Story", "Reels, Stories", 20, 36], ["landscape", "Wide", "Website banner", 38, 22]];
 const profileDefault = (type: CollectionId): ShootProfile => ({ type, construction: collectionById(type)?.category === "fashion" ? "unknown" : "not_applicable", referenceForm: "unknown" });
 
-/** Example photos for looks that have no category example. These are demos, never the customer's product. */
-const GENERAL_EXAMPLE: Record<string, string> = { "general-1": "style-demo-0", "general-2": "style-demo-1", "general-3": "style-demo-2", "general-4": "style-demo-3", "general-5": "style-demo-4", "general-6": "style-demo-5" };
-
-/** Demo photo of a look: the category example, a white-studio demo, or a general example. */
 function LookThumb({ look, className }: { look: CategoryLook; className?: string }) {
-  if (look.atlas) return <div role="img" aria-label={look.title} className={clsx("size-full", className)} style={{ backgroundImage: `url("${look.atlas}")`, backgroundSize: "300% 200%", backgroundPosition: ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%"][look.tile] }} />;
-  const src = look.collection === "studio" ? `/showcase/studio/${look.id.slice(7)}.webp` : `/showcase/${GENERAL_EXAMPLE[look.id] ?? "skincare-0"}.webp`;
-  return <img src={src} alt={look.title} loading="lazy" decoding="async" className={clsx("lt-img", look.collection === "studio" && "white", className)} />;
+  return <LookImage look={look} className={className} />;
 }
 
 /** Product type picker: a clean sheet with search, instead of the phone's raw dropdown. */
@@ -94,10 +89,10 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
   const draftKey = "pocketshoot:draft:v2:" + (props.draftScope ?? "preview");
   const chosen = lookId ? categoryLook(lookId) : null, collection = profile ? collectionById(profile.type) : null, disabled = props.canEdit === false;
   const references: Ref[] = prep?.references ?? (prep ? [{ id: "primary", view_type: "front", url: prep.hero.originalUrl }] : []);
-  const pickMode: Mode = mode ?? (props.balance >= PACK_SIZE * (props.creditsPerImage ?? 1) ? "studio" : "one");
+  const pickMode: Mode = mode ?? "one";
   const pack: PackId | null = pickMode === "one" ? null : pickMode;
   const packSet = pack && profile ? packLooks(pack, profile, references) : [];
-  const issue = pack ? (packSet.length === PACK_SIZE ? null : "Add one more photo of your product for this pack.") : chosen && profile ? lookEligibility(chosen, profile, references) : null;
+  const issue = pack ? (packSet.length === PACK_SIZE ? null : "Add a side or angled photo to create a six-photo pack. Or start with one supported style.") : chosen && profile ? lookEligibility(chosen, profile, references) : null;
   const ready = pack ? !issue : !!chosen && !issue;
   const photos = pack ? PACK_SIZE : count;
   const maxCount = Math.max(1, Math.min(props.maxImages, 4));
@@ -282,7 +277,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         <section className="card guide">
           <h3 className="h5">Photos that work best</h3>
           <div className="gtiles">{([["front", "Front", "Label facing you"], ["back", "Back", "If it looks different"], ["side", "Side", "Shows the shape"], ["detail", "Detail", "Texture or print"]] as const).map(([k, t, sub]) => <div key={k} className="gt"><span className="ph r11"><img src={`/showcase/studio/${k}.webp`} alt="" loading="lazy" className={k === "detail" ? "" : "white"} /></span><b>{t}</b><span>{sub}</span></div>)}</div>
-          <p className="xs muted gnote"><Sun size={14} />Daylight near a window, no flash. One clear front photo is enough to start.</p>
+          <p className="xs muted gnote"><Sun size={14} />Daylight near a window, no flash. Start with a clear front photo. Add other views for more camera angles.</p>
         </section>
         <section className="card guide next">
           <h3 className="h5">What happens next</h3>
@@ -340,20 +335,21 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
     {step === "looks" && collection && profile && <div className="shoot">
       <div className="modes" role="radiogroup" aria-label="Kind of shoot">
-        {(["studio", "variety", "one"] as const).map((m) => {
+        {(["one", "studio", "variety"] as const).map((m) => {
           const on = pickMode === m, credits = (m === "one" ? 1 : PACK_SIZE) * perPhoto;
           const preview = (m === "studio" ? [0, 1, 2, 4].map((k) => STUDIO_LOOKS[k]) : m === "variety" ? packLooks("variety", profile, references) : [...(chosen ? [chosen] : []), ...looks.filter((l) => l.id !== chosen?.id)]).slice(0, 4);
           return <button key={m} type="button" role="radio" aria-checked={on} className={clsx("mode", on && "on")} onClick={() => { setMode(m); setError(null); }}>
             <span className="mv">{preview.map((l) => <span key={l.id}><LookThumb look={l} /></span>)}</span>
-            <span className="mt"><b>{m === "one" ? "One style" : PACKS[m].title}{m === (props.balance >= PACK_SIZE * perPhoto ? "studio" : "one") && <em>Best start</em>}</b><span>{m === "one" ? "Pick one look, 1 to 4 photos" : PACKS[m].short}</span><span className="mpm">{m === "one" ? `${perPhoto} credit per photo` : `${credits} credits`}</span></span>
+            <span className="mt"><b>{m === "one" ? "One style" : PACKS[m].title}{m === "one" && <em>Start small</em>}</b><span>{m === "one" ? "Pick one look, 1 to 4 photos" : PACKS[m].short}</span><span className="mpm">{m === "one" ? `${perPhoto} credit per photo` : `${credits} credits`}</span></span>
             <span className="mp"><b className="num">{credits}</b><span>{m === "one" ? "credit each" : "credits"}</span></span>
             <span className="mr" aria-hidden>{on && <Check size={14} strokeWidth={3} />}</span>
           </button>;
         })}
       </div>
 
+      {issue && <div className="card p" role="status"><p className="sm">{issue}</p><button type="button" className="link sm" onClick={() => move("product")}>Add reference photos <ArrowRight size={16}/></button></div>}
       {pack ? <section className="packsec">
-        <div className="between"><h2 className="h5">Your {PACK_SIZE} photos</h2><span className="xs muted">{pack === "studio" ? "One demo product · white studio" : "Each one a different scene"}</span></div>
+        <div className="between"><h2 className="h5">{issue ? "Supported by your photos" : `Your ${PACK_SIZE} photos`}</h2><span className="xs muted">{pack === "studio" ? "One demo product · white studio" : "A coordinated set for your product"}</span></div>
         <div className="packgrid">{packSet.map((l) => <div key={l.id} className="pk"><div className="ph r11"><LookThumb look={l} /></div><b>{l.title}</b><span>{l.subtitle}</span></div>)}</div>
         {pack === "studio" && !(references.some((r) => r.view_type === "back") && references.some((r) => r.view_type === "detail")) && <p className="xs muted">Examples use one demo bottle. Back and side views need supporting photos; detail crops use only visible details.</p>}
         {pack === "variety" && <p className="xs muted">Picked for your {typeLabel === "Any product" ? "product" : typeLabel?.toLowerCase()} from looks your photos can support.</p>}
@@ -395,7 +391,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         <details className="card p more-opts" open={!!brief || undefined}>
           <summary><span><b>More options</b><span className="xs muted">{[props.brandKits.length ? "Brand kit" : "", "Note for the shoot"].filter(Boolean).join(" · ")}</span></span><ArrowRight size={16} /></summary>
           {props.brandKits.length > 0 && <div className="field" style={{ marginTop: "var(--s4)" }}><label className="label" htmlFor="kit">Brand kit</label><select id="kit" className="input" value={kitId ?? ""} onChange={(e) => setKitId(e.target.value || null)}><option value="">Do not use</option>{props.brandKits.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}</select></div>}
-          <div className="field" style={{ marginTop: "var(--s4)" }}><label className="label" htmlFor="note">Note for the shoot</label><textarea id="note" className="input" style={{ minHeight: 80 }} value={brief} maxLength={600} onChange={(e) => setBrief(e.target.value)} placeholder="For example: summer feel, a few peach slices on the table" /></div>
+          <div className="field" style={{ marginTop: "var(--s4)" }}><label className="label" htmlFor="note">Note for the shoot</label><textarea id="note" className="input" style={{ minHeight: 80 }} value={brief} maxLength={600} onChange={(e) => setBrief(e.target.value)} placeholder="For example: a confident campaign for everyday commuters, with open-air city light" /></div>
         </details>
       </div>
       <aside className="total">

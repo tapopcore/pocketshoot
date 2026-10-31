@@ -66,15 +66,15 @@ export function ShootSetup({
           {forced && <span className="text-xs text-mute">Marketplace white always uses a white background</span>}
         </div>
         <div className={clsx("grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4", forced && "pointer-events-none opacity-40")}>
-          {styles.map((s, i) => {
+          {styles.map((s) => {
             const active = value.style === s.id;
             const recommended = rec.slice(0, 3).includes(s.id);
             return (
               <button key={s.id} type="button" onClick={() => set("style", s.id)} aria-pressed={active}
                 className={clsx("group relative overflow-hidden rounded-xl border text-left transition-all", active ? "border-ink ring-2 ring-ink" : "border-line hover:border-ink")}>
-                <div className="relative h-20" style={{ background: `radial-gradient(120% 90% at 50% 30%, ${s.swatch[0]}, ${s.swatch[1]})` }}>
-                  <span className="frame-no absolute left-2 top-1.5" style={{ color: s.id === "luxury_dark" ? "#fff8" : undefined }}>{String(i + 1).padStart(2, "0")}</span>
-                  <span className="absolute bottom-2 left-1/2 h-9 w-5 -translate-x-1/2 rounded-[4px] bg-ink/80 shadow-[0_6px_8px_-4px_rgba(0,0,0,.5)]" />
+                <div className="relative aspect-square overflow-hidden bg-paper-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.id === "custom" ? "/looks/general-2.webp" : "/scenes/" + s.id + ".webp"} alt={s.name + " — illustrative lighting reference"} loading="lazy" decoding="async" className="size-full object-cover" />
                   {active && <span className="absolute right-2 top-2 grid size-5 place-items-center rounded-full bg-accent text-white"><Check size={12} /></span>}
                 </div>
                 <div className="bg-card p-2.5">

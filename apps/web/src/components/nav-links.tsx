@@ -1,7 +1,12 @@
 "use client";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { Box, Coins, Folder, Grid2x2, House, Layers, LifeBuoy, Palette, Plus, Settings, Shield, UserRound, Users } from "lucide-react";
+import { Loader2, type LucideIcon, Box, Coins, Folder, Grid2x2, House, Layers, LifeBuoy, Palette, Plus, Settings, Shield, UserRound, Users } from "lucide-react";
+
+function NavMark({ Icon }: { Icon: LucideIcon }) {
+  const { pending } = useLinkStatus();
+  return pending ? <Loader2 className="animate-spin" aria-label="Opening page" /> : <Icon />;
+}
 
 const GROUPS: [string, [string, typeof House, string][]][] = [
   ["Create", [["/app", House, "Home"], ["/app/shoots", Grid2x2, "My shoots"], ["/app/products", Box, "Products"]]],
@@ -24,7 +29,7 @@ export function SideNav({ isPlatform }: { isPlatform: boolean }) {
     <nav aria-label="App">
       {GROUPS.map(([g, items]) => (
         <div className="grp" key={g}><h6>{g}</h6>{items.map(([href, Icon, label]) => (
-          <Link key={href} href={href} className={`nv${isActive(path, href) ? " on" : ""}`} aria-current={isActive(path, href) ? "page" : undefined}><Icon />{label}</Link>
+          <Link key={href} href={href} className={`nv${isActive(path, href) ? " on" : ""}`} aria-current={isActive(path, href) ? "page" : undefined}><NavMark Icon={Icon} />{label}</Link>
         ))}</div>
       ))}
       {isPlatform && <div className="grp"><h6>Platform</h6><Link href="/admin" className="nv"><Shield />Admin</Link></div>}
@@ -49,8 +54,8 @@ export function TabBar() {
   return (
     <nav className="tabs" aria-label="Main">
       {T.map(([href, Icon, label, on]) => href === "/app/new"
-        ? <Link key={href} href={href} className="plus" aria-label="New shoot"><span><Icon /></span></Link>
-        : <Link key={href} href={href} className={on ? "on" : ""} aria-current={on ? "page" : undefined}><Icon />{label}</Link>)}
+        ? <Link key={href} href={href} className="plus" aria-label="New shoot"><span><NavMark Icon={Icon} /></span></Link>
+        : <Link key={href} href={href} className={on ? "on" : ""} aria-current={on ? "page" : undefined}><NavMark Icon={Icon} />{label}</Link>)}
     </nav>
   );
 }

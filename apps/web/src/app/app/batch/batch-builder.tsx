@@ -20,11 +20,11 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
   const [list, setList] = useState(products);
   const [sel, setSel] = useState<string[]>([]);
   const [name, setName] = useState(`Batch ${new Date().toLocaleDateString("en-IN")}`);
-  const [kind, setKind] = useState<PackId | ShootStyleId | StyleId>("studio");
+  const [kind, setKind] = useState<PackId | ShootStyleId | StyleId>("indoor");
   const [tab, setTab] = useState<"quick" | SceneGroup>("quick");
   const isScene = !(kind in SHOOT_STYLES) && kind !== "studio" && kind !== "variety";
   const scenes = STYLE_LIST.filter((st) => st.id !== "custom" && (creativeEnabled || !st.creativeOnly));
-  const [count, setCount] = useState(2), [output, setOutput] = useState<OutputId>("square");
+  const [count, setCount] = useState(1), [output, setOutput] = useState<OutputId>("square");
   const isPack = kind === "studio" || kind === "variety";
   const perProduct = isPack ? PACK_SIZE : count;
   const [busy, setBusy] = useState<string | null>(null);
@@ -138,7 +138,7 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
             </button>); })
           : scenes.filter((st) => st.group === tab).map((st) => (
             <button key={st.id} type="button" aria-pressed={kind === st.id} className={clsx("bl-l", kind === st.id && "on")} onClick={() => setKind(st.id)}>
-              <span className="ph r11 bl-scene" style={{ background: st.art }}><img src="/showcase/demo-cut.webp" alt="" loading="lazy" />{kind === st.id && <span className="tick"><Check size={14} /></span>}</span>
+              <span className="ph r11"><img src={"/scenes/"+st.id+".webp"} alt={st.name+" — demo lighting reference"} loading="lazy" decoding="async" />{kind === st.id && <span className="tick"><Check size={14} /></span>}</span>
               <b>{st.name}</b><span>{st.description}</span>
             </button>))}
         </div>
@@ -155,7 +155,8 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
           <Button variant="accent" className="mt-2" disabled={!sel.length || needed > balance || !!busy} onClick={start}>{busy ? <><Spinner /> {busy}</> : `Shoot ${sel.length} products`}</Button>
         </div>
       </section>
-      <p className="xs muted">Examples use a demo bottle. Each product is shot from its own photos.</p>
+      {kind === "studio" && <p className="xs muted">Each product needs a side or angled reference for six distinct Studio views. Choose one look to start from a single front photo.</p>}
+      <p className="xs muted">Each example set uses a shared demo product. Each product is directed from its own photos and category. No paid preview is generated when you browse.</p>
       {photoOpen&&<ReferenceViewer photos={[{url:photoOpen,label:"Original product photo"}]} index={0} onIndex={()=>{}} onClose={()=>setPhotoOpen(null)}/>}
       {needed > balance && <Notice tone="bad">You need {needed - balance} more credits for this batch. <a className="underline" href="/app/wallet">Buy credits</a></Notice>}
     </div>

@@ -33,7 +33,7 @@ describe("product-specific directions",()=>{
  });
  it("builds six-photo packs from looks the photos can support",()=>{
   const p:ShootProfile={type:"general",construction:"not_applicable",referenceForm:"unknown"};
-  const studio=packLooks("studio",p,[{view_type:"front"}]);
+  const studio=packLooks("studio",p,[{view_type:"front"},{view_type:"angle"}]);
   expect(studio).toHaveLength(6);
   expect(studio.every(l=>l.scene==="pure_white"&&l.human==="none")).toBe(true);
   expect(studio.some(l=>l.id==="studio-back")).toBe(false);
