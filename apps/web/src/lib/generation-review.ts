@@ -1,7 +1,7 @@
 import "server-only";
 import { type CategoryLook, type ProductAnalysis, type ShotDirection, type ShootStyleId, type CheckResult, type JudgeVerdict, parseJudgeJson, judgeDecision, styleRequirement } from "@packshot/core";
 import { jsonCall } from "./llm";
-export const REVIEW_VERSION = "2026-10-31.evidence-2";
+export const REVIEW_VERSION = "2026-10-31.evidence-3";
 export interface ReviewContext {
   recipe?: (Omit<Partial<CategoryLook>, "framing"> & { framing?: ShotDirection["framing"] }) | null; shot?: ShotDirection | null; selectedStyle?: ShootStyleId;
   analysis?: ProductAnalysis | null;
@@ -37,12 +37,12 @@ ${ctx.confirmedSubjectCount ? `Seller confirmed ${ctx.confirmedSubjectCount} uni
 CROP: ${crop ? "INTENTIONAL DETAIL CROP. Parts/units outside the crop are expected. They MUST NOT set missing items, same_product=false, design_changed, framing_match=false or brief_followed=false. Compare only the visible resolved detail to its corresponding reference region. Invented parts INSIDE the crop still fail." : "Full product: preserve all supplied components. Natural overlap/perspective is allowed; genuinely absent pieces fail."}
 MARKINGS: compare only the SAME exposed physical product surface. Text on source hands, rooms, backdrop or display stands is NOT product text. An unprinted reverse/side, occluded or out-of-crop mark is not removed text. Visible misspelling/replacement/erasure on an exposed marked surface fails: name the surface and exact change. Unreadable source text is not a mandatory inscription.
 DESIGN: preserve visible motifs, construction, colours, parts, material and proportions. Perspective, plausible folds, highlights and intentional crops are not redesigns. No invented variants/components.
-CUSTOMER CONTRACT, above optional shot styling: ${JSON.stringify({ title: ctx.recipe?.title, brief: ctx.recipe?.brief?.split(" Product details")[0], environment: ctx.recipe?.environment, human: ctx.recipe?.human, framing: ctx.shot?.framing ?? ctx.recipe?.framing, selectedStyle: ctx.selectedStyle })}
+CUSTOMER CONTRACT, above optional shot styling: ${JSON.stringify({ title: ctx.recipe?.title, brief: crop ? "Detail crop of an actually visible feature. Full inventory and full-product framing are explicitly NOT required in this crop." : ctx.recipe?.brief?.split(" Product details")[0], environment: ctx.recipe?.environment, human: ctx.recipe?.human, framing: ctx.shot?.framing ?? ctx.recipe?.framing, selectedStyle: ctx.selectedStyle })}
 ${!ctx.recipe && ctx.selectedStyle ? styleRequirement(ctx.selectedStyle) : ""}
 HUMANS: judge RESULT only. No person means human_visible=false, natural_anatomy=true. A removed SOURCE hand is not defective anatomy. Model looks require an adult wearing/using the exact product. Product-only means no result hands. A neutral jewellery display support is allowed, not a product/person.
 ENVIRONMENT: indoor and studio both satisfy an indoor look. Outdoor needs open air, not a window/indoor plant. Studio requires seamless white when specified.
 VIEW: assess meaningful viewpoint/framing, not exact camera degrees. A rotated duplicate is not a new perspective. studio_view_match=true outside Studio. Macro optical falloff is allowed.
-SHOT: ${JSON.stringify(ctx.shot ?? null)}. Incidental props/numerical lens settings are suggestions. Action, framing, human presence, environment and identity are mandatory. brief_followed judges these mandatory elements.
+RENDERER PLAN, NOT AN ADDITIONAL CUSTOMER REQUIREMENT: ${JSON.stringify(crop ? {camera:ctx.shot?.camera,framing:ctx.shot?.framing} : ctx.shot ?? null)}. This plan may invent incidental placements, surfaces, a precise number of motifs to focus on, props, paper strips, display supports or numerical camera settings. None of those invented details may fail brief_followed. Judge ONLY the customer's contract above: actual selected kind of shot, crop, human action, environment and product identity. A different neutral support or surface arrangement is allowed if it satisfies that customer selection. Included matching earrings are never forbidden 'extra props'. For a detail crop, the inventory comparison applies only to components inside the requested crop.
 Every failing boolean must have specific failure_evidence identifying a visible RESULT defect and the corresponding reference or mandatory requirement. No generic 'looks AI' reasoning. photographic means credible light, contact, material and texture. Report ambiguity honestly; never invent a defect. Return only the required JSON.`;
 }
 /** Component comparison is authoritative; independently inferred counts cannot override it. */
@@ -68,7 +68,8 @@ export async function reviewGeneratedImage(input: { refs: Buffer[]; image: Buffe
   const call = (confirmation = false) => jsonCall({ models: input.models, images: [...input.refs, input.image], imageLabels: labels, detail: "high", schemaName: "generation_review", schema: REVIEW_SCHEMA, timeoutMs: 45_000, prompt: reviewPrompt(input.context) + (confirmation ? "\nINDEPENDENT CONFIRMATION: inspect these pixels afresh. Check whether a supposed defect is merely set-count grouping, an allowed crop, an occluded marked surface, or a hand in the SOURCE. Keep real defects. Do not defer to any previous judgement." : "") });
   const first = await call();
   let verdict = first.data as GenerationReview, checks = reviewChecks(verdict, input.context);
-  const countConflict = !!verdict.output_product_count && verdict.output_product_count !== (input.context.confirmedSubjectCount ?? input.context.analysis?.subject_count ?? verdict.reference_product_count);
+  const isCrop = ["close", "macro"].includes(input.context.shot?.framing ?? input.context.recipe?.framing ?? "full");
+  const countConflict = !isCrop && !!verdict.output_product_count && verdict.output_product_count !== (input.context.confirmedSubjectCount ?? input.context.analysis?.subject_count ?? verdict.reference_product_count);
   if (checks.some(c => c.decision === "fail") || countConflict) {
     try {
       const second = await call(true);

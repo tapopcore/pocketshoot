@@ -28,3 +28,9 @@ it("moves jewellery off a source bust onto a real wearer only when that action i
  const still=selectedShotContract({recipe:categoryLook("studio-front")});
  expect(still).toContain("product-only, with no source hands");expect(still).not.toContain("REQUIRED RESULT: a real-looking anonymous adult WEARING");
 });
+
+it("does not forward a contradictory all-items rule to a detail-crop judge",()=>{
+ const p=reviewPrompt({recipe:{...categoryLook("studio-detail")!,brief:"Show every item from reference 1. Detail crop."}});
+ expect(p).not.toContain("Show every item from reference 1");expect(p).toContain("Full inventory and full-product framing are explicitly NOT required");
+ expect(p).toContain("Included matching earrings are never forbidden");
+});
