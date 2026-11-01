@@ -2,7 +2,7 @@ import type { CategoryId } from './categories';
 import type { ShootStyleId } from './shoots';
 export const COLLECTION_IDS = ["saree","suit","unstitched","lehenga","mens-modern","womens-modern","mens-ethnic","activewear","footwear","bags","skincare","makeup","fragrance","packaged-food","prepared-food","beverage","rings","bracelets","earrings","necklace","bottle","cookware","decor","electronics","general"] as const;
 export type CollectionId = typeof COLLECTION_IDS[number];
-export const RECIPE_VERSION = '2026-10-31.product-led-1';
+export const RECIPE_VERSION = '2026-10-31.coverage-variety-2';
 export interface ShootProfile { type: CollectionId; construction: 'stitched'|'unstitched'|'semi_stitched'|'not_applicable'|'unknown'; referenceForm: 'worn'|'flat'|'object'|'unknown'; contentsConfirmed?: boolean; subjectCount?: number }
 export interface CategoryLook { id: string; collection: string; title: string; subtitle: string; brief: string; condition: string; human: 'none'|'hands'|'model'; framing: 'full'|'close'; environment: 'indoor'|'outdoor'|'studio'; scene: string; tile: number; atlas: string; requiresDetail: boolean; requiresWorn: boolean; requiresMultiple: boolean; requiresContents: boolean }
 export interface ProductCollection { id: CollectionId; category: CategoryId; label: string; preserve: string; references: string; looks: CategoryLook[] }
@@ -2408,7 +2408,9 @@ export function lookEligibility(look: CategoryLook, profile: ShootProfile, refs:
  if(!c || !universal && c.id!==look.collection) return 'Choose a direction for this product type.';
  if(!refs.length) return 'Add a clear product photo.';
  if(look.requiresWorn && (profile.referenceForm!=='worn' || profile.type!=='saree' && profile.construction!=='stitched')) return 'This pose needs a photo of the finished garment being worn. Choose a fabric or detail direction instead.';
- if(look.collection === "studio" && ["studio-three-quarter","studio-high","studio-low","studio-diagonal"].includes(look.id) && !refs.some(r => ["angle","side","back"].includes(r.view_type))) return "Add a side or angled photo for a different camera view. A second front photo does not show the missing geometry.";
+ if(look.collection === "studio" && ["studio-three-quarter","studio-high","studio-low","studio-diagonal"].includes(look.id) && !refs.some(r => ["angle","side"].includes(r.view_type))) return "Add a side or angled photo for a different camera view. A second front photo does not show the missing geometry.";
+ if(look.id==='studio-back' && !refs.some(r=>r.view_type==='back')) return 'Add a back photo to show the actual back.';
+ if(look.id==='studio-side' && !refs.some(r=>r.view_type==='side')) return 'Add a side photo to show the actual side profile.';
  if(look.requiresMultiple && refs.length<2) return 'Add another angle before choosing this direction.';
  if(look.requiresDetail && !refs.some(r=>r.view_type==='detail')) return 'Add a sharp detail photo for this close-up.';
  if(look.requiresContents && (!profile.contentsConfirmed || !refs.some(r=>r.view_type==='detail'))) return 'Add a photo of the actual contents or application, then confirm it in product details.';
@@ -2441,6 +2443,8 @@ export const STUDIO_LOOKS: CategoryLook[] = [
   studio("low", "Low perspective", "Ground-level depth", "Camera just below product height looking slightly up, making the product feel bold and premium, soft top light and a crisp edge highlight."),
   studio("rim", "Rim light", "Defined edges", "Straight-on view with a strong rim light from behind on both sides tracing the silhouette, softer front fill, still on pure white."),
   studio("shadow", "Soft shadow", "Gentle window shadow", "Front view with a soft, long natural shadow falling to one side from a low window-like light, airy and minimal, background stays white."),
+  studio("offset", "Editorial composition", "Full product, space to breathe", "Keep the supported front viewpoint. Place the complete product off-centre with generous white negative space and an understated soft contact shadow."),
+  studio("texture", "Material study", "Visible craft and finish", "A close crop of a different visible material area from the label/closure detail. Reveal genuine texture with gentle raking light; do not invent tiny details unresolved in the source.", { framing: "close" }),
   studio("back", "Back view", "From behind", "Straight-on back view showing the back exactly as photographed.", { requiresMultiple: true }),
   studio("side", "Side profile", "Shape and depth", "Clean side profile at ninety degrees showing depth and silhouette exactly as photographed.", { requiresMultiple: true }),
   studio("diagonal", "Opposite perspective", "Depth from the other side", "Camera at minus forty degrees azimuth and forty degrees elevation. The near end points towards the lower left, the far end recedes; show real foreshortening, not a rotated flat copy."),
@@ -2450,7 +2454,7 @@ export const STUDIO_LOOKS: CategoryLook[] = [
 export type PackId = "studio" | "variety";
 export const PACK_SIZE = 6;
 export const PACKS: Record<PackId, { title: string; short: string; description: string }> = {
-  studio: { title: "Studio pack", short: "6 white background photos", description: "Your product on pure white, in distinct supported views and a detail crop. Made for Amazon, Flipkart and your store." },
+  studio: { title: "Studio pack", short: "6 white background photos", description: "Six white-studio photos with different lighting, compositions and visible details. Add side or back references for those views; we never invent hidden design." },
   variety: { title: "Photo set", short: "6 different looks", description: "Six different scenes and poses picked for your product. A full set for your listing and social posts." },
 };
 
@@ -2462,11 +2466,10 @@ export function packLooks(pack: PackId, profile: ShootProfile, refs: { view_type
   const ok = (l: CategoryLook) => !lookEligibility(l, profile, refs);
   const has = (v: string) => refs.some((r) => r.view_type === v);
   if (pack === "studio") {
-    const extras = [has("back") && STUDIO_LOOKS.find((l) => l.id === "studio-back"), (has("angle") || has("side")) && STUDIO_LOOKS.find((l) => l.id === "studio-side"), has("detail") && STUDIO_LOOKS.find((l) => l.id === "studio-detail")].filter(Boolean) as CategoryLook[];
-    const core = ["front","three-quarter","high","low","diagonal","detail"].map(id=>STUDIO_LOOKS.find(l=>l.id==="studio-"+id)!);
-    // Keep front and three-quarter, then real extra angles, then lighting variations.
-    const views = [...core.slice(0, 2), ...extras.filter(l=>l.id!=="studio-detail"), ...core.slice(2,-1)].filter(ok).slice(0, PACK_SIZE - 1);
-    return [...views, ...core.slice(-1).filter(ok)].slice(0, PACK_SIZE);
+    // Six honest compositions from one clear front, never six invented angles.
+    const ids = ["front", ...(has("angle") ? ["three-quarter"] : []), ...(has("side") ? ["side"] : []), ...(has("back") ? ["back"] : []), "rim", "shadow", "offset", "detail", "texture"];
+    return ids.map(id=>STUDIO_LOOKS.find(l=>l.id==="studio-"+id)!).filter(ok).slice(0,PACK_SIZE);
+
   }
   const own = (collectionById(profile.type)?.looks ?? []).filter(ok);
   const general = (PRODUCT_COLLECTIONS.find((c) => c.id === "general")?.looks ?? []).filter(ok);

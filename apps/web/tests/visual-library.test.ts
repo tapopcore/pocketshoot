@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { stat, readFile } from "node:fs/promises";
 import path from "node:path";
-import { PRODUCT_COLLECTIONS, STUDIO_LOOKS, STYLE_LIST } from "@packshot/core";
+import { lookPreviewId, PRODUCT_COLLECTIONS, STUDIO_LOOKS, STYLE_LIST } from "@packshot/core";
 import sharp from "sharp";
 
 describe("complete photographic visual library", () => {
   it("has a usable individual image for every category and studio look", async () => {
     for (const look of [...PRODUCT_COLLECTIONS.flatMap(c=>c.looks), ...STUDIO_LOOKS]) {
-      const file=path.join(process.cwd(),"public","looks",look.id+".webp");
+      const file=path.join(process.cwd(),"public","looks",lookPreviewId(look.id)+".webp");
       expect((await stat(file)).size,look.id).toBeGreaterThan(1000);
       const meta=await sharp(await readFile(file)).metadata();
       expect(meta.width,look.id).toBeGreaterThanOrEqual(512);

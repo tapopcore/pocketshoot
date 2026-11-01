@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const f=vi.hoisted(()=>({edit:vi.fn(),response:vi.fn()}));
+vi.mock("@/lib/ai-spend",()=>({reserveSpend:vi.fn(async()=>"spend-1"),finishSpend:vi.fn(async()=>{}),spendFx:async()=>95}));
 vi.mock("@/lib/env",()=>({env:{openaiKey:"test-only"}}));
 vi.mock("@/lib/llm",()=>({openai:()=>({images:{edit:f.edit}})}));
 import {openaiProvider} from "@/lib/providers/openai";

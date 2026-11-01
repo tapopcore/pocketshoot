@@ -9,6 +9,7 @@ import { getObject, putObject } from "./storage";
 import { cutoutFromRgba, localCutout, type Cutout } from "./images";
 import { blendModelCutout } from "./compose";
 import { jsonCall } from "./llm";
+import {aiScope,withAiScope} from "./ai-spend";
 import { getProvider } from "./providers";
 import { getSettings } from "./settings";
 import { integrations } from "./env";
@@ -154,7 +155,13 @@ Answer with JSON. Be strict about text and logo.`,
 }
 
 /** Vision analysis of the product photos. Cached on the product. */
-export async function analyzeProduct(productId: string, force = false): Promise<ProductAnalysis | null> {
+const analyses=new Map<string,Promise<ProductAnalysis|null>>();
+export async function analyzeProduct(productId:string,force=false):Promise<ProductAnalysis|null>{
+ const pending=analyses.get(productId);if(pending&&!force)return pending;
+ const task=analyzeProductOnce(productId,force);analyses.set(productId,task);
+ try{return await task;}finally{if(analyses.get(productId)===task)analyses.delete(productId);}
+}
+async function analyzeProductOnce(productId: string, force = false): Promise<ProductAnalysis | null> {
   const db = admin();
   const { data: product } = await db.from("products").select("id, organization_id, attributes").eq("id", productId).single();
   if (!product) return null;
@@ -169,7 +176,8 @@ export async function analyzeProduct(productId: string, force = false): Promise<
     const ordered = [...refs].sort((a, b) => Number(b.view_type === "front") - Number(a.view_type === "front"));
     const images = await Promise.all(ordered.map((r) => getObject("originals", r.storage_key)));
     const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nReturn concise product facts. ideas and suggested_scenes must be empty arrays. Give a concise buyer context and one product-specific visual_strategy grounded in visible materials, form or utility. Preserve the observed source form (worn, loose, packaged or assembled); flag uncertainty instead of guessing a different product. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
-    const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 45_000 });
+    const scope=aiScope();
+    const res = await withAiScope({organizationId:product.organization_id,productId,...(scope?.jobId?{jobId:scope.jobId}:{})},()=>jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 45_000 }));
     const analysis = parseAnalysis(res.data, SCENE_IDS);
     if (!analysis) return null;
     analysis.photo_count = refs.length;
@@ -183,7 +191,10 @@ export async function analyzeProduct(productId: string, force = false): Promise<
 }
 
 /** Shot briefs for every image in a job, written by the art-director model. */
-export async function directShots(input: DirectionInput): Promise<{ shots: ShotDirection[]; source: "ai" | "rules" }> {
+export async function directShots(input:DirectionInput):Promise<{shots:ShotDirection[];source:"ai"|"rules"}>{
+ const scope=aiScope();return scope?withAiScope({...scope,itemId:undefined},()=>directShotsOnce(input)):directShotsOnce(input);
+}
+async function directShotsOnce(input: DirectionInput): Promise<{ shots: ShotDirection[]; source: "ai" | "rules" }> {
   const fallback = () => ({ shots: fallbackDirections(input), source: "rules" as const });
   if (!integrations.openai) return fallback();
   try {

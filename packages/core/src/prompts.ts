@@ -90,7 +90,7 @@ export function buildPrompt(input: PromptInput): BuiltPrompt {
     selected_style: input.shootStyle ? "CUSTOMER SELECTED STYLE: " + input.shootStyle + ". " + styleRequirement(input.shootStyle) + " This takes priority over inferred creative strategy. Preserve product identity while photographing the scene as one coherent image." : "",
     task: `A premium commercial product photograph for a ${a?.brand ? `${a.brand} ` : ""}brand campaign, ${output.ratio} format.`,
     product,
-    intent: a?.visual_strategy ? `Campaign intent: ${a.visual_strategy}. Product use: ${a.use_case || "unconfirmed"}; do not invent benefits or claims.` : "",
+    intent: a?.visual_strategy ? `Product insight (adapt to this directed shot, not a prior set): ${a.visual_strategy}. Product use: ${a.use_case || "unconfirmed"}; do not invent benefits or claims.` : "",
     framing: shot.framing === "macro" ? "Framing: true macro of a visible identity-bearing detail, realistic optics and magnification. An intentional crop is allowed." : shot.framing === "close" ? "Framing: a tight close-up with recognisable product context. An intentional crop is allowed." : "Framing: complete product, intentional negative space.",
     scene: `Scene: ${shot.scene}`,
     lighting: `Light: ${shot.lighting}`,

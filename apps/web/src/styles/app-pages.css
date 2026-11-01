@@ -829,3 +829,5 @@ input[type=file]::file-selector-button{height:38px;margin-right:12px;padding:0 1
 .jobv .fail .why{display:block;font-size:11px;line-height:1.45;max-width:230px;text-wrap:pretty;-webkit-line-clamp:unset;overflow:visible}.jobv .fail .xs{display:block;font-size:10px}
 
 .jobv .jt .ph:has(> .fail){min-height:240px}
+
+.create .thumb select.vt{width:100%;min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--surface,#fff);padding:6px 2px;color:var(--ink);font-size:13px;cursor:pointer}.create .thumb select.vt:focus-visible{outline:2px solid var(--accent,#f44b0b);outline-offset:2px}

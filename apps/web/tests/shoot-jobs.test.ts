@@ -87,9 +87,10 @@ describe("canonical photographic jobs",()=>{
   it("rejects unrecognised photographic styles at the API schema",()=>{
     expect(createJobSchema.safeParse({productId:"11111111-1111-4111-8111-111111111111",style:"neutral_studio",shootStyle:"unknown",output:"square",count:1,idempotencyKey:"test-key-invalid"}).success).toBe(false);
   });
-  it("does not reserve credits for an unsupported six-view studio pack",async()=>{
-    await expect(createJob(ctx,{productId:"p",mode:"preserve",style:"pure_white",pack:"studio",recipeVersion:RECIPE_VERSION,quotedCredits:12,output:"square",count:6,idempotencyKey:"unsupported-pack"})).rejects.toMatchObject({status:400});
-    expect(fakes.rpc).not.toHaveBeenCalled();
+  it("creates a supported six-composition studio pack from a single front",async()=>{
+    await expect(createJob(ctx,{productId:"p",mode:"preserve",style:"pure_white",pack:"studio",recipeVersion:RECIPE_VERSION,quotedCredits:12,output:"square",count:6,idempotencyKey:"supported-pack"})).resolves.toMatchObject({jobId:"job-a"});
+    const items=fakes.items.mock.calls[0][0];expect(items).toHaveLength(6);
+    expect(items.some((i:{params:{lookId:string}})=>["studio-side","studio-back","studio-high"].includes(i.params.lookId))).toBe(false);
   });
 
 });

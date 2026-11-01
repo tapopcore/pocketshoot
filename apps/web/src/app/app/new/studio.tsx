@@ -30,7 +30,7 @@ const MAX_PHOTOS = 6;
 const MAX_IDEAS = 3;
 const STEP_ORDER: Step[] = ["source", "product", "looks", "review"];
 const STEP_NAMES = ["Photo", "Details", "Shoot", "Create"];
-const VIEW_LABEL: Record<string, string> = { front: "Front", angle: "Angle", back: "Back", detail: "Close-up", other: "Other" };
+const VIEW_LABEL: Record<string, string> = { front: "Front", angle: "Angled", side: "Side", back: "Back", detail: "Close-up", other: "Other" };
 const SHAPES: [OutputId, string, string, number, number][] = [["square", "Square", "Amazon, Flipkart", 30, 30], ["portrait", "Portrait", "Instagram post", 26, 33], ["story", "Story", "Reels, Stories", 20, 36], ["landscape", "Wide", "Website banner", 38, 22]];
 const profileDefault = (type: CollectionId): ShootProfile => ({ type, construction: collectionById(type)?.category === "fashion" ? "unknown" : "not_applicable", referenceForm: "unknown" });
 
@@ -109,7 +109,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       setPrep(p); setName(restore?.name ?? p.product.name); setIndustry(p.product.category); nameTouched.current = !!restore;
       const inferred = inferCollection(p.product.category, p.product.name + " " + (p.analysis?.description ?? ""));
       const nextProfile = restore?.profile ?? p.product.shootProfile ?? (inferred ? profileDefault(inferred) : null);
-      setProfile(nextProfile?{...nextProfile,subjectCount:nextProfile.subjectCount??p.analysis?.subject_count}:null);
+      setProfile(nextProfile);
       if (!restore) { const incoming = categoryLook(props.initialLook ?? ""); setLookId(incoming && incoming.collection === nextProfile?.type ? incoming.id : null); }
       if (restore) { setLookId(restore.lookId); if (restore.mode) setMode(restore.mode); setOutput(restore.output); setCount(Math.max(1, Math.min(maxCount, restore.count))); setBrief(restore.brief); setPicked(restore.picked ?? []); key.current = restore.key; }
       setStep(restore?.step === "looks" || restore?.step === "review" ? restore.step : "product");
@@ -127,7 +127,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
   useEffect(() => {
     if (initialized.current) return; initialized.current = true;
     const pending = takePendingFiles(); if (pending.length) { void upload(pending); return; }
-    if (props.fixture) { setPrep(props.fixture); setName(props.fixture.product.name); setIndustry(props.fixture.product.category); const inferred = inferCollection(props.fixture.product.category, props.fixture.product.name); setProfile(inferred ? {...profileDefault(inferred),subjectCount:props.fixture.analysis?.subject_count} : null); setStep(props.previewStep ?? "product"); if (props.previewLook) setLookId(props.previewLook); if (props.previewMode) setMode(props.previewMode); if (props.previewStep === "review") setPicked((props.fixture.suggestions ?? []).slice(0, 2).map((x) => x.id)); return; }
+    if (props.fixture) { setPrep(props.fixture); setName(props.fixture.product.name); setIndustry(props.fixture.product.category); const inferred = inferCollection(props.fixture.product.category, props.fixture.product.name); setProfile(inferred ? profileDefault(inferred) : null); setStep(props.previewStep ?? "product"); if (props.previewLook) setLookId(props.previewLook); if (props.previewMode) setMode(props.previewMode); if (props.previewStep === "review") setPicked((props.fixture.suggestions ?? []).slice(0, 2).map((x) => x.id)); return; }
     if (props.existing) { void readProduct(props.existing.id); return; }
     try { const raw = localStorage.getItem(draftKey); if (raw) { const d = JSON.parse(raw) as Draft; if (Date.now() - d.updatedAt < 30 * 86400000 && d.productId && collectionById(d.profile?.type)) { void readProduct(d.productId, d); setNotice("Your draft is ready to continue."); } } } catch { /* Storage unavailable: the product is kept on the server. */ }
   }, [draftKey, props.existing, props.fixture, props.previewStep, props.previewLook, readProduct]); // Start the initial upload once.
@@ -184,6 +184,16 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       if (!props.fixture) await refresh(prep.product.id);
       setNotice(`${list.length === 1 ? "Photo" : `${list.length} photos`} added. We read all ${references.length + list.length} together.`);
     } catch (e) { setError((e as Error).message); } finally { setBusy(null); locked.current = false; }
+  }
+
+  async function relabelPhoto(ref: Ref, viewType: string) {
+    if (!prep || locked.current || disabled) return;
+    locked.current=true; setBusy("Saving photo view"); setError(null);
+    try {
+      if (!props.fixture) await api("/api/products/"+prep.product.id+"/photos",{method:"PATCH",json:{assetId:ref.id,viewType}});
+      setPrep(prev=>prev?{...prev,references:(prev.references??[]).map(r=>r.id===ref.id?{...r,view_type:viewType}:r)}:prev);
+      setNotice("Photo view saved. We will use it when planning your shoot.");
+    } catch(e) { setError((e as Error).message); } finally {locked.current=false;setBusy(null);}
   }
 
   async function removePhoto(ref: Ref) {
@@ -299,12 +309,13 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
         <div className="thumbs">
           {thumbs.map((r, i) => <div key={r.id} className={clsx("thumb", i === 0 && "main")}>
             <button type="button" className="ph r11 ref-open" aria-label={"Open original photo "+(i+1)} onClick={()=>setPhotoOpen(i)}>{r.url && <FitImg src={r.url} eager alt={`${VIEW_LABEL[r.view_type] ?? "Photo"} view`} />}{!prep && <span className="veil"><Loader2 size={16} className="animate-spin" /></span>}</button>
-            <span className="vt">{VIEW_LABEL[r.view_type] ?? "Photo"}</span>
+            {prep ? <select className="vt" aria-label={"View shown in photo "+(i+1)} value={r.view_type} disabled={!!busy || disabled} onChange={e=>void relabelPhoto(r,e.target.value)}>{Object.entries(VIEW_LABEL).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select> : <span className="vt">{VIEW_LABEL[r.view_type] ?? "Photo"}</span>}
             {prep && i > 0 && !busy && <button type="button" className="rm" aria-label="Remove this photo" onClick={() => removePhoto(r)}><X size={13} /></button>}
           </div>)}
           {prep && references.length < MAX_PHOTOS && <button type="button" className="slot" disabled={!!busy || disabled} onClick={() => extra.current?.click()} aria-label={`Add a ${VIEW_LABEL[nextView].toLowerCase()} photo`}><Plus /><span>Add</span></button>}
         </div>
-        {prep && references.length < MAX_PHOTOS && <div className="viewpick" role="group" aria-label="The next photo shows"><span className="xs muted">Next photo is a</span>{(["angle", "back", "detail"] as const).map((v) => <button key={v} type="button" className={clsx("pill sm", nextView === v && "on")} onClick={() => setNextView(v)}>{VIEW_LABEL[v].toLowerCase()}</button>)}</div>}
+        {prep && references.length < MAX_PHOTOS && <div className="viewpick" role="group" aria-label="The next photo shows"><span className="xs muted">Next photo is a</span>{(["front", "angle", "side", "back", "detail"] as const).map((v) => <button key={v} type="button" className={clsx("pill sm", nextView === v && "on")} onClick={() => setNextView(v)}>{VIEW_LABEL[v].toLowerCase()}</button>)}</div>}
+        {prep && references.length < MAX_PHOTOS && <div className="row" style={{gap:8,marginTop:12,flexWrap:"wrap"}}><button type="button" className="btn btn-line" disabled={!!busy || disabled} onClick={()=>camera.current?.click()}><Camera size={17}/>Take {VIEW_LABEL[nextView].toLowerCase()} photo</button><button type="button" className="btn btn-line" disabled={!!busy || disabled} onClick={()=>extra.current?.click()}><ImagePlus size={17}/>Upload photo</button></div>}
       </section>
 
       {prep ? <section className="card found">
@@ -337,7 +348,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       <div className="modes" role="radiogroup" aria-label="Kind of shoot">
         {(["one", "studio", "variety"] as const).map((m) => {
           const on = pickMode === m, credits = (m === "one" ? 1 : PACK_SIZE) * perPhoto;
-          const preview = (m === "studio" ? [0, 1, 2, 4].map((k) => STUDIO_LOOKS[k]) : m === "variety" ? packLooks("variety", profile, references) : [...(chosen ? [chosen] : []), ...looks.filter((l) => l.id !== chosen?.id)]).slice(0, 4);
+          const preview = (m === "studio" ? packLooks("studio",profile,references) : m === "variety" ? packLooks("variety", profile, references) : [...(chosen ? [chosen] : []), ...looks.filter((l) => l.id !== chosen?.id)]).slice(0, 4);
           return <button key={m} type="button" role="radio" aria-checked={on} className={clsx("mode", on && "on")} onClick={() => { setMode(m); setError(null); }}>
             <span className="mv">{preview.map((l) => <span key={l.id}><LookThumb look={l} /></span>)}</span>
             <span className="mt"><b>{m === "one" ? "One style" : PACKS[m].title}{m === "one" && <em>Start small</em>}</b><span>{m === "one" ? "Pick one look, 1 to 4 photos" : PACKS[m].short}</span><span className="mpm">{m === "one" ? `${perPhoto} credit per photo` : `${credits} credits`}</span></span>
@@ -349,7 +360,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
       {issue && <div className="card p" role="status"><p className="sm">{issue}</p><button type="button" className="link sm" onClick={() => move("product")}>Add reference photos <ArrowRight size={16}/></button></div>}
       {pack ? <section className="packsec">
-        <div className="between"><h2 className="h5">{issue ? "Supported by your photos" : `Your ${PACK_SIZE} photos`}</h2><span className="xs muted">{pack === "studio" ? "One demo product · white studio" : "A coordinated set for your product"}</span></div>
+        <div className="between"><h2 className="h5">{issue ? "Add a reference for this view" : `Your ${PACK_SIZE} photos`}</h2><span className="xs muted">{pack === "studio" ? "One demo product · white studio" : "A coordinated set for your product"}</span></div>
         <div className="packgrid">{packSet.map((l) => <div key={l.id} className="pk"><div className="ph r11"><LookThumb look={l} /></div><b>{l.title}</b><span>{l.subtitle}</span></div>)}</div>
         {pack === "studio" && !(references.some((r) => r.view_type === "back") && references.some((r) => r.view_type === "detail")) && <p className="xs muted">Examples use one demo bottle. Back and side views need supporting photos; detail crops use only visible details.</p>}
         {pack === "variety" && <p className="xs muted">Picked for your {typeLabel === "Any product" ? "product" : typeLabel?.toLowerCase()} from looks your photos can support.</p>}

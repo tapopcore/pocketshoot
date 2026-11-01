@@ -5,6 +5,8 @@ import { admin } from "./supabase";
 import { getObject, putObject } from "./storage";
 import { getSettings } from "./settings";
 import { thumbnail } from "./images";
+import {withAiScope} from "./ai-spend";
+import {selectReferences} from "./cost-policy";
 import { reviewGeneratedImage } from "./generation-review";
 
 /** Recheck stored pixels: no image generation, no wallet mutation. Caller must authorize the org or platform access. */
@@ -30,8 +32,8 @@ export async function recheckSavedItem(itemId: string, orgId?: string) {
   const base = params?.lookId ? categoryLook(params.lookId) : saved?.recipe;
   const recipe = base ? { ...base, brief: params?.brief ?? base.brief } : undefined;
   const image = await getObject("outputs", asset.storage_key);
-  const originals = await Promise.all([...refs].sort((a,b) => Number(b.view_type === "front") - Number(a.view_type === "front")).slice(0, 6).map(r => getObject("originals", r.storage_key)));
-  const review = await reviewGeneratedImage({ refs: originals, image, models: settings.providers.llm.models, context: { recipe, shot: params?.shot, selectedStyle: recipe ? styleForLook(recipe) : saved?.shootStyle, analysis: (product?.attributes as { analysis?: ProductAnalysis })?.analysis, confirmedSubjectCount: saved?.subjectCount } });
+  const originals = await Promise.all(selectReferences([...refs].sort((a,b) => Number(b.view_type === "front") - Number(a.view_type === "front")),recipe?.id).map(r => getObject("originals", r.storage_key)));
+  const review = await withAiScope({organizationId:item.organization_id,productId:job.product_id,jobId:item.job_id,itemId:item.id},()=>reviewGeneratedImage({ refs: originals, image, models: settings.providers.llm.models, context: { recipe, shot: params?.shot, selectedStyle: recipe ? styleForLook(recipe) : saved?.shootStyle, analysis: (product?.attributes as { analysis?: ProductAnalysis })?.analysis, confirmedSubjectCount: saved?.subjectCount } }));
   return { item, asset, image, ...review, decision: aggregate(review.checks) };
 }
 
