@@ -24,7 +24,7 @@ vi.mock("@/lib/env", () => ({ env: { cronSecret: "" } }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("@/lib/storage", () => ({
   getObject: async (_b: string, key: string) => { db.storage.push(key); throw new Error("storage read " + key); },
-  putObject: vi.fn(), removeObjects: vi.fn(), signedUrls: async () => ({}), signedUrl: async () => "", sized: (u: string) => u,
+  putObject: vi.fn(), removeObjects: vi.fn(), signedUrls: async () => ({}), signedUrl: async () => "", viewUrls: () => ({}),
 }));
 
 vi.mock("@/lib/supabase", () => ({

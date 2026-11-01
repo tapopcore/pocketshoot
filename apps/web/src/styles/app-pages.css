@@ -831,3 +831,36 @@ input[type=file]::file-selector-button{height:38px;margin-right:12px;padding:0 1
 .jobv .jt .ph:has(> .fail){min-height:240px}
 
 .create .thumb select.vt{width:100%;min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--surface,#fff);padding:6px 2px;color:var(--ink);font-size:13px;cursor:pointer}.create .thumb select.vt:focus-visible{outline:2px solid var(--accent,#f44b0b);outline-offset:2px}
+/* failed tile: text always stays inside the tile */
+.jobv .fail>*{max-width:100%}
+.jobv .fail .why{max-width:100%!important;overflow-wrap:anywhere;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:3!important;overflow:hidden!important}
+.jobv .fail .xs{max-width:100%;overflow-wrap:anywhere;line-height:1.35}
+@media(max-width:430px){.jobv .fail{padding:10px 8px}.jobv .fail .why{font-size:11.5px}.jobv .fail .xs{font-size:10.5px}}
+/* shoot kind on phones: a clear three-way choice, readable text, obvious selection */
+@media(max-width:700px){
+ .create .shoot .modes{gap:8px}
+ .create .shoot .mode{min-height:68px;padding:12px 10px;border-radius:14px;border-width:1.5px;display:flex!important;flex-direction:column;justify-content:center;gap:4px}
+ .create .shoot .mode .mt>b{font-size:14.5px;line-height:1.25;white-space:normal}
+ .create .shoot .mode .mt .mpm{font-size:12px;margin-top:2px;color:var(--muted);font-weight:600}
+ .create .shoot .mode.on{background:var(--brand-soft);border-color:var(--brand)}
+ .create .shoot .mode.on .mt .mpm{color:var(--brand-2)}
+}
+.create .mdesc{font-size:13px;color:var(--muted);margin:10px 2px 0}
+/* details step: photo view labels, next-view chips and add buttons */
+.create .pstep .thumb select.vt{appearance:none;-webkit-appearance:none;width:100%;height:28px;margin-top:6px;padding:0 16px 0 6px;border:1px solid var(--line);border-radius:8px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 5px center;font-size:11.5px;font-weight:600;color:var(--ink-2);text-align:center;text-overflow:ellipsis;cursor:pointer}
+.create .pstep .viewpick{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-top:12px;padding-bottom:2px}
+.create .pstep .viewpick::-webkit-scrollbar{display:none}
+.create .pstep .viewpick>*{flex:none}
+.create .pstep .addrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.create .pstep .addrow .btn{min-height:44px;padding:0 10px;font-size:14px;white-space:nowrap}
+.fit-miss{position:absolute;inset:0;display:grid;place-items:center;background:var(--surface,#f5f5f4);color:var(--faint,#a8a29e)}
+input[type=file].file-in,.file-in{display:flex;align-items:center;height:auto;min-height:52px;padding:7px 10px;font-size:13.5px;color:var(--muted);cursor:pointer}
+.file-in::file-selector-button{border:0;border-radius:99px;background:var(--ink);color:#fff;padding:9px 16px;margin-right:12px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.reuse .pills{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.reuse .pills::-webkit-scrollbar{display:none}
+.reuse .pill.prod{flex:none;max-width:220px;min-width:0}
+.reuse .pill.prod .pn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reuse .pill.prod .ph{position:relative;flex:none}
+.jobv .jgrid>*{min-width:0}.jobv .jgrid .ph{width:100%;max-width:100%}
+.jobv .jt .ph:has(> .fail){min-height:0}
+@media(max-width:430px){.jobv .fail{gap:4px}.jobv .fail .ico{width:30px;height:30px}.jobv .fail b{font-size:13px}.jobv .fail .why{-webkit-line-clamp:2!important;font-size:11px}.jobv .fail .btn{height:34px;padding:0 12px;font-size:13px}.jobv .fail>.xs{display:none!important}}

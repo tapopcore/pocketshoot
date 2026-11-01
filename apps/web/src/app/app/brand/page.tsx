@@ -2,7 +2,7 @@
 import { OUTPUT_LIST, STYLE_LIST } from "@packshot/core";
 import { requireWeb } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
-import { signedUrls } from "@/lib/storage";
+import { viewUrls } from "@/lib/storage";
 import { BRAND_MOODS } from "@/lib/brand-moods";
 import { Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { ActionForm } from "@/components/action-form";
@@ -28,7 +28,7 @@ function KitForm({ kit, canEdit }: { kit?: Kit; canEdit: boolean }) {
         <Field label="Usual style"><Select name="defaultStyle" defaultValue={kit?.default_style ?? ""}><option value="">No preference</option>{STYLE_LIST.filter((s) => s.id !== "custom").map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
         <Field label="Usual size"><Select name="defaultOutput" defaultValue={kit?.default_output ?? ""}><option value="">No preference</option>{OUTPUT_LIST.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field>
       </div>
-      <Field label="Logo" hint="PNG or SVG with a clear background. Kept for reference only."><Input type="file" name="logo" accept="image/png,image/jpeg,image/webp" style={{ paddingTop: 12 }} /></Field>
+      <Field label="Logo" hint="PNG, JPG or WebP, ideally on a clear background. Kept for reference only."><Input type="file" name="logo" accept="image/png,image/jpeg,image/webp" className="file-in" /></Field>
     </fieldset>
   </ActionForm>;
 }
@@ -37,7 +37,7 @@ export default async function Brand() {
   const ctx = await requireWeb();
   const { data } = await admin().from("brand_kits").select("*").eq("organization_id", ctx.orgId).order("created_at");
   const kits = (data ?? []) as Kit[];
-  const logos = await signedUrls("brand", kits.map((k) => k.logo_key).filter((k): k is string => !!k), 3600);
+  const logos = viewUrls("brand", kits.map((k) => k.logo_key).filter((k): k is string => !!k), 384);
   const canEdit = ctx.role !== "viewer";
   return (
     <div className="pg-brand">

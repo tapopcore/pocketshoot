@@ -97,7 +97,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   const order = delivered.map((i) => i.delivered_asset_id!) as string[];
   const pct = Math.round(((delivered.length + failed) / Math.max(1, items.length)) * 100);
   const ref = references[0]?.url ?? null;
-  const failedItems = items.filter((i) => i.status === "failed");
+  const failedItems = items.filter((i) => i.status === "failed" && !/budget/i.test(i.last_error ?? ""));
   const retry = async (list: Item[]) => {
     if (retrying) return;
     setRetrying(list.length === 1 ? list[0].id : "all");
@@ -147,7 +147,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
           </div>
         )}
       </header>
-      {active.length > 0 && <div className="job-progress" role="status"><div><b>{delivered.length} of {items.length} ready</b><span>Creating · {elapsed}s · safe to leave</span></div><div className="pb" role="progressbar" aria-label="Photos processed" aria-valuenow={delivered.length+failed} aria-valuemin={0} aria-valuemax={items.length}><i style={{width:pct+"%"}}/></div></div>}
+      {active.length > 0 && <div className="job-progress" role="status"><div><b>{delivered.length} of {items.length} ready</b><span>{elapsed < 60 ? "Just started" : elapsed < 1200 ? `Creating · ${Math.floor(elapsed / 60)} min` : "Taking longer than usual"} · safe to leave</span></div><div className="pb" role="progressbar" aria-label="Photos processed" aria-valuenow={delivered.length+failed} aria-valuemin={0} aria-valuemax={items.length}><i style={{width:pct+"%"}}/></div></div>}
 
       <div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
         {items.map((it, i) => {
@@ -167,8 +167,9 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
                     <span className="ico"><AlertTriangle size={20} /></span>
                     <b>This photo failed</b>
                     <span className="why">{it.last_error?.split(/(?<=\.)\s/)[0] ?? "Nothing was charged."}</span>
+                    {/budget/i.test(it.last_error ?? "") ? <span className="xs muted">This photo used all its tries. Start a new shoot to try a different style.</span> : <>
                     <button type="button" className="btn btn-lime btn-sm" disabled={!!retrying} onClick={() => retry([it])}>{retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={16} />}Try again</button>
-                    <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
+                    <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span></>}
                   </div>
                 ) : it.status === "cancelled" ? (
                   <div className="fail"><b>Cancelled</b><span className="why">Nothing was charged.</span></div>

@@ -35,8 +35,11 @@ const SHAPES: [OutputId, string, string, number, number][] = [["square", "Square
 const profileDefault = (type: CollectionId): ShootProfile => ({ type, construction: collectionById(type)?.category === "fashion" ? "unknown" : "not_applicable", referenceForm: "unknown" });
 
 function LookThumb({ look, className }: { look: CategoryLook; className?: string }) {
-  return <LookImage look={look} className={className} />;
+  // Demo photos are tiny (5 to 25 KB); load them right away so tiles are never blank while scrolling.
+  return <LookImage look={look} className={className} eager />;
 }
+
+
 
 /** Product type picker: a clean sheet with search, instead of the phone's raw dropdown. */
 function TypePicker({ value, onChange }: { value: CollectionId | null; onChange: (t: CollectionId) => void }) {
@@ -315,7 +318,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
           {prep && references.length < MAX_PHOTOS && <button type="button" className="slot" disabled={!!busy || disabled} onClick={() => extra.current?.click()} aria-label={`Add a ${VIEW_LABEL[nextView].toLowerCase()} photo`}><Plus /><span>Add</span></button>}
         </div>
         {prep && references.length < MAX_PHOTOS && <div className="viewpick" role="group" aria-label="The next photo shows"><span className="xs muted">Next photo is a</span>{(["front", "angle", "side", "back", "detail"] as const).map((v) => <button key={v} type="button" className={clsx("pill sm", nextView === v && "on")} onClick={() => setNextView(v)}>{VIEW_LABEL[v].toLowerCase()}</button>)}</div>}
-        {prep && references.length < MAX_PHOTOS && <div className="row" style={{gap:8,marginTop:12,flexWrap:"wrap"}}><button type="button" className="btn btn-line" disabled={!!busy || disabled} onClick={()=>camera.current?.click()}><Camera size={17}/>Take {VIEW_LABEL[nextView].toLowerCase()} photo</button><button type="button" className="btn btn-line" disabled={!!busy || disabled} onClick={()=>extra.current?.click()}><ImagePlus size={17}/>Upload photo</button></div>}
+        {prep && references.length < MAX_PHOTOS && <div className="addrow"><button type="button" className="btn btn-line" disabled={!!busy || disabled} onClick={()=>camera.current?.click()}><Camera size={17}/>Take {VIEW_LABEL[nextView].toLowerCase()} photo</button><button type="button" className="btn btn-line" disabled={!!busy || disabled} onClick={()=>extra.current?.click()}><ImagePlus size={17}/>Upload photo</button></div>}
       </section>
 
       {prep ? <section className="card found">
@@ -351,18 +354,19 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
           const preview = (m === "studio" ? packLooks("studio",profile,references) : m === "variety" ? packLooks("variety", profile, references) : [...(chosen ? [chosen] : []), ...looks.filter((l) => l.id !== chosen?.id)]).slice(0, 4);
           return <button key={m} type="button" role="radio" aria-checked={on} className={clsx("mode", on && "on")} onClick={() => { setMode(m); setError(null); }}>
             <span className="mv">{preview.map((l) => <span key={l.id}><LookThumb look={l} /></span>)}</span>
-            <span className="mt"><b>{m === "one" ? "One style" : PACKS[m].title}{m === "one" && <em>Start small</em>}</b><span>{m === "one" ? "Pick one look, 1 to 4 photos" : PACKS[m].short}</span><span className="mpm">{m === "one" ? `${perPhoto} credit per photo` : `${credits} credits`}</span></span>
+            <span className="mt"><b>{m === "one" ? "One style" : PACKS[m].title}{m === "one" && <em>Start small</em>}</b><span>{m === "one" ? "Pick one look, 1 to 4 photos" : PACKS[m].short}</span><span className="mpm">{m === "one" ? `${perPhoto} credit each` : `${credits} credits`}</span></span>
             <span className="mp"><b className="num">{credits}</b><span>{m === "one" ? "credit each" : "credits"}</span></span>
             <span className="mr" aria-hidden>{on && <Check size={14} strokeWidth={3} />}</span>
           </button>;
         })}
       </div>
+      <p className="mdesc m-only">{pickMode === "one" ? "Pick one look below, then choose 1 to 4 photos." : PACKS[pickMode].short + ", picked for your product."}</p>
 
       {issue && <div className="card p" role="status"><p className="sm">{issue}</p><button type="button" className="link sm" onClick={() => move("product")}>Add reference photos <ArrowRight size={16}/></button></div>}
       {pack ? <section className="packsec">
         <div className="between"><h2 className="h5">{issue ? "Add a reference for this view" : `Your ${PACK_SIZE} photos`}</h2><span className="xs muted">{pack === "studio" ? "One demo product · white studio" : "A coordinated set for your product"}</span></div>
         <div className="packgrid">{packSet.map((l) => <div key={l.id} className="pk"><div className="ph r11"><LookThumb look={l} /></div><b>{l.title}</b><span>{l.subtitle}</span></div>)}</div>
-        {pack === "studio" && !(references.some((r) => r.view_type === "back") && references.some((r) => r.view_type === "detail")) && <p className="xs muted">Examples use one demo bottle. Back and side views need supporting photos; detail crops use only visible details.</p>}
+        {pack === "studio" && !(references.some((r) => r.view_type === "back") && references.some((r) => r.view_type === "detail")) && <p className="xs muted">Examples show a demo bottle. Back and side shots need a back or side photo from you.</p>}
         {pack === "variety" && <p className="xs muted">Picked for your {typeLabel === "Any product" ? "product" : typeLabel?.toLowerCase()} from looks your photos can support.</p>}
       </section> : <section className="packsec">
         <h2 className="h5">Pick a style</h2>
@@ -393,6 +397,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       </section>}
     </div>}
 
+    {step === "review" && prep && !ready && <div className="card p" role="status" style={{ display: "grid", gap: 12, justifyItems: "start" }}><p className="sm">{issue ?? "Pick a style for this shoot first."}</p><button type="button" className="btn btn-lime" onClick={() => move("looks")}>Choose your shoot <ArrowRight size={16} /></button></div>}
     {step === "review" && ready && prep && <div className="two rv2">
       <div className="rvl">
         <div className="sumrow"><button type="button" className="ph ref-open" aria-label="Open original photo" onClick={()=>setPhotoOpen(0)}>{cover && <FitImg src={cover} eager />}</button><div style={{ flex: 1, minWidth: 0 }}><small>{typeLabel}</small><b>{name}</b></div><button type="button" className="link sm" onClick={() => move("product")}>Change</button></div>
@@ -418,7 +423,7 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
 
     {step === "saved" && accepted.current && <Link className="btn btn-lg btn-lime" href={"/app/jobs/" + accepted.current}>Open your shoot <ArrowRight size={18} /></Link>}
 
-    {step === "review" && <div className="abar m-only rbar">
+    {step === "review" && ready && <div className="abar m-only rbar">
       <div style={{ minWidth: 0 }}><b className="num">{quoteBusy ? "…" : quote ? quote.credits : photos * perPhoto} credit{(quote?.credits ?? photos * perPhoto) === 1 ? "" : "s"}</b><div className="xs muted">{props.balance} available</div></div>
       {quote && quote.credits > props.balance
         ? <Link className="btn btn-lg btn-lime" href="/app/wallet?returnTo=%2Fapp%2Fnew">Get credits</Link>

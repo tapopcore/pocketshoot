@@ -11,7 +11,6 @@ import { randomToken, sha256 } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { emailLayout, sendEmail } from "@/lib/email";
 import { putObject } from "@/lib/storage";
-import sharp from "sharp";
 import { BRAND_MOODS } from "@/lib/brand-moods";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string; link?: string } | null;
@@ -126,6 +125,7 @@ export async function saveBrandKit(_: ActionState, form: FormData): Promise<Acti
   const logo = form.get("logo");
   if (logo instanceof File && logo.size > 0) {
     if (logo.size > 5 * 1024 * 1024) return { error: "Logo must be under 5 MB" };
+    const sharp = (await import("sharp")).default;
     const png = await sharp(Buffer.from(await logo.arrayBuffer())).resize(800, 800, { fit: "inside" }).png().toBuffer().catch(() => null);
     if (!png) return { error: "The logo must be a PNG, JPG or WebP image" };
     const key = `${ctx.orgId}/${randomToken(8)}.png`;

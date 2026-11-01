@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/albert-sans/index.css";
 import "@fontsource/bodoni-moda/latin-500-italic.css";
 import "./globals.css";
+import { DeployGuard } from "@/components/deploy-guard";
 
 const name = process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot";
 
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Focus rings only after real keyboard use (Tab). Taps, and the volume/power keys used for screenshots, never show them. */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){var d=document.documentElement;addEventListener("keydown",function(e){if(e.key==="Tab")d.setAttribute("data-kbd","")},true);addEventListener("pointerdown",function(){d.removeAttribute("data-kbd")},true)})();` }} />
         {children}
+        <DeployGuard />
       </body>
     </html>
   );

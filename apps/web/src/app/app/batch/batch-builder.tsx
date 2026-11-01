@@ -156,7 +156,7 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
         </div>
       </section>
       {kind === "studio" && <p className="xs muted">Each product needs a side or angled reference for six distinct Studio views. Choose one look to start from a single front photo.</p>}
-      <p className="xs muted">Each example set uses a shared demo product. Each product is directed from its own photos and category. No paid preview is generated when you browse.</p>
+      <p className="xs muted">Examples show demo products. Each of your products is shot from its own photos.</p>
       {photoOpen&&<ReferenceViewer photos={[{url:photoOpen,label:"Original product photo"}]} index={0} onIndex={()=>{}} onClose={()=>setPhotoOpen(null)}/>}
       {needed > balance && <Notice tone="bad">You need {needed - balance} more credits for this batch. <a className="underline" href="/app/wallet">Buy credits</a></Notice>}
     </div>

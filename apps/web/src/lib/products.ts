@@ -4,7 +4,8 @@ import { z } from "zod";
 import { CATEGORIES, isCategoryId, collectionById, type CategoryId } from "@packshot/core";
 import { admin } from "./supabase";
 import { getObject, putObject, removeObjects, signedUpload } from "./storage";
-import { normalizeUpload, ImageRejected } from "./images";
+// Image tools load sharp, so they are imported only when a photo is processed (keeps page cold starts fast).
+const imageTools = () => import("./images");
 import { ApiError } from "./api";
 import { assertRole, type AuthContext } from "./auth";
 import { rateLimit, track } from "./observe";
@@ -52,10 +53,10 @@ async function ingestUploads(ctx: AuthContext, productId: string, uploads: { key
     }
     let clean;
     try {
-      clean = await normalizeUpload(raw);
+      clean = await (await imageTools()).normalizeUpload(raw);
     } catch (e) {
       await removeObjects("uploads", [u.key]);
-      if (e instanceof ImageRejected) throw new ApiError(400, e.message);
+      if (e instanceof (await imageTools()).ImageRejected) throw new ApiError(400, e.message);
       throw e;
     }
     const id = randomUUID();
@@ -173,7 +174,7 @@ export async function importShopifyProducts(ctx: AuthContext, productIds: string
         const r = await fetch(img.url, { signal: AbortSignal.timeout(30_000) });
         if (!r.ok) continue;
         try {
-          const clean = await normalizeUpload(Buffer.from(await r.arrayBuffer()));
+          const clean = await (await imageTools()).normalizeUpload(Buffer.from(await r.arrayBuffer()));
           const id = randomUUID();
           const key = `${ctx.orgId}/${productId}/${id}.jpg`;
           await putObject("originals", key, clean.buffer, "image/jpeg");
