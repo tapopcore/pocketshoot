@@ -8,7 +8,7 @@ import { useEffect } from "react";
 export function PerfReporter() {
   useEffect(() => {
     if (typeof PerformanceObserver === "undefined") return;
-    let batch: Record<string, unknown>[] = [];
+    const batch: Record<string, unknown>[] = [];
     const flush = () => {
       if (!batch.length) return;
       const body = JSON.stringify(batch.splice(0, 40));
