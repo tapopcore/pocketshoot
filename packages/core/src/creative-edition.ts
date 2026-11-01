@@ -49,9 +49,9 @@ export function chooseCreativeSpec(input:{family:string;edition:number;slot:numb
  return best;
 }
 export function creativeSpecPrompt(spec:CreativeSpec,human="none",crop=false):string{
- const display=human==="none"?displays[spec.display]:gestures[spec.display];
+ const display=crop?"Focus on a genuinely resolved visible feature different from recent crops. Prefer the visible material finish, a clear edge/join, a visible motif, or a readable printed region only when the source actually shows it. Other units may remain outside this detail frame; never demand the full merchandise group here.":human==="none"?displays[spec.display]:gestures[spec.display];
  return ["NEW SHOOT EDITION "+spec.edition+" — visual changes are mandatory, not optional styling.",crop?layouts[spec.layout].replace(/complete merchandise group|merchandise/g,"selected visible detail"):layouts[spec.layout],
- crop?"Intentional crop of a different clearly resolved visible feature. Never fabricate unseen microdetail.":"Subject group occupies approximately "+[52,66,80][spec.scale]+" percent of the frame's short side; maintain safe margins and complete inventory.",
+ crop?"Intentional crop: the selected resolved detail occupies approximately "+[60,80,95][spec.scale]+" percent of the frame short side. Never fabricate unseen microdetail.":"Subject group occupies approximately "+[52,66,80][spec.scale]+" percent of the frame's short side; maintain safe margins and complete inventory.",
  "LIGHT GEOMETRY: "+lights[spec.light],"PRESENTATION: "+display,
  spec.environment==="studio"?"The background remains seamless pure white, with no decorative props. Distinction must come from composition, optical scale, support/arrangement and motivated lighting; never invent an unseen angle.":"Invent a specific NEW compatible place and set within this conceptual world: "+worlds[spec.world]+". Keep the selected indoor/outdoor environment and theme. Choose actual setting, materials and action from the product's use and observed construction, not a stock backdrop recipe.",
  "Preserve product geometry, exact visible design, supplied assembly, count and source-supported view. Do not mirror logos, rotate a flat source to pretend it is a new view, add merchandise, or recolour the product. A support is not merchandise."

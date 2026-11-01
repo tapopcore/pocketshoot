@@ -13,7 +13,7 @@ export function studioDirection(look: CategoryLook, analysis?: ProductAnalysis |
   diagonal:"Camera azimuth minus 40 degrees, elevation 40 degrees. Leading end points toward camera at lower left; opposite end recedes to upper right. Show perspective depth, not a rotated copy of the front shot.",
   side:"Use the supplied side/angle reference. Camera at product centre height, 90 degrees around from the front, showing the supported side profile.",
   back:"Use the supplied back reference. Camera at product centre height facing the actual back, with no invented markings or construction.",
-  detail:"Tight close-up of one distinctive detail actually visible in the reference: closure, grip, stitching, texture or printed mark. Fill about 80 percent of frame with that detail. Do not expose hidden parts, remove caps or invent internals.",
+  detail:"Tight close-up of one distinctive detail actually visible in the reference: closure, grip, stitching, texture or printed mark. Follow the edition's optical scale for that detail. Do not expose hidden parts, remove caps or invent internals.",
   rim:"Keep the reference viewpoint and complete visible silhouette. Defined edges with a restrained side/back rim and soft front fill; no invented side surfaces.",
   shadow:"Keep the reference viewpoint; full product in the lower third with generous white space above. Long soft directional shadow, no invented hidden geometry.",
   offset:"Keep the reference viewpoint; complete product offset to the left third at a smaller editorial scale, white negative space on the right.",
