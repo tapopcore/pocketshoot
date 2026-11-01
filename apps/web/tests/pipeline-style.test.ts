@@ -1,7 +1,7 @@
 vi.mock("@/lib/creative-history",()=>({creativeHistory:async()=>({family:"test",productIds:["p"],shots:[],specs:[]}),creativeEdition:async()=>({family:"test",edition:1}),previousDeliverables:async()=>[]}));
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const f = vi.hoisted(() => ({ edit: vi.fn(), judge: vi.fn(), cutout: vi.fn(), canvas: vi.fn(), composite: vi.fn(), put: vi.fn(), rpc: vi.fn(), assets: vi.fn(), checks: vi.fn(), patches: vi.fn(), image: Buffer.alloc(0), studio:false, rules:false, direct:vi.fn() }));
+const f = vi.hoisted(() => ({ edit: vi.fn(), judge: vi.fn(), cutout: vi.fn(), canvas: vi.fn(), composite: vi.fn(), put: vi.fn(), rpc: vi.fn(), assets: vi.fn(), checks: vi.fn(), patches: vi.fn(), image: Buffer.alloc(0), studio:false, rules:false, missing:false, direct:vi.fn() }));
 const shot = { scene: "A dry natural rock ledge in an open-air mountain landscape with visible sky", lighting: "Outdoor daylight", framing: "full", human_presence: "none", product_scale: 0.65, offset_x: 0, baseline: 0.85 };
 vi.mock("@/lib/supabase", () => ({ admin: () => ({ rpc: f.rpc, from: (table: string) => {
   let value: unknown; let op = "read"; let selection = "";
@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase", () => ({ admin: () => ({ rpc: f.rpc, from: (table: str
     update: (v: unknown) => { op = "update"; value = v; if (table === "generation_items") f.patches(v); return chain; },
     single: async () => ({ data: table === "generation_jobs" ? { id: "job", organization_id: "org", product_id: "p", mode: "preserve", style: "natural_sunlight", output: "square", settings: f.studio ? {recipe:categoryLook("studio-front"),subjectCount:2} : { shootStyle: "outdoor" }, is_trial: true, status: "generating", created_by: "u" } : table === "products" ? { id: "p", name: "Bottle", category: "home_kitchen", locks: [] } : table === "generation_items" ? { style: "natural_sunlight", params: f.studio?{shot:studioDirection(categoryLook("studio-front")!),lookId:"studio-front"}:{shot,shotSource:f.rules?"rules":"ai"} } : { id: "new-id" }, error: null }),
     maybeSingle: async () => ({ data: { rate: 83, rate_date: "2026-10-27" } }),
-    then: (resolve: (v: unknown) => unknown) => resolve({ data: op !== "read" ? value : table === "product_assets" ? [{ id: "ref", view_type: "front", storage_key: "original" }] : table === "generation_items" && selection.includes("idx") ? [{ id: "item", idx: 0, style: "natural_sunlight", params: { shot,shotSource:f.rules?"rules":"ai" } }] : [], error: null }),
+    then: (resolve: (v: unknown) => unknown) => resolve({ data: op !== "read" ? value : table === "product_assets" ? [{ id: "ref", view_type: "front", storage_key: "original" }] : table === "generation_items" && selection.includes("idx") ? [{ id: "item", idx: 0, style: "natural_sunlight", params: f.missing?{}:{ shot,shotSource:f.rules?"rules":"ai" } }] : [], error: null }),
   }; return chain;
 } }) }));
 vi.mock("@/lib/settings", () => ({ getSettings: async () => ({ providers: { render: { trialEdge: 1024, paidEdge: 1536 }, llm: { models: [] }, costUsdPerImage: {}, timeoutMs: 5000 }, quality: { useJudge: true }, fx_fallback: { USDINR: 83 } }) }));
@@ -30,7 +30,7 @@ import { processItem } from "@/lib/pipeline";
 const verdict = { same_product: true, text_changed: false, logo_changed: false, colour_changed: false, shape_changed: false, extra_or_missing_items: false, artefacts: false, notes: "", photographic: true, natural_anatomy: true, brief_followed: true, style_match: true, environment: "outdoor", human_visible: false, framing_match: true };
 const item = { id: "item", job_id: "job", organization_id: "org", idx: 0, attempts: 0, max_attempts: 3 };
 beforeEach(async () => {
-  vi.clearAllMocks();f.studio=false;f.rules=false;
+  vi.clearAllMocks();f.studio=false;f.rules=false;f.missing=false;
   f.image = await sharp({ create: { width: 1024, height: 1024, channels: 3, background: "#336699" } }).png().toBuffer();
   f.edit.mockResolvedValue({ image: f.image, model: "test", costUsd: 0.01 });
   f.judge.mockResolvedValue({ data: verdict });
@@ -122,7 +122,9 @@ it("an independent confirmation can overturn source-hand confusion",async()=>{
  expect(f.judge.mock.calls[0][0].imageLabels.at(-1)).toContain("GENERATED RESULT");
 });
 it("concurrent pack slots share one coordinated planning request",async()=>{
- f.rules=true;f.direct.mockImplementation(async()=>{await new Promise(r=>setTimeout(r,20));return {shots:[shot],source:"rules"};});
+ f.rules=true;f.missing=true;f.direct.mockImplementation(async()=>{await new Promise(r=>setTimeout(r,20));return {shots:[shot],source:"rules"};});
  await Promise.all([processItem({...item,id:"one"}),processItem({...item,id:"two",idx:1})]);
  expect(f.direct).toHaveBeenCalledTimes(1);expect(f.edit).not.toHaveBeenCalled();
 });
+
+it("does not buy another planning request for a persisted failed plan in the same job",async()=>{f.rules=true;await processItem({...item,id:"one"});await processItem({...item,id:"two",idx:1});expect(f.direct).not.toHaveBeenCalled();expect(f.edit).not.toHaveBeenCalled();});

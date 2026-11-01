@@ -6,6 +6,8 @@ The commissioned treatment is reviewed on the same generated pixels, alongside i
 
 Reference lessons are abstract photographic principles from the supplied 90-image audit. No reference artwork is published, no historical private outputs are submitted to a model, and no model training is claimed. Local history and visible treatment rotation reduce repetition; uniqueness is not guaranteed.
 
-Validation before staged image QA: 94 core tests, 114 web tests, TypeScript and changed-file lint pass. The unchanged two-reference admission forecast for a 4,543-byte sample prompt is INR 4.5362 at the stored FX rate; this is an estimate, not a measured delivered-image cost. Model, quality, dimensions and INR 5 admission policy are unchanged.
+Validation before staged image QA: 95 core tests, 115 web tests, TypeScript and changed-file lint pass. The unchanged two-reference admission forecast for a 4,543-byte sample prompt is INR 4.5362 at the stored FX rate; this is an estimate, not a measured delivered-image cost. Model, quality, dimensions and INR 5 admission policy are unchanged.
 
 Release requirement: inspect actual same-product before/after outputs, all paid attempts and reviewer outcomes. Do not promote solely because technical tests or the internal reviewer pass.
+
+Staged image QA also exposed a conflict between product-body compositions and the old close-up technique validator. Body compositions now admit the appropriate technique while keeping full merchandise inventory. Persisted failed plans are not replanned in the same job. Automatic pack briefs now carry purpose/environment/human contracts instead of the catalogue’s fixed incidental surface and wardrobe examples.

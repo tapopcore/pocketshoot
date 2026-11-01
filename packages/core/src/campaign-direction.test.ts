@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {commissionFor,commissionPrompt,referenceLessons} from "./campaign-direction";
+import {campaignIntent,commissionFor,commissionPrompt,referenceLessons} from "./campaign-direction";
 import {packLooks,COLLECTION_IDS,type ShootProfile} from "./product-looks";
 import type {ProductAnalysis,ShotDirection} from "./director";
 const analysis={category:"jewellery",description:"Antique gold floral choker set",materials:["gold-coloured metal"],visible_text:[]} as ProductAnalysis;
@@ -14,3 +14,5 @@ describe("visual commissions replace backdrop variation",()=>{
  it("builds six eligible roles for every collection and differentiates repeated human coverage",()=>{for(const type of COLLECTION_IDS){const p:ShootProfile={type,construction:"unknown",referenceForm:"unknown"};const pack=packLooks("variety",p,[{view_type:"front"}]);expect(pack).toHaveLength(6);expect(new Set(pack.map(l=>l.id)).size).toBe(6);expect(pack.every(l=>!l.requiresDetail&&!l.requiresContents&&!l.requiresMultiple&&!l.requiresWorn)).toBe(true);expect(pack.filter(l=>l.directionRole==="wearable").length).toBeLessThanOrEqual(1);expect(pack.filter(l=>l.human!=="none").slice(1).every(l=>l.directionRole==="human-detail"||l.directionRole==="context")).toBe(true);}});
  it("retries of a saved commission preserve the same explicit treatment",()=>{const c=commissionFor({analysis,look,edition:5,slot:2});expect(commissionFor({analysis,look,edition:5,slot:2})).toEqual(c);expect(c.version).toBeTruthy();});
 });
+
+it("does not pass a catalogue prop recipe into an automatically commissioned pack",()=>{const recipe={title:"Outdoor",tagline:"Natural context",brief:"Use the same warm stone slab and decorative flowers",human:"none",environment:"outdoor",framing:"full"} as const;const intent=campaignIntent(recipe,"context");expect(intent).toContain("genuinely outdoor");expect(intent).not.toContain("warm stone");expect(intent).not.toContain("flowers");});
