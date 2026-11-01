@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import {
-  compatibleApproaches, CREATIVE_VERSION, MAX_REFERENCE_PHOTOS, SUGGESTIONS_PROMPT, SUGGESTIONS_SCHEMA, photoSetPrompt, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
+  PHOTOGRAPHIC_APPROACHES, groundedFacts, parseArtDirection, compatibleApproaches, CREATIVE_VERSION, MAX_REFERENCE_PHOTOS, SUGGESTIONS_PROMPT, SUGGESTIONS_SCHEMA, photoSetPrompt, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
   sanitizeUserText, type DirectionInput, type ProductAnalysis, type ShotDirection,
 } from "@packshot/core";
 import { admin } from "./supabase";
@@ -175,10 +175,11 @@ async function analyzeProductOnce(productId: string, force = false): Promise<Pro
     const settings = await getSettings();
     const ordered = [...refs].sort((a, b) => Number(b.view_type === "front") - Number(a.view_type === "front"));
     const images = await Promise.all(ordered.map((r) => getObject("originals", r.storage_key)));
-    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nReturn 5 to 8 concise evidenced facts (14 maximum), with short exact label quotes. Keep buyer_job and each distinctive feature under 16 words. ideas and suggested_scenes must be empty arrays. Give a concise buyer context and one product-specific visual_strategy grounded in visible materials, form or utility. Preserve the observed source form (worn, loose, packaged or assembled); flag uncertainty instead of guessing a different product. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
+    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nThere are exactly "+images.length+" reference images. fact.reference is the one-based IMAGE index (1 through "+images.length+"), never the fact number. buyer_job is the end customer’s physical task or purpose, never a merchant persona. Return 5 to 8 concise evidenced facts (14 maximum), with short exact label quotes. Keep buyer_job and each distinctive feature under 16 words. ideas and suggested_scenes must be empty arrays. Give a concise buyer context and one product-specific visual_strategy grounded in visible materials, form or utility. Preserve the observed source form (worn, loose, packaged or assembled); flag uncertainty instead of guessing a different product. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
     const scope=aiScope();
     const res = await withAiScope({organizationId:product.organization_id,productId,...(scope?.jobId?{jobId:scope.jobId}:{})},()=>jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", maxOutputTokens:3072, schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 45_000 }));
     const analysis = parseAnalysis(res.data, SCENE_IDS);
+    if(analysis?.intelligence)analysis.intelligence.facts=analysis.intelligence.facts.filter(f=>f.reference<=images.length);
     if (!analysis) return null;
     analysis.photo_count = refs.length;
     await db.from("products").update({ attributes: { ...attrs, analysis, analysisModel: res.model, analysedAt: new Date().toISOString() } }).eq("id", productId);
@@ -201,12 +202,17 @@ async function directShotsOnce(input: DirectionInput): Promise<{ shots: ShotDire
     const settings = await getSettings();
     const prompt = directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined });
     // Repair text planning once before any image request. One bad slot cannot silently poison a pack.
+    let validation = "none";
+    const factIds=groundedFacts(input.analysis).map(f=>f.id);
+    const schema={...DIRECTION_SCHEMA,properties:{shots:{...DIRECTION_SCHEMA.properties.shots,minItems:input.count,maxItems:input.count,items:{...DIRECTION_SCHEMA.properties.shots.items,properties:{...DIRECTION_SCHEMA.properties.shots.items.properties,artDirection:{...DIRECTION_SCHEMA.properties.shots.items.properties.artDirection,properties:{...DIRECTION_SCHEMA.properties.shots.items.properties.artDirection.properties,mechanism:{type:"string",enum:PHOTOGRAPHIC_APPROACHES.map(p=>p.id)},fact_ids:{type:"array",minItems:factIds.length?1:0,maxItems:3,items:factIds.length?{type:"string",enum:factIds}:{type:"string"}}}}}}}}};
     for (let attempt = 0; attempt < 2; attempt++) {
-      const res = await jsonCall({ models: settings.providers.llm.models, prompt: prompt + (attempt ? "\nThe previous plan was invalid. Return exactly one distinct shot per assignment, in order. Respect each assignment's environment, human action and framing independently. For outdoor slots use an explicitly exterior location with no indoor/window staging. Keep camera directions complete and concise." : ""), schemaName: "shot_briefs", schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 35_000 });
+      const res = await jsonCall({ models: settings.providers.llm.models, prompt: prompt + (attempt ? "\nThe previous plan was invalid ("+validation+"). Use exact supplied mechanism and fact identifiers. Return exactly one distinct shot per assignment, in order. Respect each assignment's environment, human action and framing independently. For outdoor slots use an explicitly exterior location with no indoor/window staging. Keep camera directions complete and concise." : ""), schemaName: "shot_briefs", schema: schema as unknown as Record<string, unknown>, timeoutMs: 35_000 });
       const shots = parseDirections(res.data, input.count, input.analysis);
-      if (!shots) continue;
+      if (!shots) { const raw=res.data as {shots?:Record<string,unknown>[]}; validation=!Array.isArray(raw?.shots)?"missing_shots":raw.shots.length!==input.count?"wrong_count":raw.shots.some(s=>!s.artDirection)?"missing_treatment":raw.shots.some(s=>!parseArtDirection(s.artDirection,input.analysis))?"invalid_treatment":"invalid_or_duplicate_scene"; await logError("prep.direction.validation","Shot plan rejected before image spend",{attempt,count:input.count,reason:validation,mechanisms:raw?.shots?.map(s=>(s.artDirection as {mechanism?:string})?.mechanism).filter(v=>PHOTOGRAPHIC_APPROACHES.some(p=>p.id===v)),unknownFactIds:raw?.shots?.some(s=>((s.artDirection as {fact_ids?:string[]})?.fact_ids??[]).some(id=>!factIds.includes(id)))}); continue; }
       const directed = shots.map((shot, index) => ({ ...shot, framing: input.assignments?.[index]?.framing ?? input.framing ?? "full", human_presence: input.assignments?.[index]?.humanPresence ?? input.humanPresence ?? "none" }));
       if (directed.every((shot, index) => { if(!shot.artDirection)return false; const assignment=input.assignments?.[index]; if(!compatibleApproaches(input.analysis,assignment?.humanPresence??input.humanPresence??"none",["close","macro"].includes(assignment?.framing??input.framing??"full"),assignment?.environment??"indoor").some(p=>p.id===shot.artDirection!.mechanism))return false; const selected = input.assignments?.[index]?.shootStyle ?? input.shootStyle; return !selected || shotMatchesStyle(selected, shot); })) return { shots: directed, source: "ai" };
+      validation="incompatible_mechanism_or_environment";
+      await logError("prep.direction.validation","Shot contract rejected before image spend",{attempt,count:input.count,reason:validation});
     }
     await logError("prep.direction", "Shot plan failed count, distinctness or selected-style validation", { count: input.count });
     return fallback();
