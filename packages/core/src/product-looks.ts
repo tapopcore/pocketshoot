@@ -1,10 +1,11 @@
+import type {CampaignRole} from "./campaign-direction";
 import type { CategoryId } from './categories';
 import type { ShootStyleId } from './shoots';
 export const COLLECTION_IDS = ["saree","suit","unstitched","lehenga","mens-modern","womens-modern","mens-ethnic","activewear","footwear","bags","skincare","makeup","fragrance","packaged-food","prepared-food","beverage","rings","bracelets","earrings","necklace","bottle","cookware","decor","electronics","general"] as const;
 export type CollectionId = typeof COLLECTION_IDS[number];
 export const RECIPE_VERSION = '2026-10-31.coverage-variety-2';
 export interface ShootProfile { type: CollectionId; construction: 'stitched'|'unstitched'|'semi_stitched'|'not_applicable'|'unknown'; referenceForm: 'worn'|'flat'|'object'|'unknown'; contentsConfirmed?: boolean; subjectCount?: number }
-export interface CategoryLook { id: string; collection: string; title: string; subtitle: string; brief: string; condition: string; human: 'none'|'hands'|'model'; framing: 'full'|'close'; environment: 'indoor'|'outdoor'|'studio'; scene: string; tile: number; atlas: string; requiresDetail: boolean; requiresWorn: boolean; requiresMultiple: boolean; requiresContents: boolean }
+export interface CategoryLook { directionRole?:CampaignRole; id: string; collection: string; title: string; subtitle: string; brief: string; condition: string; human: 'none'|'hands'|'model'; framing: 'full'|'close'; environment: 'indoor'|'outdoor'|'studio'; scene: string; tile: number; atlas: string; requiresDetail: boolean; requiresWorn: boolean; requiresMultiple: boolean; requiresContents: boolean }
 export interface ProductCollection { id: CollectionId; category: CategoryId; label: string; preserve: string; references: string; looks: CategoryLook[] }
 export const PRODUCT_COLLECTIONS: ProductCollection[] = [
   {
@@ -2472,15 +2473,18 @@ export function packLooks(pack: PackId, profile: ShootProfile, refs: { view_type
 
   }
   const own = (collectionById(profile.type)?.looks ?? []).filter(ok);
-  const general = (PRODUCT_COLLECTIONS.find((c) => c.id === "general")?.looks ?? []).filter(ok);
-  const seen = new Set<string>();
-  const out: CategoryLook[] = [];
-  const add = (l?: CategoryLook) => { if (l && !seen.has(l.title.toLowerCase()) && out.length < PACK_SIZE) { seen.add(l.title.toLowerCase()); out.push(l); } };
-  const kind = (l: CategoryLook) => l.environment + l.human + l.framing;
-  const pool = [...own, ...general, ...STUDIO_LOOKS.filter(ok)];
-  // First pass: one of each kind of shot (studio, surface, in hand, outdoor, model, close-up), so the six really differ.
-  const humanTaken = (l: CategoryLook) => l.collection === "general" && l.human !== "none" && out.some((o) => o.human !== "none");
-  for (const l of pool) if (!out.some((o) => kind(o) === kind(l)) && !humanTaken(l)) add(l);
-  for (const l of pool) if (!humanTaken(l)) add(l);
+  const general = (collectionById("general")?.looks ?? []).filter(ok);
+  const pool=[...own,...general,...STUDIO_LOOKS.filter(ok)];
+  const out:CategoryLook[]=[];
+  const add=(look:CategoryLook|undefined,role:CampaignRole)=>{if(look&&!out.some(l=>l.id===look.id)&&out.length<PACK_SIZE)out.push({...look,directionRole:role});};
+  const available=(test:(look:CategoryLook)=>boolean)=>pool.find(l=>!out.some(o=>o.id===l.id)&&test(l));
+  add(available(l=>l.environment==="studio"&&l.framing==="full"),"catalogue");
+  add(available(l=>l.human!=="none"&&l.environment!=="studio"&&l.framing==="full"),"wearable");
+  add(available(l=>l.human==="none"&&l.environment==="indoor"&&l.framing==="full"),"graphic");
+  add(available(l=>l.environment==="outdoor"&&l.framing==="full"),"context");
+  add(available(l=>l.framing==="close"),"detail");
+  // A second human frame must have a different photographic purpose, not another beauty headshot.
+  add(available(l=>l.human!=="none"&&l.environment!=="studio"),"human-detail");
+  for(const look of pool)add(look,look.framing==="close"?"detail":look.human!=="none"?"human-detail":"graphic");
   return out;
 }
