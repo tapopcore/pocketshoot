@@ -16,3 +16,5 @@ describe("visual commissions replace backdrop variation",()=>{
 });
 
 it("does not pass a catalogue prop recipe into an automatically commissioned pack",()=>{const recipe={title:"Outdoor",tagline:"Natural context",brief:"Use the same warm stone slab and decorative flowers",human:"none",environment:"outdoor",framing:"full"} as const;const intent=campaignIntent(recipe,"context");expect(intent).toContain("genuinely outdoor");expect(intent).not.toContain("warm stone");expect(intent).not.toContain("flowers");});
+
+it("sets a visible non-brown palette after repeated warm setups without recolouring merchandise",()=>{const recent=Array.from({length:4},()=>({scene:"Warm ochre wall and beige sandstone",artDirection:{styling:"terracotta"}} as ShotDirection));const c=commissionFor({analysis,look,edition:4,slot:2,previous:recent});expect(c.paletteHue).toBeGreaterThanOrEqual(180);expect(commissionPrompt(c)).toContain("exact product colour");const client=commissionFor({analysis,look,edition:4,slot:2,palette:["#aabbcc"]});expect(client.paletteName).toBeUndefined();});

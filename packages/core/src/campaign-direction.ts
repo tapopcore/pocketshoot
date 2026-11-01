@@ -1,10 +1,10 @@
 import {compatibleApproaches} from "./photographic-direction";
 import type {ProductAnalysis,ShotDirection} from "./director";
 import type {CategoryLook} from "./product-looks";
-export const COMMISSION_VERSION="2026-11-02.visual-commission-1";
+export const COMMISSION_VERSION="2026-11-02.visual-commission-2";
 export type CampaignRole="catalogue"|"wearable"|"graphic"|"context"|"detail"|"human-detail";
 export interface VisualCommission {
- version:string;role:CampaignRole;environment:"studio"|"indoor"|"outdoor";
+ version:string;role:CampaignRole;paletteHue?:number;paletteName?:string;environment:"studio"|"indoor"|"outdoor";
  light:"client-directed"|"white-diffusion"|"hard-shaped"|"selective-low-key"|"soft-sculpted"|"edge-transmitted";
  composition:"client-directed"|"isolated-readable"|"sculptural-diagonal"|"graphic-negative-space"|"near-far"|"gesture-led"|"product-body-crop"|"tactile-crop"|"spatial-layers";
  tone:"client-directed"|"white"|"deep-tonal"|"colour-block"|"natural-contrast";
@@ -36,6 +36,12 @@ export function commissionFor(input:{analysis:ProductAnalysis|null;look:Pick<Cat
  presentation:human?"human-contact":studio?"catalogue-support":"concealed-support",
  focus:crop?"material-plane":human?"product-plane":"whole-product"};
  if(!studio&&(input.customerNotes?.trim()||input.palette?.length))return {...base,light:"client-directed",composition:"client-directed",tone:"client-directed"};
+ if(!studio){
+  const recent=(input.previous??[]).slice(0,12);const warm=recent.filter(s=>/ochre|terracotta|sandstone|beige|warm stone|warm brown/i.test(s.scene+" "+s.artDirection?.styling)).length>recent.length/2;
+  let hue=look.environment==="outdoor"?110+((edition*47+slot*31)%110):(edition*137.508+slot*71)%360;
+  if(warm&&hue<180)hue=190+(hue%110);
+  base.paletteHue=Math.round(hue);base.paletteName=["crimson red","burnt orange","saffron amber","leaf green","jade green","deep teal","cyan blue","cobalt blue","blue violet","aubergine violet","berry magenta","rose red"][Math.round(hue/30)%12];
+ }
  const previous=(input.previous??[]).map(s=>s.artDirection?.commission).filter((v):v is VisualCommission=>!!v&&v.role===role);
  // Rotate actual light/composition families, not only props or a different adjective.
  const lights:VisualCommission["light"][]=studio?["white-diffusion","soft-sculpted"]:look.environment==="outdoor"?["hard-shaped","soft-sculpted","edge-transmitted"]:["hard-shaped","selective-low-key","soft-sculpted","edge-transmitted"];
@@ -65,8 +71,9 @@ const compWords:Record<VisualCommission["composition"],string>={
 };
 export function commissionPrompt(c:VisualCommission){
  return "AUTHORITATIVE PHOTOGRAPHIC COMMISSION "+JSON.stringify(c)+". "+lightWords[c.light]+" "+compWords[c.composition]+
+ (c.paletteName?" BACKGROUND COLOUR TARGET: "+c.paletteName+" family (approximate hue "+c.paletteHue+" degrees), expressed through actual backdrop/space/material planes; retain natural skin and exact product colour. This is a visible palette requirement, not a coloured light wash on the product. For outdoor use a credible real exterior palette with natural light; never repaint the sky or make a fake studio outdoors. Mention this palette by name in scene or styling. Do not revert to the recent warm-brown/gold room or beige sandstone garden. ":"")+
  (c.tone==="deep-tonal"?" TONAL TARGET: a deliberately deep background with controlled subject separation; invent a product-specific palette rather than beige/cream retail styling.":c.tone==="colour-block"?" TONAL TARGET: an original, deliberate colour-field relationship to actual merchandise, clear graphic separation and restrained props.":c.tone==="natural-contrast"?" TONAL TARGET: outdoor environmental contrast with real spatial cues and true product colour; avoid the automatic warm-stone garden setup.":"")+
- (c.presentation==="concealed-support"?" DISPLAY TARGET: no stock beige jewellery bust, retail peg stand or default stone podium. Invent a physical arrangement that keeps unknown construction concealed. A hidden neutral support is permitted.":"")+
+ (c.presentation==="concealed-support"?" DISPLAY TARGET: no visible retail neck/bust form or retail earring peg stand, including fabric-covered forms. No default stone podium. Invent a physical arrangement that keeps unknown construction concealed. A hidden neutral support is permitted.":"")+
  " The major light, composition, tone and human direction above are deliverable requirements. The model may invent a fresh compatible setting and incidental props. Those props are not required inventory. Anatomy, exact merchandise, customer environment and source-supported geometry take priority.";
 }
 

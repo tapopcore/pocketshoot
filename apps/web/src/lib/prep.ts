@@ -211,8 +211,19 @@ async function directShotsOnce(input: DirectionInput,references:Buffer[]): Promi
       const shots = parseDirections(res.data, input.count, input.analysis);
       if (!shots) { const raw=res.data as {shots?:Record<string,unknown>[]}; validation=!Array.isArray(raw?.shots)?"missing_shots":raw.shots.length!==input.count?"wrong_count":raw.shots.some(s=>!s.artDirection)?"missing_treatment":raw.shots.some(s=>!parseArtDirection(s.artDirection,input.analysis))?"invalid_treatment":"invalid_or_duplicate_scene"; await logError("prep.direction.validation","Shot plan rejected before image spend",{attempt,count:input.count,reason:validation,mechanisms:raw?.shots?.map(s=>(s.artDirection as {mechanism?:string})?.mechanism).filter(v=>PHOTOGRAPHIC_APPROACHES.some(p=>p.id===v)),emptyFields:raw?.shots?.map(s=>Object.entries((s.artDirection??{}) as Record<string,unknown>).filter(([,v])=>v==="").map(([k])=>k)),ingredientPropCounts:raw?.shots?.map(s=>((s.artDirection as {ingredient_props?:unknown[]})?.ingredient_props??[]).length),unknownFactIds:raw?.shots?.some(s=>((s.artDirection as {fact_ids?:string[]})?.fact_ids??[]).some(id=>!factIds.includes(id)))}); continue; }
       const directed = shots.map((shot, index) => ({ ...shot, ...(shot.artDirection?{artDirection:{...shot.artDirection,commission:input.assignments?.[index]?.commission}}:{}),framing: input.assignments?.[index]?.framing ?? input.framing ?? "full", human_presence: input.assignments?.[index]?.humanPresence ?? input.humanPresence ?? "none" }));
-      if (directed.every((shot, index) => { if(!shot.artDirection)return false; const assignment=input.assignments?.[index]; if(!compatibleApproaches(input.analysis,assignment?.humanPresence??input.humanPresence??"none",(["close","macro"].includes(assignment?.framing??input.framing??"full")||assignment?.commission?.composition==="product-body-crop"),assignment?.environment??"indoor").some(p=>p.id===shot.artDirection!.mechanism))return false; const selected = input.assignments?.[index]?.shootStyle ?? input.shootStyle; return !selected || shotMatchesStyle(selected, shot); })) return { shots: directed, source: "ai" };
-      validation="incompatible_mechanism_or_environment";
+      const violations=directed.flatMap((shot,index)=>{
+        const assignment=input.assignments?.[index],c=assignment?.commission;
+        const allowed=compatibleApproaches(input.analysis,assignment?.humanPresence??input.humanPresence??"none",(["close","macro"].includes(assignment?.framing??input.framing??"full")||c?.composition==="product-body-crop"),assignment?.environment??"indoor").map(p=>p.id);
+        const selected=assignment?.shootStyle??input.shootStyle;
+        if(!shot.artDirection||!allowed.includes(shot.artDirection.mechanism))return ["Shot "+(index+1)+" mechanism must be one of "+allowed.join(", ")];
+        if(selected&&!shotMatchesStyle(selected,shot))return ["Shot "+(index+1)+" must use an exterior location and light"];
+        const scene=(shot.scene+" "+shot.artDirection.styling).replace(/(?:no|without|avoid)\s+(?:\w+\s+){0,3}(?:bust|t-bar|peg stand)/gi,"");
+        if(c?.presentation==="concealed-support"&&/\bbust\b|\bt-bar\b|retail peg/i.test(scene))return ["Shot "+(index+1)+" must conceal supports; no visible retail bust or earring stand"];
+        if(c?.paletteName&&!scene.toLowerCase().includes(c.paletteName.split(" ").at(-1)!))return ["Shot "+(index+1)+" scene/styling must explicitly use the commissioned "+c.paletteName+" background family while preserving product colour"];
+        return [];
+      });
+      if(!violations.length)return {shots:directed,source:"ai"};
+      validation=violations.join("; ");
       await logError("prep.direction.validation","Shot contract rejected before image spend",{attempt,count:input.count,reason:validation});
     }
     await logError("prep.direction", "Shot plan failed count, distinctness or selected-style validation", { count: input.count });
