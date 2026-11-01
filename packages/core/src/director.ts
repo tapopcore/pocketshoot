@@ -329,7 +329,7 @@ Rules:
 - Human direction none: no people or hands. Human direction hands/model: include an anonymous adult with a specific, useful, physically plausible gesture from the brief; natural skin pores, anatomy, imperfect fabric and real contact shadows. Keep brand/label unobstructed and the product the hero. Do not fabricate endorsements or resemble a named person. Never infer unsafe use.
 - No additional text, logos, other brands, prices or efficacy claims.
 - Use one strong compositional idea; credible lens, light source, gravity, contact and material reflections. Before returning, reject a brief that could fit any unrelated product unchanged.
-- A human interaction may change the product pose only as physically needed; static still lifes match the reference camera angle.
+- Change product pose and relative placement of independent units when physically plausible. Keep the original design-bearing surfaces visible; preserve intrinsic dimensions rather than freezing the source 2D projection. Never reveal an unreferenced marked back or invent hidden construction.
 - Make every shot serve its assigned coverage role. Change camera height, optical distance, subject action or scale relationship meaningfully; rotating the same view is not a new angle. Keep the chosen style and coherent art direction throughout.
 - product_scale: product height as a fraction of the frame's shorter side, 0.4 to 0.75 (tiny items around 0.45, bottles around 0.65). offset_x: -0.2 to 0.2. baseline: 0.7 to 0.9.`;
 }

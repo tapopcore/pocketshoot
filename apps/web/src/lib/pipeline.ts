@@ -432,5 +432,7 @@ export async function runTick(workerId: string, budgetMs = 240_000) {
     }));
     processed += items.length;
   }
+  if(!processed){const {maintainQaJobs}=await import("./qa-maintenance");await maintainQaJobs();}
   return { processed, providers: (["openai", "gemini", "fal"] as ProviderId[]).filter(isConfigured) };
 }
+

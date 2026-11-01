@@ -20,11 +20,11 @@ export const lights=[
  "A large bounced frontal key and higher side fill give an airy, nearly shadowless but grounded photographic rendering.",
 ];
 const displays=[
- "Present merchandise in its natural stable resting position directly on a clean surface. Any flexible piece may use a discreet neutral cradle; do not automatically reuse the source bust or peg.",
- "Use a minimal custom neutral cradle or unobtrusive suspension ONLY when the product actually needs support. Preserve the supplied front-facing design and assembly; do not invent hidden faces.",
+ "Present merchandise in its natural stable resting position directly on a clean surface. Arrange independent units with new spacing; do not copy their old relative positions. Flexible pieces may use a discreet neutral cradle.",
+ "Use a gentle supported diagonal lean, keeping the same visible design-bearing front faces toward the camera. Use a discreet support only when physically needed. Do not open, detach or expose hidden surfaces.",
  "Build a restrained spatial arrangement from the actual product silhouette; for a multi-piece set change the relative placement of existing pieces while showing all of them. No additional units or invented parts.",
- "Integrate physically necessary support into the set's edge or contour, with real weight and contact. Replace the old source display arrangement; rigid products stay rigid and flexible merchandise keeps its visible design.",
- "Use a simple shallow plane with deliberate negative space and no decorative podium. If the product needs support, use a neutral low-profile support rather than recreating the old bust-plus-peg display.",
+ "Create a naturally reclined or face-up presentation of the observed face, only where physically stable and source-supported. Adjust the camera to keep that known face visible. Preserve intrinsic dimensions and all attached parts; never show an unseen back.",
+ "Use a low, staggered arrangement with a different axis from the source: reorient independent units in the set, with known design-bearing surfaces still visible. A neutral support is allowed only when physically necessary; no stock podium.",
  "Use a front-facing presentation with a discreet support hidden behind the product where physically possible. Keep merchandise fully readable and do not copy the source's visible display furniture.",
 ];
 const gestures=["A relaxed frontal stance with one purposeful, natural interaction.","A slight weight shift and a fresh hand position with all product design visible.","A seated, upright moment only if full merchandise remains readable; otherwise a relaxed standing pause.","A moment just before practical use, with natural asymmetry and correct contact.","A deliberate presentation gesture different from the source photograph.","A gentle candid movement captured at rest; no occlusion of key product details."];
