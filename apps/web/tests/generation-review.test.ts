@@ -58,3 +58,5 @@ it("resolves a whole outside-crop variant being falsely marked missing without b
 });
 
 it("requires actual cropped framing rather than a complete set labelled detail",()=>{expect(reviewPrompt({recipe:categoryLook("studio-detail")})).toContain("complete set surrounded by white margins is NOT a detail crop");});
+
+it("recovers a truncated review on the same image without accepting unreadable output",async()=>{vi.clearAllMocks();vi.mocked(jsonCall).mockRejectedValueOnce(new SyntaxError("Unexpected end of JSON input")).mockResolvedValueOnce({data:clean} as never);const refs=[Buffer.from("original")],image=Buffer.from("same-result");const r=await reviewGeneratedImage({refs,image,models:["test"],context:{}});expect(aggregate(r.checks)).toBe("pass");expect(jsonCall).toHaveBeenCalledTimes(2);expect(vi.mocked(jsonCall).mock.calls.every(([c])=>c.images?.at(-1)===image)).toBe(true);expect(vi.mocked(jsonCall).mock.calls[0][0].maxOutputTokens).toBe(3072);});

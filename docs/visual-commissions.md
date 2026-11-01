@@ -6,7 +6,7 @@ The commissioned treatment is reviewed on the same generated pixels, alongside i
 
 Reference lessons are abstract photographic principles from the supplied 90-image audit. No reference artwork is published, no historical private outputs are submitted to a model, and no model training is claimed. Local history and visible treatment rotation reduce repetition; uniqueness is not guaranteed.
 
-Validation before staged image QA: 97 core tests, 117 web tests, TypeScript and changed-file lint pass. The unchanged two-reference admission forecast for a 4,543-byte sample prompt is INR 4.5362 at the stored FX rate; this is an estimate, not a measured delivered-image cost. Model, quality, dimensions and INR 5 admission policy are unchanged.
+Validation before staged image QA: 97 core tests, 118 web tests, TypeScript and changed-file lint pass. The unchanged two-reference admission forecast for a 4,543-byte sample prompt is INR 4.5362 at the stored FX rate; this is an estimate, not a measured delivered-image cost. Model, quality, dimensions and INR 5 admission policy are unchanged.
 
 Release requirement: inspect actual same-product before/after outputs, all paid attempts and reviewer outcomes. Do not promote solely because technical tests or the internal reviewer pass.
 
@@ -15,3 +15,5 @@ Staged image QA also exposed a conflict between product-body compositions and th
 The staged reviewer incorrectly described a visible beige bust as concealed. New reviews classify visible retail busts/pegs separately, and a forbidden visible display fails regardless of a contradictory presentation score. Automatic commissions also carry a background colour family, vary it across editions, and move away from repeatedly warm scenes. Product/skin colour and explicit customer palettes remain authoritative. Obvious plan contradictions are repaired before image spend. These controls increase observable variety; they do not certify aesthetic excellence.
 
 Human commissions now specify product-relevant body geometry across editions, rather than repeatedly changing only a backdrop. Necklace/earring portraitures vary shoulder, arm and gaze geometry; footwear keeps the shoe/feet as the optical hero and does not require a face. Actual inventory, source-supported surfaces and customer choices retain priority.
+
+Final full-pack staging generated six distinct frames from the same choker reference. Five were delivered immediately; one studio-detail review ended with truncated JSON, rather than a visual rejection. The reviewer now allows 3,072 output tokens, requests concise observations, and permits one bounded same-pixel retry after a JSON parsing error. No image regeneration is involved. Tagged internal QA jobs are excluded from customer shoot/library lists while their records and costs remain auditable.

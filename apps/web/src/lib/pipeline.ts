@@ -448,6 +448,7 @@ export async function runInternalQaJob(jobId:string){
  const db=admin();
  const {data:job}=await db.from("generation_jobs").select("*").eq("id",jobId).single<JobRow & {source:string;credits_reserved:number}>();
  if(!job||job.created_by!==null||job.source!=="api"||job.credits_reserved!==0||(job.settings as Record<string,unknown>).internalQa!==true)throw new Error("Not an isolated diagnostic job");
+ if((job.settings as Record<string,unknown>).qaMaintenance){const {maintainQaJob}=await import("./qa-maintenance");return {processed:0,internalQa:true,noImageGeneration:true,maintenance:await maintainQaJob({...job,settings:job.settings as Record<string,unknown>})};}
  const {data:rows,error}=await db.from("generation_items").select("*").eq("job_id",job.id).eq("organization_id",job.organization_id).eq("status","queued").eq("attempts",0).eq("max_attempts",1).order("idx").limit(6);if(error)throw error;
  const claimed:ItemRow[]=[];
  for(const row of rows??[]){const {data:it,error:e}=await db.from("generation_items").update({status:"preparing",locked_by:"internal-qa",locked_until:new Date(Date.now()+300000).toISOString()}).eq("id",row.id).eq("job_id",job.id).eq("organization_id",job.organization_id).eq("status","queued").eq("attempts",0).eq("max_attempts",1).select("*").maybeSingle<ItemRow>();if(e)throw e;if(it)claimed.push(it);}

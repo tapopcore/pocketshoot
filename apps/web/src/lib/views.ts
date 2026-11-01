@@ -46,6 +46,7 @@ export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: 
     .from("generation_jobs")
     .select(`id, status, mode, style, output, requested_count, created_at, is_trial, source, pack:settings->>pack, products${term ? "!inner" : ""}(id, name, product_assets(storage_key, view_type)), generated_assets!generated_assets_job_id_fkey(id, thumb_key, storage_key, quality_status)`)
     .eq("organization_id", orgId)
+    .not("settings", "cs", JSON.stringify({internalQa:true}))
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (filter.productId) q = q.eq("product_id", filter.productId);

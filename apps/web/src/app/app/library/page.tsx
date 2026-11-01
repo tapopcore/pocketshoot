@@ -16,7 +16,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
   const page = Math.max(1, Number(sp.page ?? 1));
   let q = admin().from("generated_assets")
     .select("id, storage_key, thumb_key, width, height, quality_status, approval_status, watermarked, pushed_to_shopify_at, created_at, job_id, products(name), generation_jobs!generated_assets_job_id_fkey!inner(project_id, style, output)", { count: "exact" })
-    .eq("organization_id", ctx.orgId).neq("quality_status", "fail").order("created_at", { ascending: false }).range((page - 1) * 48, page * 48 - 1);
+    .eq("organization_id", ctx.orgId).not("generation_jobs.settings", "cs", JSON.stringify({internalQa:true})).neq("quality_status", "fail").order("created_at", { ascending: false }).range((page - 1) * 48, page * 48 - 1);
   if (f === "approved") q = q.eq("approval_status", "approved");
   if (f === "review") q = q.eq("quality_status", "review");
   if (f === "shopify") q = q.not("pushed_to_shopify_at", "is", null);
