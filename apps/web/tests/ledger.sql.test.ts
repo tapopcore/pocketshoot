@@ -213,3 +213,11 @@ describe("AI spend admission",()=>{
  it("retains unknown provider charges and pauses further image admissions",async()=>{const f=await fixture();expect(await reserve(f,f.items[0],3)).toBe(true);await db.query("update ai_spend_events set status='unknown' where policy=$1",[f.policy]);expect(await reserve(f,f.items[1],3)).toBe(false);});
  it("refuses workspace mismatch before recording any reservation",async()=>{const f=await fixture();expect(await reserve({...f,org:crypto.randomUUID()},f.items[0],2)).toBe(false);});
 });
+
+describe("creative edition reservations",()=>{
+ async function fixture(){const {org}=await newUser(Math.random()+"-edition@example.com");const {job}=await newJob(org,1);const p=await db.query<{product_id:string}>("select product_id from generation_jobs where id=$1",[job]);return {org,job,product:p.rows[0].product_id};}
+ async function reserve(job:string,org:string,family:string,related:string[]){const r=await db.query<{plan:{family:string;edition:number}}>("select reserve_creative_edition($1,$2,$3,$4) as plan",[job,org,family,related]);return r.rows[0].plan;}
+ it("keeps one edition stable across concurrent/restarted planning",async()=>{const f=await fixture();const first=await reserve(f.job,f.org,"photo-a",[f.product]);const again=await reserve(f.job,f.org,"changed-input",[f.product]);expect(first).toEqual({family:"photo-a",edition:1});expect(again).toEqual(first);});
+ it("continues the edition counter when the same photo becomes a new product record",async()=>{const f=await fixture();await reserve(f.job,f.org,"photo-a",[f.product]);const {job}=await newJob(f.org,1);const next=await reserve(job,f.org,"new-record-fingerprint",[f.product]);expect(next).toEqual({family:"photo-a",edition:2});});
+ it("rejects cross-workspace history and is not executable by customers",async()=>{const a=await fixture(),b=await fixture();await expect(reserve(a.job,a.org,"photo",[b.product])).rejects.toThrow("Workspace mismatch");const r=await db.query<{allowed:boolean}>("select has_function_privilege('authenticated','reserve_creative_edition(uuid,uuid,text,uuid[])','execute') as allowed");expect(r.rows[0].allowed).toBe(false);});
+});

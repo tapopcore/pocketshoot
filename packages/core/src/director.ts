@@ -221,6 +221,8 @@ export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis
 }
 
 export interface ShotDirection {
+  /** Server-assigned fresh edition; never chosen by the LLM. */
+  creativeSpec?: import("./creative-edition").CreativeSpec;
   framing?: "full" | "close" | "macro";
   human_presence?: HumanPresence;
   /** 2 to 4 vivid sentences describing the set, surface and props. No product details. */

@@ -5,6 +5,8 @@ import { admin } from "./supabase";
 import { getObject, putObject } from "./storage";
 import { getSettings } from "./settings";
 import { thumbnail } from "./images";
+import {localOriginalityCheck} from "./visual-originality";
+import {previousDeliverables} from "./creative-history";
 import {withAiScope} from "./ai-spend";
 import {selectReferences} from "./cost-policy";
 import { reviewGeneratedImage } from "./generation-review";
@@ -34,6 +36,8 @@ export async function recheckSavedItem(itemId: string, orgId?: string) {
   const image = await getObject("outputs", asset.storage_key);
   const originals = await Promise.all(selectReferences([...refs].sort((a,b) => Number(b.view_type === "front") - Number(a.view_type === "front")),recipe?.id).map(r => getObject("originals", r.storage_key)));
   const review = await withAiScope({organizationId:item.organization_id,productId:job.product_id,jobId:item.job_id,itemId:item.id},()=>reviewGeneratedImage({ refs: originals, image, models: settings.providers.llm.models, context: { recipe, shot: params?.shot, selectedStyle: recipe ? styleForLook(recipe) : saved?.shootStyle, analysis: (product?.attributes as { analysis?: ProductAnalysis })?.analysis, confirmedSubjectCount: saved?.subjectCount } }));
+  const previous=await previousDeliverables(item.organization_id,job.product_id,item.job_id,recipe?.id,"",item.id);
+  review.checks.push(await localOriginalityCheck(image,previous));
   return { item, asset, image, ...review, decision: aggregate(review.checks) };
 }
 

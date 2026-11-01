@@ -1,8 +1,9 @@
+import {layouts,lights,type CreativeSpec} from "./creative-edition";
 import type { CategoryLook } from "./product-looks";
 import type { ProductAnalysis, ShotDirection } from "./director";
 
 /** Fixed studio direction: no paid art-director call can override inventory or the selected view. */
-export function studioDirection(look: CategoryLook, analysis?: ProductAnalysis | null): ShotDirection {
+export function studioDirection(look: CategoryLook, analysis?: ProductAnalysis | null,creativeSpec?:CreativeSpec): ShotDirection {
  const flat=analysis?.orientation==="lying";
  const camera:Record<string,string>={
   front:flat?"True overhead plan view; long axis horizontal, tip or leading end to the right. Show the complete product.":"Front elevation at product centre height, sensor parallel to the front face. Show the complete product.",
@@ -19,7 +20,14 @@ export function studioDirection(look: CategoryLook, analysis?: ProductAnalysis |
   texture:"Tight visible material study, distinct from the closure or label crop: show genuine finish, weave or craft. Do not expose hidden parts or invent unresolved detail."
  };
  const key=look.id.replace("studio-","");
- return {scene:"Seamless pure-white studio. Preserve the exact product inventory and assembly state in reference image 1. Other references show the same inventory from other views. Product only; remove all source hands, room backgrounds and props.",camera:camera[key]??camera.front,lighting:key==="rim"?"Neutral restrained edge light with soft front fill, separate silhouette on white.":key==="shadow"?"Low soft side key casting a long delicate shadow on pure white.":key==="texture"?"Gentle raking light reveals genuine surface relief without changing material colour.":"Neutral 5500K large soft key and fill. Controlled reflections, true material texture, white background, grounded contact shadow.",framing:look.framing,human_presence:"none",product_scale:look.framing==="close"?.82:key==="offset"?.55:.76,offset_x:key==="offset"?-.2:0,baseline:key==="shadow"?.88:.83};
+ const shot:ShotDirection={scene:"Seamless pure-white studio. Preserve the exact product inventory and assembly state in reference image 1. Other references show the same inventory from other views. Product only; remove all source hands, room backgrounds and props.",camera:camera[key]??camera.front,lighting:key==="rim"?"Neutral restrained edge light with soft front fill, separate silhouette on white.":key==="shadow"?"Low soft side key casting a long delicate shadow on pure white.":key==="texture"?"Gentle raking light reveals genuine surface relief without changing material colour.":"Neutral 5500K large soft key and fill. Controlled reflections, true material texture, white background, grounded contact shadow.",framing:look.framing,human_presence:"none",product_scale:look.framing==="close"?.82:key==="offset"?.55:.76,offset_x:key==="offset"?-.2:0,baseline:key==="shadow"?.88:.83};
+ if(creativeSpec){
+  shot.creativeSpec=creativeSpec;shot.scene+=" "+(look.framing==="close"?layouts[creativeSpec.layout].replace(/complete merchandise group|merchandise/g,"selected visible detail"):layouts[creativeSpec.layout]);
+  shot.camera+=" Preserve the selected supported view; change optical scale and composition as directed by the edition.";
+  shot.lighting=look.id==="studio-rim"?"Mandatory restrained edge separation plus "+["left rim and soft fill","right rim and soft fill","paired rim and overhead fill"][creativeSpec.light%3]:look.id==="studio-shadow"?"Mandatory gentle contact shadow. "+lights[creativeSpec.light]:lights[creativeSpec.light];
+  shot.product_scale=[.52,.66,.8][creativeSpec.scale];shot.offset_x=creativeSpec.layout===0?-.23:creativeSpec.layout===1?.23:0;shot.baseline=creativeSpec.layout===2?.88:creativeSpec.layout===4?.68:.8;
+ }
+ return shot;
 }
 export function studioImagePrompt(look:CategoryLook,shot:ShotDirection,analysis:ProductAnalysis|null,subjectCount?:number|null):string{
  const inventory=subjectCount ? "Exactly "+subjectCount+" product unit(s) in every full-product photo." : "Count the actual product units in reference image 1 and keep that exact count; never infer more units from the number of reference photos.";

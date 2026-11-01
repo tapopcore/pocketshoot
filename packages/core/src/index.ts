@@ -20,3 +20,5 @@ export * from "./creative-world";
 export * from "./look-preview";
 
 export * from "./art-direction";
+
+export * from "./creative-edition";

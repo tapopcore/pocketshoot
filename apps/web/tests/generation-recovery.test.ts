@@ -1,3 +1,4 @@
+vi.mock("@/lib/creative-history",()=>({creativeHistory:async()=>({family:"test",productIds:["p"],shots:[],specs:[]}),creativeEdition:async()=>({family:"test",edition:1}),previousDeliverables:async()=>[]}));
 import sharp from "sharp";
 import {beforeEach,expect,it,vi} from "vitest";
 const f=vi.hoisted(()=>({review:vi.fn(),patch:vi.fn(),put:vi.fn(),rpc:vi.fn(),image:Buffer.alloc(0)}));

@@ -16,6 +16,7 @@ export type CheckType =
   | "blank_output"
   | "human_realism"
   | "creative_quality"
+  | "visual_originality"
   | "style_adherence";
 
 export interface CheckResult {
