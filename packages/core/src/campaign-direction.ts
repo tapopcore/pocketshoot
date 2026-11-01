@@ -1,10 +1,10 @@
 import {compatibleApproaches} from "./photographic-direction";
 import type {ProductAnalysis,ShotDirection} from "./director";
 import type {CategoryLook} from "./product-looks";
-export const COMMISSION_VERSION="2026-11-02.visual-commission-2";
+export const COMMISSION_VERSION="2026-11-02.visual-commission-3";
 export type CampaignRole="catalogue"|"wearable"|"graphic"|"context"|"detail"|"human-detail";
 export interface VisualCommission {
- version:string;role:CampaignRole;paletteHue?:number;paletteName?:string;environment:"studio"|"indoor"|"outdoor";
+ version:string;role:CampaignRole;paletteHue?:number;paletteName?:string;humanDirection?:string;environment:"studio"|"indoor"|"outdoor";
  light:"client-directed"|"white-diffusion"|"hard-shaped"|"selective-low-key"|"soft-sculpted"|"edge-transmitted";
  composition:"client-directed"|"isolated-readable"|"sculptural-diagonal"|"graphic-negative-space"|"near-far"|"gesture-led"|"product-body-crop"|"tactile-crop"|"spatial-layers";
  tone:"client-directed"|"white"|"deep-tonal"|"colour-block"|"natural-contrast";
@@ -23,7 +23,7 @@ export function referenceLessons(a:ProductAnalysis|null|undefined,collection?:st
  return lessons[collection==="footwear"?"footwear":a?.category??"other"]??lessons.other;
 }
 /** Commission observable visual decisions; the actual place, palette and story remain open-ended. */
-export function commissionFor(input:{analysis:ProductAnalysis|null;look:Pick<CategoryLook,"human"|"environment"|"framing">&{directionRole?:CampaignRole};edition:number;slot:number;previous?:ShotDirection[];siblings?:VisualCommission[];customerNotes?:string|null;palette?:string[]}):VisualCommission{
+export function commissionFor(input:{analysis:ProductAnalysis|null;look:Pick<CategoryLook,"human"|"environment"|"framing">&{directionRole?:CampaignRole;collection?:string};edition:number;slot:number;previous?:ShotDirection[];siblings?:VisualCommission[];customerNotes?:string|null;palette?:string[]}):VisualCommission{
  const {look,edition,slot}=input;
  const role=look.directionRole??(look.framing==="close"?"detail":look.environment==="studio"?"catalogue":look.human!=="none"?"wearable":look.environment==="outdoor"?"context":"graphic");
  const studio=look.environment==="studio";
@@ -36,6 +36,11 @@ export function commissionFor(input:{analysis:ProductAnalysis|null;look:Pick<Cat
  presentation:human?"human-contact":studio?"catalogue-support":"concealed-support",
  focus:crop?"material-plane":human?"product-plane":"whole-product"};
  if(!studio&&(input.customerNotes?.trim()||input.palette?.length))return {...base,light:"client-directed",composition:"client-directed",tone:"client-directed"};
+ if(human&&!studio){
+  const collection=look.collection??"";const jewelleryPortrait=/necklace|earring/.test(collection)||(!collection&&input.analysis?.category==="jewellery"&&/necklace|choker|earring/i.test(input.analysis.name));
+  const necklacePoses=["Sculptural shoulder diagonal, chin gently raised and hand at temple; camera slightly below eye level. Both actual earrings and necklace stay visible. No hand resting at neck, collarbone or earring.","Seated forward with forearms supported below frame, shoulders at unequal heights and gaze off-camera. Face and full real set remain visible. No hand resting at neck, collarbone or earring.","One forearm creates a diagonal above the forehead, eyes look beyond it, shoulders relaxed. Keep the full real set unobstructed. No hand resting at neck, collarbone or earring."];
+  base.humanDirection=jewelleryPortrait&&look.human==="model"?(role==="human-detail"?"Crop the upper face. Create asymmetric shoulder and collarbone geometry with hands outside the product plane; show the necklace and both earrings. No familiar hand-at-neck gesture.":necklacePoses[(edition+slot)%necklacePoses.length]):collection==="footwear"?"Direct believable leg/foot geometry and real shoe contact; keep the actual shoe the optical hero. The face may stay outside frame. Keep unknown sole/rear surfaces concealed.":input.analysis?.category==="fashion"?"Choose a readable phase of a step, seated release or small front-facing turn. Create asymmetric body geometry while keeping the real garment design fully legible and unknown backs hidden.":"Direct a specific product-relevant grip or body contact at true scale. Keep the product the optical hero; include a face only when it serves the actual product and selected human contract.";
+ }
  if(!studio){
   const recent=(input.previous??[]).slice(0,12);const warm=recent.filter(s=>/ochre|terracotta|sandstone|beige|warm stone|warm brown/i.test(s.scene+" "+s.artDirection?.styling)).length>recent.length/2;
   let hue=look.environment==="outdoor"?110+((edition*47+slot*31)%110):(edition*137.508+slot*71)%360;
@@ -71,6 +76,7 @@ const compWords:Record<VisualCommission["composition"],string>={
 };
 export function commissionPrompt(c:VisualCommission){
  return "AUTHORITATIVE PHOTOGRAPHIC COMMISSION "+JSON.stringify(c)+". "+lightWords[c.light]+" "+compWords[c.composition]+
+ (c.humanDirection?" HUMAN GEOMETRY TARGET: "+c.humanDirection+" This body geometry is a deliverable requirement; wardrobe or a new backdrop alone is insufficient. ":"")+
  (c.paletteName?" BACKGROUND COLOUR TARGET: "+c.paletteName+" family (approximate hue "+c.paletteHue+" degrees), expressed through actual backdrop/space/material planes; retain natural skin and exact product colour. This is a visible palette requirement, not a coloured light wash on the product. For outdoor use a credible real exterior palette with natural light; never repaint the sky or make a fake studio outdoors. Mention this palette by name in scene or styling. Do not revert to the recent warm-brown/gold room or beige sandstone garden. ":"")+
  (c.tone==="deep-tonal"?" TONAL TARGET: a deliberately deep background with controlled subject separation; invent a product-specific palette rather than beige/cream retail styling.":c.tone==="colour-block"?" TONAL TARGET: an original, deliberate colour-field relationship to actual merchandise, clear graphic separation and restrained props.":c.tone==="natural-contrast"?" TONAL TARGET: outdoor environmental contrast with real spatial cues and true product colour; avoid the automatic warm-stone garden setup.":"")+
  (c.presentation==="concealed-support"?" DISPLAY TARGET: no visible retail neck/bust form or retail earring peg stand, including fabric-covered forms. No default stone podium. Invent a physical arrangement that keeps unknown construction concealed. A hidden neutral support is permitted.":"")+
@@ -83,6 +89,6 @@ export function campaignPlanningPrompt(a:ProductAnalysis|null,human:string,crop:
 
 /** Auto-picked packs select a purpose, not the catalogue’s incidental surface/wardrobe recipe. */
 export function campaignIntent(look:Pick<CategoryLook,"title"|"human"|"environment"|"framing">,role?:CampaignRole){
- const purposes:Record<CampaignRole,string>={catalogue:"A precise white-background catalogue photograph of the actual merchandise",wearable:"An original wearable/use editorial with a specific adult gesture, visible face for model scenes, and actual merchandise contact",graphic:"An original graphic product composition built from observed silhouette, geometry or material response",context:"An original genuinely outdoor story built from actual product/buyer context and spatial depth",detail:"An intentional crop onto a real resolved material or design feature","human-detail":"An intimate product-on-body composition distinct from the wearable portrait; upper face cropped, all full-contract merchandise still visible"};
+ const purposes:Record<CampaignRole,string>={catalogue:"A precise white-background catalogue photograph of the actual merchandise",wearable:"An original wearable/use editorial with a specific adult gesture, a product-appropriate field of view, and actual merchandise contact",graphic:"An original graphic product composition built from observed silhouette, geometry or material response",context:"An original genuinely outdoor story built from actual product/buyer context and spatial depth",detail:"An intentional crop onto a real resolved material or design feature","human-detail":"An intimate product-on-body composition distinct from the wearable portrait; upper face cropped, all full-contract merchandise still visible"};
  return (role?purposes[role]:"Selected experience: "+look.title)+". Contract: "+JSON.stringify({human:look.human,environment:look.environment,framing:look.framing})+". Invent the setting, palette and physical arrangement from the observed product. Full means all actual merchandise; concealed supports may hide unknown construction.";
 }
