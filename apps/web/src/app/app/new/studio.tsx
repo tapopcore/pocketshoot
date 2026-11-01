@@ -272,9 +272,9 @@ export function Studio(props: { fixture?: Prepared; previewStep?: Step; previewL
       <div className={clsx("drop", over && "over")} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={(e) => { e.preventDefault(); setOver(false); void upload(Array.from(e.dataTransfer.files)); }}>
         <span className="ico dark"><ImagePlus /></span>
         <div><h2 className="h3">Drop your photos here</h2><p className="sm muted" style={{ marginTop: 6 }}>Up to {MAX_PHOTOS} photos of the same product. JPG, PNG or WebP.</p></div>
-        <div className="row" style={{ flexWrap: "wrap", justifyContent: "center" }}>
+        <div className="dz-btns">
+          <button type="button" className="btn btn-line" disabled={disabled || !!busy} onClick={() => camera.current?.click()}><Camera size={18} />Take photo</button>
           <button type="button" className="btn btn-lime" disabled={disabled || !!busy} onClick={() => input.current?.click()}>Choose photos</button>
-          <button type="button" className="btn btn-line" disabled={disabled || !!busy} onClick={() => camera.current?.click()}><Camera size={18} />Take a photo</button>
         </div>
         <p className="xs muted angles">Best order: front, back, side, close-up</p>
       </div>

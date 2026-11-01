@@ -615,3 +615,6 @@
 .site-seg{display:inline-flex!important;flex-wrap:nowrap!important;padding:4px;border-radius:999px;background:var(--surface);gap:2px}
 .site-seg button{height:38px!important;padding:0 18px!important;border:0!important;border-radius:999px!important;background:transparent!important;color:var(--muted)!important;font-size:14.5px!important;font-weight:600!important}
 .site-seg button.on{background:#fff!important;color:var(--ink)!important;box-shadow:var(--sh1)}
+/* Small phones: page titles sized so short ones sit on one line and long ones take two, not four. */
+@media(max-width:420px){html body .h1{font-size:32px;line-height:1.1;letter-spacing:-.04em}html body .h2{font-size:27px;line-height:1.14}}
+@media(max-width:420px){.phero .h1.h1.h1.h1{font-size:32px;line-height:1.1}}

@@ -64,7 +64,7 @@ export function Textarea(props: ComponentProps<"textarea">) {
   return <textarea {...props} className={clsx(inputClass, "h-auto min-h-24 py-2.5", props.className)} />;
 }
 export function Select(props: ComponentProps<"select">) {
-  return <select {...props} className={clsx(inputClass, "appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22><path d=%22M2 4l4 4 4-4%22 fill=%22none%22 stroke=%22%23141310%22 stroke-width=%221.5%22/></svg>')] bg-[right_14px_center] bg-no-repeat pr-9", props.className)} />;
+  return <select {...props} className={clsx(inputClass, "sel", props.className)} />;
 }
 
 /** Page title row used on every app and admin screen. */
