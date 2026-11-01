@@ -74,7 +74,7 @@ export function ShootSetup({
                 className={clsx("group relative overflow-hidden rounded-xl border text-left transition-all", active ? "border-ink ring-2 ring-ink" : "border-line hover:border-ink")}>
                 <div className="relative aspect-square overflow-hidden bg-paper-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.id === "custom" ? "/looks/general-2.webp" : "/scenes/" + s.id + ".webp"} alt={s.name + " — illustrative lighting reference"} loading="lazy" decoding="async" className="size-full object-cover" />
+                  <img src={s.id === "custom" ? "/looks/general-2.webp" : "/scenes/" + s.id + ".webp"} alt={s.name + ", example lighting"} loading="lazy" decoding="async" className="size-full object-cover" />
                   {active && <span className="absolute right-2 top-2 grid size-5 place-items-center rounded-full bg-accent text-white"><Check size={12} /></span>}
                 </div>
                 <div className="bg-card p-2.5">

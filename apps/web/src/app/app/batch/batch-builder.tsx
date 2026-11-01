@@ -138,7 +138,7 @@ export function BatchBuilder({ products, balance, creativeEnabled, brandKits, cr
             </button>); })
           : scenes.filter((st) => st.group === tab).map((st) => (
             <button key={st.id} type="button" aria-pressed={kind === st.id} className={clsx("bl-l", kind === st.id && "on")} onClick={() => setKind(st.id)}>
-              <span className="ph r11"><img src={"/scenes/"+st.id+".webp"} alt={st.name+" — demo lighting reference"} loading="lazy" decoding="async" />{kind === st.id && <span className="tick"><Check size={14} /></span>}</span>
+              <span className="ph r11"><img src={"/scenes/"+st.id+".webp"} alt={st.name+", example lighting"} loading="lazy" decoding="async" />{kind === st.id && <span className="tick"><Check size={14} /></span>}</span>
               <b>{st.name}</b><span>{st.description}</span>
             </button>))}
         </div>

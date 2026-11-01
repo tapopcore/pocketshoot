@@ -44,36 +44,38 @@ export function ProductEditor({ product, photos }: {
   }
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr]">
-      <div>
-        <div className="pe-head"><h2 className="h5">Product photos <span className="sm muted" style={{ fontWeight: 400 }}>· {photos.length} of 6</span></h2>{photos.length < 6 && <div className="pills" role="group" aria-label="The next photo shows"><span className="xs muted nowrap">Next photo:</span>{([["front", "Front"],["angle", "Angled"],["side", "Side"], ["back", "Back"], ["detail", "Close-up"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx("pill sm", view === v && "on")} onClick={() => setView(v)}>{l}</button>)}</div>}</div><p className="xs muted" style={{ marginBottom: 12 }}>Add clear views to preserve the back, sides and small details. Label each photo below; we choose relevant references for each shot.</p>
-        <div className="grid grid-cols-3 gap-3">
+    <div className="pe">
+      <div className="pe-photos">
+        <div className="pe-head"><h2 className="h5">Product photos <span className="sm muted" style={{ fontWeight: 400 }}>{photos.length} of 6</span></h2></div>
+        <p className="xs muted pe-hint">Add the back, sides and close-ups so every detail stays right. Pick what each photo shows.</p>
+        <div className="pe-grid">
           {photos.map((p,i) => (
-            <div key={p.id} className="group relative">
-              <button type="button" aria-label={"Open product photo "+(i+1)} onClick={()=>setPhotoOpen(i)} className="ph r11" style={{ borderRadius: 12 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+            <div key={p.id} className="pe-tile">
+              <button type="button" aria-label={"Open product photo "+(i+1)} onClick={()=>setPhotoOpen(i)} className="ph r11 pe-ph">
                 {p.url && <FitImg src={p.url} alt={`${p.view} view`} />}
               </button>
-              <select aria-label={"View shown in product photo "+(i+1)} className="input" style={{marginTop:6,minHeight:36,fontSize:13}} value={p.view} disabled={!!busy} onChange={async e=>{setBusy("view");try{await api("/api/products/"+product.id+"/photos",{method:"PATCH",json:{assetId:p.id,viewType:e.target.value}});router.refresh();}catch(err){toast((err as Error).message,true);}finally{setBusy(null);}}}>{Object.entries(viewLabels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select>
+              <select aria-label={"View shown in product photo "+(i+1)} className="pe-vt" value={p.view} disabled={!!busy} onChange={async e=>{setBusy("view");try{await api("/api/products/"+product.id+"/photos",{method:"PATCH",json:{assetId:p.id,viewType:e.target.value}});router.refresh();}catch(err){toast((err as Error).message,true);}finally{setBusy(null);}}}>{Object.entries(viewLabels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select>
               {photos.length > 1 && (
-                <button aria-label="Delete photo" onClick={async () => { await api(`/api/products/${product.id}/photos?assetId=${p.id}`, { method: "DELETE" }).catch((e) => toast(e.message, true)); router.refresh(); }}
-                  className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full bg-paper/90"><Trash size={13} /></button>
+                <button type="button" aria-label="Delete photo" className="pe-rm" onClick={async () => { await api(`/api/products/${product.id}/photos?assetId=${p.id}`, { method: "DELETE" }).catch((e) => toast(e.message, true)); router.refresh(); }}><Trash size={13} /></button>
               )}
             </div>
           ))}
           {photos.length < 6 && (
-            <button onClick={() => file.current?.click()} className="grid aspect-square place-items-center rounded-lg border border-dashed border-line text-mute hover:text-ink">
-              {busy === "upload" ? <Spinner /> : <ImagePlus />}
+            <button type="button" onClick={() => file.current?.click()} className="pe-add" aria-label="Add a photo">
+              {busy === "upload" ? <Spinner /> : <><ImagePlus size={20} /><span>Add</span></>}
             </button>
           )}
         </div>
         <input ref={file} type="file" hidden multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => {void addPhotos(e.target.files);e.target.value="";}} />
         <input ref={camera} type="file" hidden accept="image/*" capture="environment" onChange={e=>{void addPhotos(e.target.files);e.target.value="";}}/>
-        {photos.length<6&&<div className="row" style={{gap:8,marginTop:12,flexWrap:"wrap"}}><Button disabled={!!busy} onClick={()=>camera.current?.click()}><Camera size={17}/>Take {viewLabels[view].toLowerCase()} photo</Button><Button disabled={!!busy} onClick={()=>file.current?.click()}><ImagePlus size={17}/>Upload photo</Button></div>}
-        {photoOpen!==null&&<ReferenceViewer photos={photos.filter(p=>!!p.url).map(p=>({url:p.url!,label:viewLabels[p.view]??"Photo"}))} index={photoOpen} onIndex={setPhotoOpen} onClose={()=>setPhotoOpen(null)}/>} 
+        {photos.length < 6 && <>
+          <div className="pe-next" role="group" aria-label="The next photo shows"><span className="xs muted">Next photo is a</span>{([["front", "front"],["angle", "angled"],["side", "side"], ["back", "back"], ["detail", "close-up"]] as const).map(([v, l]) => <button key={v} type="button" className={clsx("pill sm", view === v && "on")} onClick={() => setView(v)}>{l}</button>)}</div>
+          <div className="pe-add2"><button type="button" className="btn btn-line" disabled={!!busy} onClick={()=>camera.current?.click()}><Camera size={17}/>Take photo</button><button type="button" className="btn btn-line" disabled={!!busy} onClick={()=>file.current?.click()}><ImagePlus size={17}/>Upload</button></div>
+        </>}
+        {photoOpen!==null&&<ReferenceViewer photos={photos.filter(p=>!!p.url).map(p=>({url:p.url!,label:viewLabels[p.view]??"Photo"}))} index={photoOpen} onIndex={setPhotoOpen} onClose={()=>setPhotoOpen(null)}/>}
       </div>
-      <div className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2">
+      <div className="pe-form space-y-5">
+        <div className="pe-2col">
           <Field label="Name"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="SKU"><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></Field>
         </div>
@@ -84,16 +86,16 @@ export function ProductEditor({ product, photos }: {
         </Field>
         <div>
           <div className="mb-2 text-sm font-medium">What must not change</div>
-          <div className="flex flex-wrap gap-2">
+          <div className="pe-locks">
             {(Object.keys(LOCKS) as LockId[]).map((l) => {
               const on = form.locks.includes(l);
               return <button key={l} type="button" onClick={() => setForm({ ...form, locks: on ? form.locks.filter((x) => x !== l) : [...form.locks, l] })}
-                className={clsx("rounded-full border px-3 py-1 text-sm", on ? "border-ink bg-ink text-paper" : "border-line")}>{LOCKS[l].label}</button>;
+                aria-pressed={on} className={clsx("pill sm", on && "on")}>{LOCKS[l].label}</button>;
             })}
           </div>
         </div>
         <Field label="Anything else that must stay the same"><Textarea value={form.mustNotChange} onChange={(e) => setForm({ ...form, mustNotChange: e.target.value })} /></Field>
-        <div className="flex gap-2">
+        <div className="pe-actions">
           <Button onClick={() => save()} disabled={!!busy}>{busy === "save" ? <Spinner /> : "Save changes"}</Button>
           <Button variant="ghost" onClick={() => save({ archived: !product.archived })} disabled={!!busy}>{product.archived ? "Restore" : "Archive"}</Button>
         </div>

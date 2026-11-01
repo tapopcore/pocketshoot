@@ -609,3 +609,6 @@
 .pg-home .current-examples .cap{white-space:normal;line-height:1.4;min-width:0}
 @media(min-width:1101px){.pg-home .current-examples>div:last-child{grid-column:span 2}.pg-home .current-examples>div:last-child .ph{aspect-ratio:2.05}.pg-home .current-examples>div:last-child img{object-fit:contain}}
 @media(max-width:900px){.pg-home .current-examples .orig{grid-row:auto}.pg-home .current-examples>div:last-child{grid-column:span 2}.pg-home .current-examples>div:last-child .ph{aspect-ratio:2.05}.pg-home .current-examples>div:last-child img{object-fit:contain}}
+/* how-it-works upload mock: buttons wrap inside the drop box on small phones */
+.mock .drop .row{flex-wrap:wrap;justify-content:center;gap:8px}
+.mock .drop{min-width:0;overflow:hidden}

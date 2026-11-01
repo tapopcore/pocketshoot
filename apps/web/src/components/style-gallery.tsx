@@ -15,6 +15,6 @@ export function StyleGallery() {
     <label className="look-type">What do you sell?<select value={collection.id} onChange={e=>{setType(e.target.value);setMore(false);}}>{types.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
     <div className="look-cards">{collection.looks.slice(0,more?collection.looks.length:4).map(l=><Link key={l.id} href={signInToShoot(industry,l.id)}><div className="look-card-photo"><LookImage look={l}/><span><ArrowUpRight size={18}/></span></div><h3>{l.title}</h3><p>{l.subtitle}</p></Link>)}</div>
     <button type="button" className="look-more" aria-expanded={more} onClick={()=>setMore(!more)}>{more?<Minus size={16}/>:<Plus size={16}/>} {more?"Show recommended looks":"More looks for "+collection.label.toLowerCase()}</button>
-    <p className="look-disclosure">Original illustrative examples. People shown are synthetic adults. Some views need additional reference photos.</p>
+    <p className="look-disclosure">Examples made with AI. People shown are not real. Some views need an extra photo of your product.</p>
   </div>;
 }

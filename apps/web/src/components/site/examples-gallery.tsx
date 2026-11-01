@@ -39,7 +39,7 @@ export function ExamplesGallery({initialCategory="skincare"}:{initialCategory?:s
         <div className="exside">
           <span className="pill sm">{label}</span>
           <h2 className="h3">{product}</h2>
-          <p className="body muted">Explore six illustrative directions using the same demo product. Drag the handle to compare framing and styling.</p>
+          <p className="body muted">Six styles, one product. Drag the handle to compare it with the original photo.</p>
           <div className="exthumbs" role="list">
             {SHOT_LABELS[cat].map((s, i) => (
               <button key={cat + i} type="button" className={`exth${i === n ? " on" : ""}`} onClick={() => setN(i)} aria-pressed={i === n}>

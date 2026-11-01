@@ -4,6 +4,7 @@ import type { Locale } from "@packshot/core";
 import { Plus } from "lucide-react";
 import { SideNav, TabBar, Crumbs } from "./nav-links";
 import { Toaster } from "./toaster";
+import { PerfReporter } from "./perf-reporter";
 import { OrgSwitcher } from "./org-switcher";
 
 export interface ShellProps {
@@ -53,6 +54,7 @@ export function AppShell({ orgName, orgs, orgId, credits, email, isPlatform, rol
       </div>
       <TabBar />
       <Toaster />
+      <PerfReporter />
     </div>
   );
 }

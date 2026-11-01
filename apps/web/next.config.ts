@@ -7,7 +7,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@packshot/core"],
   serverExternalPackages: ["sharp", "@electric-sql/pglite"],
   images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }], minimumCacheTTL: 2592000 },
-  experimental: { serverActions: { bodySizeLimit: "4mb" } },
+  // staleTimes: a page you just saw (or that was prefetched) opens instantly for 30 s instead of waiting on the server again.
+  experimental: { serverActions: { bodySizeLimit: "4mb" }, staleTimes: { dynamic: 30, static: 180 } },
   async headers() {
     const security = [
       { key: "X-Content-Type-Options", value: "nosniff" },

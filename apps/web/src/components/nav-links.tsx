@@ -55,7 +55,7 @@ export function TabBar() {
     <nav className="tabs" aria-label="Main">
       {T.map(([href, Icon, label, on]) => href === "/app/new"
         ? <Link key={href} href={href} className="plus" aria-label="New shoot"><span><NavMark Icon={Icon} /></span></Link>
-        : <Link key={href} href={href} className={on ? "on" : ""} aria-current={on ? "page" : undefined}><NavMark Icon={Icon} />{label}</Link>)}
+        : <Link key={href} href={href} prefetch className={on ? "on" : ""} aria-current={on ? "page" : undefined}><NavMark Icon={Icon} />{label}</Link>)}
     </nav>
   );
 }
