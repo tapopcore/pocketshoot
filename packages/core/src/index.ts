@@ -24,3 +24,5 @@ export * from "./art-direction";
 export * from "./creative-edition";
 
 export * from "./photographic-direction";
+
+export * from "./campaign-direction";

@@ -1,3 +1,4 @@
+import type {VisualCommission} from "./campaign-direction";
 import type {CategoryId} from "./categories";
 import type {ProductAnalysis} from "./director";
 export const FACT_KINDS=["identity","variant","flavour","ingredient","material","construction","finish","use"] as const;
@@ -29,7 +30,7 @@ export function groundedFacts(a:ProductAnalysis|null|undefined):ProductFact[]{
  return [...a.materials.slice(0,4).map((value,i)=>({id:"material"+i,kind:"material" as const,value,source:"visible" as const,evidence:"Observed product material",reference:1})),...a.key_ingredients.filter(v=>label.includes(norm(v))).map((value,i)=>({id:"ingredient"+i,kind:"ingredient" as const,value,source:"label" as const,evidence:a.visible_text.find(t=>norm(t).includes(norm(value)))??value,reference:1}))];
 }
 export function productEvidencePrompt(a:ProductAnalysis|null|undefined,compact=false){return JSON.stringify({facts:compact?groundedFacts(a).map(({id,kind,value,source})=>({id,kind,value,source})):groundedFacts(a),use:a?.use_case,buyer_job:a?.intelligence?.buyer_job,distinctive_features:a?.intelligence?.distinctive_features,uncertainties:a?.intelligence?.uncertainties??a?.photo_issues,usage_confidence:a?.usage_confidence});}
-export interface ArtDirection {idea:string;fact_ids:string[];mechanism:string;product_role:string;light_design:string;camera_design:string;styling:string;gesture:string;finish:string;ingredient_props:{name:string;fact_id:string}[]}
+export interface ArtDirection {commission?:VisualCommission;idea:string;fact_ids:string[];mechanism:string;product_role:string;light_design:string;camera_design:string;styling:string;gesture:string;finish:string;ingredient_props:{name:string;fact_id:string}[]}
 export const ART_DIRECTION_SCHEMA={type:"object",additionalProperties:false,required:["idea","fact_ids","mechanism","product_role","light_design","camera_design","styling","gesture","finish","ingredient_props"],properties:{idea:{type:"string"},fact_ids:{type:"array",maxItems:3,items:{type:"string"}},mechanism:{type:"string"},product_role:{type:"string"},light_design:{type:"string"},camera_design:{type:"string"},styling:{type:"string"},gesture:{type:"string"},finish:{type:"string"},ingredient_props:{type:"array",maxItems:3,items:{type:"object",additionalProperties:false,required:["name","fact_id"],properties:{name:{type:"string"},fact_id:{type:"string"}}}}}} as const;
 interface Approach {id:string;principle:string;categories?:CategoryId[];human?:boolean;close?:boolean;studio?:boolean;needsIngredients?:boolean}
 /** Distilled photographic mechanisms, not locations or copies of supplied campaigns. */

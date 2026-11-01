@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { after } from "next/server";
-import { CATEGORIES, LOCKS, OUTPUTS, STYLES, SHOOT_STYLE_IDS, shootRecipe, isFreeRemake, isCategoryId, COLLECTION_IDS, RECIPE_VERSION, PACK_SIZE, categoryLook, collectionById, inferCollection, lookEligibility, packLooks, type CategoryLook, type ShootProfile, type LockId, type ShootStyleId } from "@packshot/core";
+import { CATEGORIES, LOCKS, OUTPUTS, STYLES, SHOOT_STYLE_IDS, shootRecipe, isFreeRemake, isCategoryId, COLLECTION_IDS, RECIPE_VERSION, PACK_SIZE, categoryLook, collectionById, inferCollection, lookEligibility, packLooks, type CampaignRole, type CategoryLook, type ShootProfile, type LockId, type ShootStyleId } from "@packshot/core";
 import { admin } from "./supabase";
 import { getFlag, getSettings } from "./settings";
 import { isTrialOrg } from "./credits";
@@ -57,6 +57,8 @@ export function withPreserve(look: CategoryLook, productType?: string | null): C
 }
 
 export interface JobOptions {
+  /** Server-stored photographic role retained by a remake/retry. */
+  directionRole?:CampaignRole;
   source?: AuthContext["via"] | "api";
   parentAssetId?: string;
   freeRemake?: boolean;
@@ -117,7 +119,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
     if (input.quotedCredits !== input.count * policy.creditsPerImage) throw new ApiError(409, "The price changed. Review the new total before creating.", "quote_changed");
   }
 
-  const chosenLook = recipe ? withPreserve(recipe, profile?.type) : input.shootStyle ? shootRecipe(input.shootStyle, isCategoryId(product.category) ? product.category : "other") : null;
+  const chosenLook = recipe ? {...withPreserve(recipe, profile?.type),...(opts.directionRole?{directionRole:opts.directionRole}:{})} : input.shootStyle ? shootRecipe(input.shootStyle, isCategoryId(product.category) ? product.category : "other") : null;
   let palette: string[] = [];
   let brand: { moods: string[]; rules: string | null } | null = null;
   if (input.brandKitId) {
@@ -158,7 +160,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   }
 
   // Each image gets a slot: a scene, or an AI idea (scene + brief). Images cycle through the slots.
-  const slots: { style: string; params: Record<string, string> }[] = packSet ? packSet.map((l) => ({ style: l.scene, params: { lookId: l.id, brief: withPreserve(l, profile?.type).brief, ideaTitle: l.title, humanPresence: l.human, framing: l.framing } })) : chosenLook ? [{ style: chosenLook.scene, params: { brief: chosenLook.brief, ideaTitle: chosenLook.title, humanPresence: chosenLook.human, framing: chosenLook.framing } }] : [
+  const slots: { style: string; params: Record<string, string> }[] = packSet ? packSet.map((l) => ({ style: l.scene, params: { lookId: l.id, brief: withPreserve(l, profile?.type).brief, ideaTitle: l.title, humanPresence: l.human, framing: l.framing, ...(l.directionRole?{directionRole:l.directionRole}:{}) } })) : chosenLook ? [{ style: chosenLook.scene, params: { brief: chosenLook.brief, ideaTitle: chosenLook.title, humanPresence: chosenLook.human, framing: chosenLook.framing, ...(opts.directionRole?{directionRole:opts.directionRole}:{}) } }] : [
     ...(input.styles?.length ? input.styles : input.ideas?.length ? [] : [input.style]).map((s) => ({ style: s, params: {} })),
     ...(input.ideas ?? []).map((i) => ({ style: i.base_scene, params: { brief: i.description, ideaTitle: i.title, humanPresence: i.human_presence } })),
   ];
@@ -204,14 +206,14 @@ export async function remakeAsset(ctx: AuthContext, assetId: string, idempotency
     .maybeSingle();
   if (!asset) throw new ApiError(404, "Image not found");
   const job = (asset as unknown as { generation_jobs: ParentJob }).generation_jobs;
-  const itemRow = (asset as unknown as { generation_items: { style: string | null; params: { lookId?: string } | null } | null }).generation_items;
+  const itemRow = (asset as unknown as { generation_items: { style: string | null; params: { lookId?: string;directionRole?:CampaignRole } | null } | null }).generation_items;
   const itemStyle = itemRow?.style ?? job.style;
   const policy = (await getSettings()).credit_policy;
   const free = isFreeRemake(asset.remakes_used, asset.delivered_at, policy);
   const res = await createJob(
     ctx,
     { productId: asset.product_id, projectId: job.project_id, mode: job.mode, style: itemStyle, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, ...(await inheritedRecipe(job, itemRow?.params?.lookId)), idempotencyKey },
-    { parentAssetId: asset.id, freeRemake: free },
+    { parentAssetId: asset.id, freeRemake: free,directionRole:itemRow?.params?.directionRole },
   );
   if (!res.duplicate) await db.from("generated_assets").update({ remakes_used: asset.remakes_used + 1 }).eq("id", asset.id);
   return { ...res, free };
@@ -228,7 +230,7 @@ export async function retryItem(ctx: AuthContext, jobId: string, itemId: string,
     .select("id, status, style, params, job_id, generation_jobs!inner(id, product_id, mode, style, output, custom_brief, project_id, parent_asset_id, settings)")
     .eq("id", itemId).eq("job_id", jobId).eq("organization_id", ctx.orgId).maybeSingle();
   if (!item) throw new ApiError(404, "Photo not found");
-  const params = (item.params ?? {}) as { brief?: string; ideaTitle?: string; humanPresence?: "none" | "hands" | "model"; retryJobId?: string; lookId?: string };
+  const params = (item.params ?? {}) as { brief?: string; ideaTitle?: string; humanPresence?: "none" | "hands" | "model"; retryJobId?: string; lookId?: string;directionRole?:CampaignRole };
   if (params.retryJobId) return { jobId: params.retryJobId, duplicate: true };
   if (item.status !== "failed") throw new ApiError(400, "Only photos that failed can be tried again.");
   const job = (item as unknown as { generation_jobs: ParentJob & { product_id: string; parent_asset_id: string | null; settings: ParentJob["settings"] & { suggestions?: string[]; edit?: { assetId: string; instruction: string } } } }).generation_jobs;
@@ -247,7 +249,7 @@ export async function retryItem(ctx: AuthContext, jobId: string, itemId: string,
   const res = await createJob(
     ctx,
     { productId: job.product_id, projectId: job.project_id, mode: job.mode, style: item.style && item.style in STYLES ? item.style : job.style, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, suggestions: job.settings?.suggestions ?? null, ...idea, ...(await inheritedRecipe(job, params.lookId)), idempotencyKey },
-    { retryOf: { jobId, itemId }, parentAssetId: job.parent_asset_id ?? undefined, edit: job.settings?.edit },
+    { retryOf: { jobId, itemId }, parentAssetId: job.parent_asset_id ?? undefined, edit: job.settings?.edit,directionRole:params.directionRole },
   );
   await db.from("generation_items").update({ params: { ...params, retryJobId: res.jobId } }).eq("id", itemId);
   await audit(ctx, "job.retry_item", { type: "job", id: jobId }, { item: itemId, retryJob: res.jobId });

@@ -1,6 +1,6 @@
 import "server-only";
 import {
-  photographyPlanningPrompt, chooseCreativeSpec, creativeSpecPrompt, type CreativeSpec, creativeWorld, shotHistory, shootEnvironment, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
+  commissionFor, commissionPrompt, referenceLessons, type VisualCommission, type CampaignRole, campaignPlanningPrompt, chooseCreativeSpec, type CreativeSpec, shotHistory, shootEnvironment, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
   type CheckResult, type Decision, type OutputId, type ProductAnalysis,
   type ShotDirection, type StyleId, type CategoryLook, MAX_REFERENCE_PHOTOS, categoryLook, styleForLook,
 } from "@packshot/core";
@@ -50,6 +50,7 @@ interface JobRow {
 }
 
 interface ItemParams {
+  directionRole?:CampaignRole;
   framing?: "full" | "close" | "macro";
   /** A campaign idea chosen in the studio (its description acts as the brief). */
   humanPresence?: "none" | "hands" | "model";
@@ -68,7 +69,7 @@ function isStudioLook(value:unknown):value is CategoryLook{return !!value&&typeo
 /** The look of one photo of a pack, with the brief stored on the item (it carries the product's must-not-change rules). */
 function itemLook(params: ItemParams | null | undefined): CategoryLook | null {
   const base = params?.lookId ? categoryLook(params.lookId) : undefined;
-  return base ? { ...base, brief: params?.brief ?? base.brief } : null;
+  return base ? { ...base, brief: params?.brief ?? base.brief, directionRole:params?.directionRole??base.directionRole } : null;
 }
 
 async function usdToInr(): Promise<{ rate: number; date: string }> {
@@ -114,18 +115,23 @@ async function planShots(job: JobRow, analysis: ProductAnalysis | null, productN
   missing=missing.filter(i=>!studioItems.some(it=>it.id===i.id));
   if(!missing.length)return;
   const output = OUTPUTS[job.output];
+  const commissioned:VisualCommission[]=[];
   const plans = missing.map(it => {
     const params = (it.params ?? {}) as ItemParams;
     const look = itemLook(params) ?? canonical;
     const sid = output.forceStyle ?? look?.scene ?? (it.style && it.style in STYLES ? it.style : job.style);
     const environment=shootEnvironment(sid,selected,look&&"environment" in look?look.environment:undefined,job.id,it.idx);
-    const spec=specFor(it,look&&"collection" in look?look:null,environment,sid);
-    return { it, sid, spec, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || ("Interpret the selected "+STYLES[sid as StyleId].name+" theme through this actual product and its buyer context. Invent a new compatible setting and action; preset surfaces and props are examples, never a fixed required kit."), job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full",environment,creativeTerritory:creativeSpecPrompt(spec,look?.human??params.humanPresence??"none",look?.framing==="close"||params.framing==="macro")+"\n"+photographyPlanningPrompt(analysis,look?.human??params.humanPresence??"none",["close","macro"].includes(look?.framing??params.framing??"full"),environment,edition.edition,it.idx) } };
+    const commission=commissionFor({analysis,look:{human:look?.human??params.humanPresence??"none",environment,framing:["close","macro"].includes(look?.framing??params.framing??"full")?"close":"full",directionRole:params.directionRole??("directionRole" in (look??{})?(look as CategoryLook).directionRole:undefined)},edition:edition.edition,slot:it.idx,previous:history.shots,siblings:commissioned,customerNotes:job.custom_brief,palette:job.settings.palette});commissioned.push(commission);
+    return { it, sid, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || ("Interpret the selected "+STYLES[sid as StyleId].name+" theme through this actual product and its buyer context. Invent a new compatible setting and action; preset surfaces and props are examples, never a fixed required kit."), job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full",environment,commission,creativeTerritory:commissionPrompt(commission)+"\n"+referenceLessons(analysis,look&&"collection" in look?look.collection:undefined)+"\n"+campaignPlanningPrompt(analysis,look?.human??params.humanPresence??"none",["close","macro"].includes(look?.framing??params.framing??"full"),environment) } };
   });
   const avoid=[...new Set(history.shots.map(shotHistory).filter(Boolean))];
+  const {data:planningRefs,error:referenceError}=await db.from("product_assets").select("storage_key,view_type").eq("organization_id",job.organization_id).eq("product_id",job.product_id).order("created_at");if(referenceError)throw referenceError;
+  const front=planningRefs?.find(r=>r.view_type==="front")??planningRefs?.[0];
+  const directionRefs=front?[front,...(planningRefs??[]).filter(r=>r!==front)].slice(0,2):[];
+  const vision=await Promise.all(directionRefs.map(async r=>sharp(await getObject("originals",r.storage_key)).resize(1024,1024,{fit:"inside",withoutEnlargement:true}).jpeg({quality:88}).toBuffer()));
   // One coordinated direction request replaces one request per look. Static studio views use no text call.
-  const { shots, source } = await directShots({ style: STYLES[plans[0].sid as StyleId], output, count: plans.length, analysis, productName, assignments: plans.map(p => p.assignment), palette: job.settings?.palette, avoid, creativeTerritory: creativeWorld(job.id, productName).split(";").slice(1).join(";") });
-  await Promise.all(plans.map((p, index) => savePlan(p.it.id, p.it.params as ItemParams | null, { style: p.sid, params: { ...((p.it.params as object) ?? {}), shot: {...shots[index],creativeSpec:p.spec}, shotSource: source } })));
+  const { shots, source } = await directShots({ style: STYLES[plans[0].sid as StyleId], output, count: plans.length, analysis, productName, assignments: plans.map(p => p.assignment), palette: job.settings?.palette, avoid, creativeTerritory:"Invent an original campaign from the observed product and the commissioned photographic decisions. No mandatory location template." },vision);
+  await Promise.all(plans.map((p, index) => savePlan(p.it.id, p.it.params as ItemParams | null, { style: p.sid, params: { ...((p.it.params as object) ?? {}), shot: shots[index], shotSource: source } })));
 }
 
 export async function processItem(item:ItemRow):Promise<void>{
