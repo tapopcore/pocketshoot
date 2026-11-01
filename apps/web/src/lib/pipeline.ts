@@ -436,3 +436,15 @@ export async function runTick(workerId: string, budgetMs = 240_000) {
   return { processed, providers: (["openai", "gemini", "fal"] as ProviderId[]).filter(isConfigured) };
 }
 
+
+/** Isolated backend QA: claim only an explicitly tagged, credit-free diagnostic job. */
+export async function runInternalQaJob(jobId:string){
+ const db=admin();
+ const {data:job}=await db.from("generation_jobs").select("*").eq("id",jobId).single<JobRow & {source:string;credits_reserved:number}>();
+ if(!job||job.created_by!==null||job.source!=="api"||job.credits_reserved!==0||(job.settings as Record<string,unknown>).internalQa!==true)throw new Error("Not an isolated diagnostic job");
+ const {data:rows,error}=await db.from("generation_items").select("*").eq("job_id",job.id).eq("organization_id",job.organization_id).eq("status","queued").eq("attempts",0).eq("max_attempts",1).order("idx").limit(6);if(error)throw error;
+ const claimed:ItemRow[]=[];
+ for(const row of rows??[]){const {data:it,error:e}=await db.from("generation_items").update({status:"preparing",locked_by:"internal-qa",locked_until:new Date(Date.now()+300000).toISOString()}).eq("id",row.id).eq("job_id",job.id).eq("organization_id",job.organization_id).eq("status","queued").eq("attempts",0).eq("max_attempts",1).select("*").maybeSingle<ItemRow>();if(e)throw e;if(it)claimed.push(it);}
+ for(let offset=0;offset<claimed.length;offset+=4)await Promise.all(claimed.slice(offset,offset+4).map(async it=>{try{await processItem(it);}catch{await failItem(it,job,"internal_qa_error","Diagnostic attempt stopped; no automatic image retry.");}}));
+ return {processed:claimed.length,internalQa:true,automaticImageRetries:false};
+}
