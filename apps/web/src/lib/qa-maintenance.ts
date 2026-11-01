@@ -27,7 +27,8 @@ export async function maintainQaJob(job:QaJob){
  return true;
 }
 export async function maintainQaJobs(){
- const {data,error}=await admin().from("generation_jobs").select("id,organization_id,product_id,created_by,settings").is("created_by",null).contains("settings",{internalQa:true}).not("settings->qaMaintenance","is",null).order("created_at",{ascending:false}).limit(2);
+ const {data,error}=await admin().from("generation_jobs").select("id,organization_id,product_id,created_by,settings").is("created_by",null).contains("settings",{internalQa:true}).not("settings->>qaMaintenance","is",null).order("created_at",{ascending:false}).limit(2);
  if(error)throw error;
  for(const job of data??[])await maintainQaJob(job as QaJob);
 }
+

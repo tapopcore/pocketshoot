@@ -56,3 +56,5 @@ it("resolves a whole outside-crop variant being falsely marked missing without b
  const result=await reviewGeneratedImage({refs:[Buffer.from("reference")],image:Buffer.from("same saved result"),models:["test"],context:{recipe:categoryLook("studio-detail")}});
  expect(aggregate(result.checks)).toBe("pass");expect(result.verdict.extra_or_missing_items).toBe(false);expect(vi.mocked(jsonCall)).toHaveBeenCalledTimes(3);
 });
+
+it("requires actual cropped framing rather than a complete set labelled detail",()=>{expect(reviewPrompt({recipe:categoryLook("studio-detail")})).toContain("complete set surrounded by white margins is NOT a detail crop");});
