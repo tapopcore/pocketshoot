@@ -25,7 +25,7 @@ export function PricingTable({ web, shopify }: { web: PublicPack[]; shopify: Pub
   const saving = best && starter && best.code !== "starter" ? Math.round((starter.price_minor / starter.credits) * best.credits - best.price_minor) : 0;
   return (
     <>
-      {shopify.length > 0 && <div style={{ marginTop: "var(--s6)", textAlign: "center" }}><span className="seg" role="tablist">
+      {shopify.length > 0 && <div style={{ marginTop: "var(--s6)", textAlign: "center" }}><span className="seg site-seg" role="tablist">
         <button role="tab" aria-selected={mode === "web"} className={mode === "web" ? "on" : ""} onClick={() => setMode("web")}>Pay in INR</button>
         <button role="tab" aria-selected={mode === "shopify"} className={mode === "shopify" ? "on" : ""} onClick={() => setMode("shopify")}>Shopify billing</button>
       </span></div>}
