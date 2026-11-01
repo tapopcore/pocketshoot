@@ -43,21 +43,21 @@ export function ExamplesGallery({initialCategory="skincare"}:{initialCategory?:s
           <div className="exthumbs" role="list">
             {SHOT_LABELS[cat].map((s, i) => (
               <button key={cat + i} type="button" className={`exth${i === n ? " on" : ""}`} onClick={() => setN(i)} aria-pressed={i === n}>
-                <span className="ph r11"><img src={shot(`${cat}-${i}`)} alt="" /></span><span className="xs">{s}</span>
+                <span className="ph r11"><img src={shot(`${cat}-${i}`)} alt="" loading="lazy" decoding="async" /></span><span className="xs">{s}</span>
               </button>
             ))}
           </div>
           <Link href="/sign-in" className="btn btn-lime">Try it with your product</Link>
         </div>
         <div className="cpills" role="tablist" aria-label="Product category">
-          {CATS.map(([k, l]) => <button key={k} role="tab" aria-selected={cat === k} className={`cpill${cat === k ? " on" : ""}`} data-k={k} onClick={() => open(k)}><img src={shot(`${k}-0`)} alt="" />{l}</button>)}
+          {CATS.map(([k, l]) => <button key={k} role="tab" aria-selected={cat === k} className={`cpill${cat === k ? " on" : ""}`} data-k={k} onClick={() => open(k)}><img src={shot(`${k}-0`)} alt="" loading="lazy" decoding="async" />{l}</button>)}
         </div>
       </div>
       <div className="sec-head exhead"><h2 className="h3">Every category</h2><p className="body muted">Tap a product to compare it above.</p></div>
       <div className="exg">
         {CATS.map(([k, l, p]) => (
           <button type="button" className={`ex${cat === k ? " on" : ""}`} key={k} onClick={() => open(k)}>
-            <span className="ph r11 zoom"><img src={shot(`${k}-${BEST[k] ?? 1}`)} alt={`${p} product photo`} loading="lazy" /><span className="src"><span className="ph r11"><img src={shot(`${k}-before`)} alt="" /></span></span></span>
+            <span className="ph r11 zoom"><img src={shot(`${k}-${BEST[k] ?? 1}`)} alt={`${p} product photo`} loading="lazy" /><span className="src"><span className="ph r11"><img src={shot(`${k}-before`)} alt="" loading="lazy" decoding="async" /></span></span></span>
             <span className="cap"><span className="h5">{l}</span><span className="sm muted">{p}</span></span>
           </button>
         ))}
