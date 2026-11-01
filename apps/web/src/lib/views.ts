@@ -1,6 +1,7 @@
 import "server-only";
 import { admin } from "./supabase";
 import { viewUrls } from "./storage";
+import { timed } from "./timing";
 
 /** Adds short-lived signed URLs to asset rows for display. */
 export async function withAssetUrls<T extends { storage_key: string; thumb_key?: string | null }>(rows: T[]) {
@@ -26,7 +27,7 @@ export async function productList(orgId: string, opts: { q?: string | null; limi
     .range(opts.offset ?? 0, (opts.offset ?? 0) + (opts.limit ?? 24) - 1);
   if (!opts.includeArchived) query = query.is("archived_at", null);
   if (opts.q) query = query.or(`name.ilike.%${opts.q.replace(/[%,()]/g, "")}%,sku.ilike.%${opts.q.replace(/[%,()]/g, "")}%`);
-  const { data, count } = await query;
+  const { data, count } = await timed("db.products", async () => await query);
   const rows = (data ?? []) as unknown as { id: string; name: string; category: string; sku: string | null; source: string; shopify_product_id: string | null; created_at: string; archived_at: string | null; product_assets: { id: string; storage_key: string; view_type: string }[] }[];
   const covers = rows.map((r) => r.product_assets.find((a) => a.view_type === "front") ?? r.product_assets[0]).filter(Boolean);
   const urls = viewUrls("originals", covers.map((c) => c.storage_key), 640);
@@ -53,7 +54,7 @@ export async function recentJobs(orgId: string, limit = 12, offset = 0, filter: 
   if (filter.status === "ready") q = q.in("status", ["completed", "review_needed"]);
   if (filter.status === "creating") q = q.in("status", ["queued", "preparing", "generating", "checking"]);
   if (filter.status === "failed") q = q.eq("status", "failed");
-  const { data } = await q;
+  const { data } = await timed("db.jobs", async () => await q);
   const rows = (data ?? []) as unknown as { id: string; pack?: string | null; status: string; mode: string; style: string; output: string; requested_count: number; created_at: string; is_trial: boolean; source: string; products: { id: string; name: string; product_assets?: { storage_key: string; view_type: string }[] }; generated_assets: { id: string; thumb_key: string | null; storage_key: string; quality_status: string }[] }[];
   const thumbs = rows.flatMap((r) => r.generated_assets.filter((a) => a.quality_status !== "fail").slice(0, 4).map((a) => a.thumb_key ?? a.storage_key));
   const urls = viewUrls("outputs", thumbs, 640);

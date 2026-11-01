@@ -7,7 +7,8 @@ import { analyzeProduct } from "@/lib/prep";
 import { heroState } from "@/lib/hero";
 import { withRefUrls } from "@/lib/views";
 
-export const maxDuration = 300;
+// 299, not 300: heavy image work gets its own server function, apart from app pages and quick APIs.
+export const maxDuration = 299;
 
 /**
  * Runs right after upload. Returns the AI's read of the product (name, category, label text,

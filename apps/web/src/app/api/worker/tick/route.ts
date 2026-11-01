@@ -4,7 +4,8 @@ import { env } from "@/lib/env";
 import { safeEqual } from "@/lib/crypto";
 import { runTick } from "@/lib/pipeline";
 
-export const maxDuration = 300;
+// 299, not 300: heavy image work gets its own server function, apart from app pages and quick APIs.
+export const maxDuration = 299;
 
 /** Queue worker. Called by pg_cron every minute and right after a job is submitted. */
 export const POST = publicHandler(async (req) => {
