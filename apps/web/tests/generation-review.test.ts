@@ -49,3 +49,12 @@ it("does not call a lower logo erased when its exact region is outside a detail 
  const r=await reviewGeneratedImage({refs:[Buffer.from("reference")],image:Buffer.from("result"),models:["test"],context:{recipe:categoryLook("studio-detail")}});
  expect(aggregate(r.checks)).toBe("pass");expect(r.verdict.logo_changed).toBe(false);
 });
+
+it("resolves a whole outside-crop variant being falsely marked missing without buying another image",async()=>{
+ vi.clearAllMocks();const bad={...clean,same_product:false,extra_or_missing_items:true,failure_evidence:[{check:"missing_component",evidence:"The green cap is missing from a close crop of the pink cap."}]};
+ vi.mocked(jsonCall).mockResolvedValueOnce({data:bad} as never).mockResolvedValueOnce({data:bad} as never).mockResolvedValueOnce({data:{same_merchandise_components:true,missing_merchandise:[],invented_merchandise:[],marking_region:"unchanged",evidence:"The pink cap matches. The green cap is outside the intentional crop."}} as never);
+ const result=await reviewGeneratedImage({refs:[Buffer.from("reference")],image:Buffer.from("same saved result"),models:["test"],context:{recipe:categoryLook("studio-detail")}});
+ expect(aggregate(result.checks)).toBe("pass");expect(result.verdict.extra_or_missing_items).toBe(false);expect(vi.mocked(jsonCall)).toHaveBeenCalledTimes(3);
+});
+
+it("requires actual cropped framing rather than a complete set labelled detail",()=>{expect(reviewPrompt({recipe:categoryLook("studio-detail")})).toContain("complete set surrounded by white margins is NOT a detail crop");});

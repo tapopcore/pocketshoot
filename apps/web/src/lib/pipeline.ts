@@ -1,6 +1,6 @@
 import "server-only";
 import {
-  creativeWorld, shotHistory, shootEnvironment, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
+  chooseCreativeSpec, creativeSpecPrompt, type CreativeSpec, creativeWorld, shotHistory, shootEnvironment, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
   type CheckResult, type Decision, type OutputId, type ProductAnalysis,
   type ShotDirection, type StyleId, type CategoryLook, MAX_REFERENCE_PHOTOS, categoryLook, styleForLook,
 } from "@packshot/core";
@@ -16,6 +16,8 @@ import {recordQaArtifact} from "./qa-artifacts";
 import {renderPrompt} from "./render-prompt";
 import { customSize } from "./providers/openai";
 import {selectReferences,ECONOMY_EDGE} from "./cost-policy";
+import {localOriginalityCheck} from "./visual-originality";
+import {creativeHistory,creativeEdition,previousDeliverables} from "./creative-history";
 import {withAiScope} from "./ai-spend";
 import { getProvider, isConfigured, modelFor, providerChain, ProviderError, type ProviderId } from "./providers";
 import { refreshJobStatus } from "./jobs";
@@ -54,7 +56,7 @@ interface ItemParams {
   brief?: string;
   ideaTitle?: string;
   shot?: ShotDirection;
-  shotSource?: "ai" | "rules" | "studio-v1";
+  shotSource?: "ai" | "rules" | "studio-v1" | "studio-v2";
   place?: Place;
   cutoutAssetId?: string;
   /** One photo of a pack: its own look (scene, people, framing), checked like a chosen recipe. */
@@ -101,24 +103,29 @@ async function planShots(job: JobRow, analysis: ProductAnalysis | null, productN
   const { data: items } = await db.from("generation_items").select("id, idx, style, params").eq("job_id", job.id).order("idx");
   const selected = job.settings?.shootStyle && SHOOT_STYLE_IDS.includes(job.settings.shootStyle) ? job.settings.shootStyle : undefined;
   const canonical = job.settings?.recipe ?? (selected ? shootRecipe(selected, "other") : null);
-  let missing = (items ?? []).filter((i) => { return (i.params as ItemParams)?.shotSource === "rules" || !(i.params as ItemParams)?.shot; });
-  const studioItems=(items??[]).filter(i=>isStudioLook(itemLook(i.params as ItemParams)??canonical));
-  await Promise.all(studioItems.filter(it=>(it.params as ItemParams)?.shotSource!=="studio-v1" || !(it.params as ItemParams)?.shot).map(it=>{const own=itemLook(it.params as ItemParams)??canonical!;if(!isStudioLook(own))return;return savePlan(it.id,it.params as ItemParams | null,{style:own.scene,params:{...((it.params as object)??{}),shot:studioDirection(own,analysis),shotSource:"studio-v1"}});}));
+  let missing=(items??[]).filter(i=>(i.params as ItemParams)?.shotSource==="rules"||!(i.params as ItemParams)?.shot);
+  if(!missing.length)return;
+  const history=await creativeHistory(job.organization_id,job.product_id,job.id);
+  const edition=await creativeEdition(job.id,job.organization_id,history);
+  const siblings:CreativeSpec[]=[];
+  const specFor=(it:{idx:number},look:CategoryLook|null,environment:CreativeSpec["environment"],sid:string)=>{const spec=chooseCreativeSpec({family:edition.family,edition:edition.edition,slot:it.idx,contract:look?.id??sid,environment,previous:history.specs,siblings});siblings.push(spec);return spec;};
+  const studioItems=missing.filter(i=>isStudioLook(itemLook(i.params as ItemParams)??canonical));
+  for(const it of studioItems){const own=itemLook(it.params as ItemParams)??canonical!;if(!isStudioLook(own))continue;const spec=specFor(it,own,"studio",own.scene);await savePlan(it.id,it.params as ItemParams|null,{style:own.scene,params:{...((it.params as object)??{}),shot:studioDirection(own,analysis,spec),shotSource:"studio-v2"}});}
   missing=missing.filter(i=>!studioItems.some(it=>it.id===i.id));
-  if (!missing.length) return;
+  if(!missing.length)return;
   const output = OUTPUTS[job.output];
   const plans = missing.map(it => {
     const params = (it.params ?? {}) as ItemParams;
     const look = itemLook(params) ?? canonical;
     const sid = output.forceStyle ?? look?.scene ?? (it.style && it.style in STYLES ? it.style : job.style);
     const environment=shootEnvironment(sid,selected,look&&"environment" in look?look.environment:undefined,job.id,it.idx);
-    return { it, sid, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || STYLES[sid as StyleId].description, job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full",environment,creativeTerritory:creativeWorld(job.id,productName,it.idx,environment) } };
+    const spec=specFor(it,look&&"collection" in look?look:null,environment,sid);
+    return { it, sid, spec, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || ("Interpret the selected "+STYLES[sid as StyleId].name+" theme through this actual product and its buyer context. Invent a new compatible setting and action; preset surfaces and props are examples, never a fixed required kit."), job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full",environment,creativeTerritory:creativeSpecPrompt(spec,look?.human??params.humanPresence??"none",look?.framing==="close"||params.framing==="macro") } };
   });
-  const { data: previous } = await db.from("generation_items").select("params, generation_jobs!inner(product_id)").eq("generation_jobs.product_id", job.product_id).neq("job_id", job.id).order("created_at", { ascending: false }).limit(36);
-  const avoid = [...new Set((previous ?? []).map(p => shotHistory((p.params as ItemParams)?.shot)).filter(Boolean))];
+  const avoid=[...new Set(history.shots.map(shotHistory).filter(Boolean))];
   // One coordinated direction request replaces one request per look. Static studio views use no text call.
   const { shots, source } = await directShots({ style: STYLES[plans[0].sid as StyleId], output, count: plans.length, analysis, productName, assignments: plans.map(p => p.assignment), palette: job.settings?.palette, avoid, creativeTerritory: creativeWorld(job.id, productName).split(";").slice(1).join(";") });
-  await Promise.all(plans.map((p, index) => savePlan(p.it.id, p.it.params as ItemParams | null, { style: p.sid, params: { ...((p.it.params as object) ?? {}), shot: shots[index], shotSource: source } })));
+  await Promise.all(plans.map((p, index) => savePlan(p.it.id, p.it.params as ItemParams | null, { style: p.sid, params: { ...((p.it.params as object) ?? {}), shot: {...shots[index],creativeSpec:p.spec}, shotSource: source } })));
 }
 
 export async function processItem(item:ItemRow):Promise<void>{
@@ -212,6 +219,8 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   }
   await db.from("generation_jobs").update({ prompt_version: promptVersion }).eq("id", job.id);
 
+  const priorDeliverables=await previousDeliverables(job.organization_id,job.product_id,job.id,chosenLook?.id,styleId,item.id);
+
   // ---- generation, trying providers in order
   await setItem(item.id, { status: "generating" });
   const chain = providerChain(settings.providers).filter(pid => pid === "openai");
@@ -302,6 +311,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   }
 
   if (judgeNeeded && !checks.some(c => c.type === "vlm_judge")) checks.push({ type: "vlm_judge", score: null, decision: "fail", details: { note: "The product accuracy check was unavailable." } });
+  checks.push(await localOriginalityCheck(finalImage,priorDeliverables));
   const decision: Decision = aggregate(checks);
   // A quality rejection is final for this request. Do not silently buy another image.
   if (decision === "fail") {
@@ -422,5 +432,7 @@ export async function runTick(workerId: string, budgetMs = 240_000) {
     }));
     processed += items.length;
   }
+  if(!processed){const {maintainQaJobs}=await import("./qa-maintenance");await maintainQaJobs();}
   return { processed, providers: (["openai", "gemini", "fal"] as ProviderId[]).filter(isConfigured) };
 }
+
