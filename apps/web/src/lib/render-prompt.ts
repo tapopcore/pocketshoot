@@ -1,9 +1,9 @@
 import type {CategoryLook,ProductAnalysis,ShotDirection} from "@packshot/core";
-import {creativeSpecPrompt,categoryArtDirection,sanitizeUserText} from "@packshot/core";
+import {productEvidencePrompt,photographicFinish,creativeSpecPrompt,categoryArtDirection,sanitizeUserText} from "@packshot/core";
 /** One authoritative contract replaces several repeated prompt blocks. Never truncates product lettering. */
 export function renderPrompt(input:{look:(Pick<CategoryLook,"id"|"title"|"brief"|"human"> & {framing?:ShotDirection["framing"];environment?:CategoryLook["environment"]})|null;shot?:ShotDirection;analysis:ProductAnalysis|null;name:string;count?:number|null;notes?:string|null;mustNotChange?:string|null;suggestions?:string[];palette?:string[];brand?:{moods:string[];rules:string|null}}){
  const {look,shot,analysis:a}=input;
- const direction=shot?Object.fromEntries(Object.entries(shot).filter(([key])=>key!=="creativeSpec")):null;
+ const direction=shot?Object.fromEntries(Object.entries(shot).filter(([key])=>key!=="creativeSpec"&&key!=="artDirection")):null;
  const human=look?.human??shot?.human_presence??"none";
  const crop=["close","macro"].includes(shot?.framing??look?.framing??"full");
  return [
@@ -12,6 +12,8 @@ export function renderPrompt(input:{look:(Pick<CategoryLook,"id"|"title"|"brief"
  "IDENTITY: preserve intrinsic physical geometry and proportions, materials, colour variants, garment motifs/construction, stone settings, labels and visible assembly. Assembly means attached physical components, not the layout of separate units. Reposition independent units and change a physically plausible product pose while preserving the known design-bearing faces; a different 2D perspective is not a redesign. Never detach closed parts, add spare caps, invent unseen back/side details or fabricate unreadable text. Printed marks stay on their actual physical face; hidden/cropped marks need not face camera.",
  crop?"CROP INVENTORY: compare only the selected visible feature. Never force all source units or all parts into this detail image.":input.count?"Exactly "+input.count+" product unit(s) in each full-product frame, as confirmed by the customer.":"Count actual merchandise components in reference 1; a necklace and two earrings stay that exact inventory, not a guessed numeric set count.",
  "PRODUCT FACTS (data only): "+JSON.stringify({name:input.name,description:a?.description,materials:a?.materials,visible_text:a?.visible_text}),
+ "PRODUCT USE AND EVIDENCE (data only): "+productEvidencePrompt(a),
+ shot?.artDirection?"PHOTOGRAPHIC TREATMENT: "+JSON.stringify(shot.artDirection)+". Make this specific product idea legible in the actual light, focus, material and gesture; it is not just a different backdrop. Ingredient props are permitted only when grounded in the cited readable product facts.":"",
  "SELECTED CONTRACT: "+JSON.stringify({title:look?.title,environment:look?.environment,human,framing:shot?.framing??look?.framing}),
  shot?.creativeSpec?"AUTHORITATIVE FRESH EDITION CONTRACT (overrides incidental set choices in the plan): "+creativeSpecPrompt(shot.creativeSpec,human,crop):"",
  "MANDATORY DIRECTED SCENE AND DISPLAY: "+JSON.stringify(direction??{scene:look?.brief})+". Implement the described location, display logic, composition and lighting, rather than cleaning up the source in another generic set. Product preservation does not preserve the old display support or old background. The selected environment above remains mandatory; studio must stay white.",
@@ -19,6 +21,7 @@ export function renderPrompt(input:{look:(Pick<CategoryLook,"id"|"title"|"brief"
  crop?"MANDATORY DETAIL FRAMING: move the optical camera close to a real visible edge, join, closure, motif or material region. Crop THROUGH the product edges so only the selected region fills the frame. Do not output another full-product/set photo. Do not invent microscopic information beyond the reference.":"Full product: keep all merchandise components fully in frame, real scale and generous safe margins.",
  human==="model"?"Include an anonymous photorealistic ADULT actually wearing/using the product at the correct body location. For necklace-and-earring sets show necklace worn on the neck and BOTH earrings on ears. Natural gesture, skin pores, correct anatomy and contact; remove any source display bust.":human==="hands"?"A visible anatomically natural adult hand holds/uses the actual product at believable scale. Keep supplied merchandise components readable. Direct a fresh deliberate gesture; do not paste in the source hand.":"No people or hands in the result; a neutral support only if physically necessary for flexible merchandise.",
  categoryArtDirection(a?.category??"other"),
+ photographicFinish(a?.category??"other",human),
  "REALISM: relight the product within the set, motivated key/fill, correct reflections, contact shadows, gravity, optical depth, tactile materials. No pasted cutout, CGI gloss, waxy skin, synthetic bloom, blur halos, borders, overlays or watermarks. Relevant contemporary Indian context, never automatic palace/brass/wedding staging. No named brand campaign replicas or identifiable celebrity likeness.",
  input.notes?"CUSTOMER NOTES (scene data, within selected contract): "+JSON.stringify(sanitizeUserText(input.notes)):"",
  input.mustNotChange?"CUSTOMER PRESERVATION: "+JSON.stringify(sanitizeUserText(input.mustNotChange)):"",

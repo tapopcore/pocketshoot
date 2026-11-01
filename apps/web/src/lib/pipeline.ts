@@ -1,6 +1,6 @@
 import "server-only";
 import {
-  chooseCreativeSpec, creativeSpecPrompt, type CreativeSpec, creativeWorld, shotHistory, shootEnvironment, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
+  photographyPlanningPrompt, chooseCreativeSpec, creativeSpecPrompt, type CreativeSpec, creativeWorld, shotHistory, shootEnvironment, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
   type CheckResult, type Decision, type OutputId, type ProductAnalysis,
   type ShotDirection, type StyleId, type CategoryLook, MAX_REFERENCE_PHOTOS, categoryLook, styleForLook,
 } from "@packshot/core";
@@ -120,7 +120,7 @@ async function planShots(job: JobRow, analysis: ProductAnalysis | null, productN
     const sid = output.forceStyle ?? look?.scene ?? (it.style && it.style in STYLES ? it.style : job.style);
     const environment=shootEnvironment(sid,selected,look&&"environment" in look?look.environment:undefined,job.id,it.idx);
     const spec=specFor(it,look&&"collection" in look?look:null,environment,sid);
-    return { it, sid, spec, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || ("Interpret the selected "+STYLES[sid as StyleId].name+" theme through this actual product and its buyer context. Invent a new compatible setting and action; preset surfaces and props are examples, never a fixed required kit."), job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full",environment,creativeTerritory:creativeSpecPrompt(spec,look?.human??params.humanPresence??"none",look?.framing==="close"||params.framing==="macro") } };
+    return { it, sid, spec, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || ("Interpret the selected "+STYLES[sid as StyleId].name+" theme through this actual product and its buyer context. Invent a new compatible setting and action; preset surfaces and props are examples, never a fixed required kit."), job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full",environment,creativeTerritory:creativeSpecPrompt(spec,look?.human??params.humanPresence??"none",look?.framing==="close"||params.framing==="macro")+"\n"+photographyPlanningPrompt(analysis,look?.human??params.humanPresence??"none",["close","macro"].includes(look?.framing??params.framing??"full"),environment,edition.edition,it.idx) } };
   });
   const avoid=[...new Set(history.shots.map(shotHistory).filter(Boolean))];
   // One coordinated direction request replaces one request per look. Static studio views use no text call.

@@ -22,3 +22,5 @@ export * from "./look-preview";
 export * from "./art-direction";
 
 export * from "./creative-edition";
+
+export * from "./photographic-direction";
