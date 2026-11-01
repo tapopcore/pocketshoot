@@ -1,6 +1,6 @@
 import "server-only";
 import {
-  creativeWorld, shotHistory, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
+  creativeWorld, shotHistory, shootEnvironment, studioDirection, SHOOT_STYLE_IDS, shootRecipe, type ShootStyleId, OUTPUTS, STYLES, TRIAL_MAX_EDGE, aggregate, alignmentDecision, backoffMs, buildEditPrompt,
   type CheckResult, type Decision, type OutputId, type ProductAnalysis,
   type ShotDirection, type StyleId, type CategoryLook, MAX_REFERENCE_PHOTOS, categoryLook, styleForLook,
 } from "@packshot/core";
@@ -111,12 +111,13 @@ async function planShots(job: JobRow, analysis: ProductAnalysis | null, productN
     const params = (it.params ?? {}) as ItemParams;
     const look = itemLook(params) ?? canonical;
     const sid = output.forceStyle ?? look?.scene ?? (it.style && it.style in STYLES ? it.style : job.style);
-    return { it, sid, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || STYLES[sid as StyleId].description, job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full" } };
+    const environment=shootEnvironment(sid,selected,look&&"environment" in look?look.environment:undefined,job.id,it.idx);
+    return { it, sid, assignment: { title: look?.title ?? STYLES[sid as StyleId].name, brief: [params.brief || look?.brief || STYLES[sid as StyleId].description, job.custom_brief].filter(Boolean).join(". "), shootStyle: look && "collection" in look ? styleForLook(look) : selected, humanPresence: look?.human ?? params.humanPresence ?? "none", framing: look?.framing ?? params.framing ?? "full",environment,creativeTerritory:creativeWorld(job.id,productName,it.idx,environment) } };
   });
   const { data: previous } = await db.from("generation_items").select("params, generation_jobs!inner(product_id)").eq("generation_jobs.product_id", job.product_id).neq("job_id", job.id).order("created_at", { ascending: false }).limit(36);
-  const avoid = (previous ?? []).map(p => shotHistory((p.params as ItemParams)?.shot)).filter(Boolean);
+  const avoid = [...new Set((previous ?? []).map(p => shotHistory((p.params as ItemParams)?.shot)).filter(Boolean))];
   // One coordinated direction request replaces one request per look. Static studio views use no text call.
-  const { shots, source } = await directShots({ style: STYLES[plans[0].sid as StyleId], output, count: plans.length, analysis, productName, assignments: plans.map(p => p.assignment), palette: job.settings?.palette, avoid, creativeTerritory: creativeWorld(job.id, productName) });
+  const { shots, source } = await directShots({ style: STYLES[plans[0].sid as StyleId], output, count: plans.length, analysis, productName, assignments: plans.map(p => p.assignment), palette: job.settings?.palette, avoid, creativeTerritory: creativeWorld(job.id, productName).split(";").slice(1).join(";") });
   await Promise.all(plans.map((p, index) => savePlan(p.it.id, p.it.params as ItemParams | null, { style: p.sid, params: { ...((p.it.params as object) ?? {}), shot: shots[index], shotSource: source } })));
 }
 

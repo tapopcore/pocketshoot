@@ -23,3 +23,9 @@ Production incident audit found high-quality 1536px rendering, all references se
 Type checking, web/core regressions, real PostgreSQL migration/ledger tests and targeted lint precede release. The backend-only internalQa flag is absent from the public job schema. Explicit internal jobs with no customer actor can record ten-minute signed original/result links in the server-only analytics table for authorised visual verification. No bucket is made public and no desktop session is required.
 
 The INR5 policy protects further spending; it does not turn a rejected output into a successful deliverable or guarantee subjective photographic excellence. Strict identity, anatomy, environment and realism checks remain active.
+
+## Live verification
+
+The first production six-pack completed 6/6 in one image request per slot, with no unknown charges and INR13.024149075 in recorded planning/image/review costs (INR2.17 per delivered image). A four-reference mouse product used two selected references and delivered for INR3.232525275 including planning/review. Both were internal QA with zero customer-credit charge. Original/result pixels were inspected through ten-minute private backend links.
+
+Repeat-shoot inspection found historical prose itself was anchoring the model to the same staging. The refinement replaces old paragraphs with compact setting/support/material/lighting/camera fingerprints, deduplicates history, assigns a compatible location family and display logic to each slot, and removes the cached campaign concept as a required scene. Studio remains white; festive themes may vary between compatible indoor/outdoor settings. All output still preserves product identity and requested actions.
