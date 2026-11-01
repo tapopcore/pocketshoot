@@ -1,4 +1,5 @@
 import { requirePlatform } from "@/lib/auth";
+import { FilterPills } from "@/components/filter-pills";
 import Link from "next/link";
 import { admin } from "@/lib/supabase";
 import { signedUrls } from "@/lib/storage";
@@ -22,7 +23,7 @@ export default async function Refunds({ searchParams }: { searchParams: Promise<
   return (
     <div>
       <PageHeader eyebrow="Product integrity" title="Refund requests">Approve when the product itself changed (logo, text, shape, colour, wrong or missing item). Reject for taste. Approving restores one credit.</PageHeader>
-      <div className="mb-6 flex gap-2">{["open", "approved", "auto_approved", "rejected"].map((s) => <Link key={s} href={`/admin/refunds?status=${s}`} className={`rounded-full px-3 py-1 text-sm ${s === status ? "bg-ink text-paper" : "border border-line"}`}>{s.replace("_", " ")}</Link>)}</div>
+      <div className="mb-6 flex gap-2"><FilterPills className="contents" base="rounded-full px-3 py-1 text-sm" on="bg-ink text-paper" off="border border-line" label="Filter" items={["open", "approved", "auto_approved", "rejected"].map((s) => ({ href: `/admin/refunds?status=${s}`, label: s.replace("_", " "), active: s === status }))} /></div>
       {rows.length === 0 ? <Empty title="Nothing here" /> : (
         <div className="space-y-6">
           {rows.map((r) => (

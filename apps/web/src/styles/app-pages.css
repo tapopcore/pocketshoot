@@ -915,3 +915,7 @@ select.sel{appearance:none;-webkit-appearance:none;padding-right:44px;background
 /* Long product names: two lines at most on the product page title. */
 .pg-product h1{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 @media(max-width:600px){.pg-product h1{font-size:26px;line-height:1.15}}
+/* While a filter loads, the old results fade so the tap clearly registered. */
+html[data-filtering] main :is(section,.gx,.grid,table,.note,.empty){opacity:.45;transition:opacity .15s;pointer-events:none}
+.pills .pill,.pill{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.pills .pill:active{transform:scale(.96)}

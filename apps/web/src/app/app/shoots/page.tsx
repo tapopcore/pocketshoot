@@ -1,5 +1,5 @@
 import Link from "next/link";
-import clsx from "clsx";
+import { FilterPills } from "@/components/filter-pills";
 import { ArrowLeft, ArrowRight, Plus, Search } from "lucide-react";
 import { requireWeb } from "@/lib/auth";
 import { recentJobs } from "@/lib/views";
@@ -40,7 +40,7 @@ export default async function Shoots({ searchParams }: { searchParams: Promise<{
     {(jobs.length > 0 || filtered) && <div className="tb">
       <form className="srch" action="/app/shoots"><Search /><input name="q" defaultValue={sp.q} placeholder="Search by product name" aria-label="Search shoots" />{status && <input type="hidden" name="s" value={status} />}</form>
       <Link href="/app/library" className="link sm d-only" style={{ marginLeft: "auto", order: 3 }}>All photos <ArrowRight size={16} /></Link>
-      <div className="pills">{FILTERS.map(([k, l]) => <Link key={k} href={qs({ s: k || undefined, page: undefined })} className={clsx("pill", (status ?? "") === k && "on")}>{l}</Link>)}</div>
+      <FilterPills label="Filter shoots" items={FILTERS.map(([k, l]) => ({ href: qs({ s: k || undefined, page: undefined }), label: l, active: (status ?? "") === k }))} />
     </div>}
     {jobs.length === 0 ? (filtered
       ? <div className="note" style={{ marginTop: "var(--s6)" }}>No shoots match. <Link className="link" href="/app/shoots">Clear search</Link></div>

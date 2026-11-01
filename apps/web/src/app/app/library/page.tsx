@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { FilterPills } from "@/components/filter-pills";
 import { requireWeb } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { withAssetUrls } from "@/lib/views";
@@ -26,11 +26,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
   return (
     <div>
       <PageHeader title="All photos">{count ? `${count} photo${count === 1 ? "" : "s"} so far. ` : ""}Select several to download them together.</PageHeader>
-      <div className="lfilt">
-        {Object.entries(FILTERS).map(([k, label]) => (
-          <Link key={k} href={`/app/library?f=${k}`} className={`pill${f === k ? " on" : ""}`} aria-current={f === k ? "page" : undefined}>{label}</Link>
-        ))}
-      </div>
+      <FilterPills className="lfilt" label="Filter photos" items={Object.entries(FILTERS).map(([k, label]) => ({ href: `/app/library?f=${k}`, label, active: f === k }))} />
       {assets.length === 0 ? <Empty title="Nothing here yet" action={<LinkButton href="/app/new">Start a shoot</LinkButton>} /> : (
         <LibraryGrid assets={assets.map((a) => ({ id: a.id, thumb: a.thumbUrl, name: a.products?.name ?? "", jobId: a.job_id, approved: a.approval_status === "approved", review: a.quality_status === "review", ratio: `${a.width}/${a.height}` }))} />
       )}

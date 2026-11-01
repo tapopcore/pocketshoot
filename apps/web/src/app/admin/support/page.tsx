@@ -1,4 +1,5 @@
 import { requirePlatform } from "@/lib/auth";
+import { FilterPills } from "@/components/filter-pills";
 import Link from "next/link";
 import clsx from "clsx";
 import { admin } from "@/lib/supabase";
@@ -18,7 +19,7 @@ export default async function AdminSupport({ searchParams }: { searchParams: Pro
   return (
     <div>
       <PageHeader title="Support tickets" />
-      <div className="mb-4 flex gap-2">{["open", "pending", "resolved", "closed"].map((s) => <Link key={s} href={`/admin/support?status=${s}`} className={`rounded-full px-3 py-1 text-sm ${s === status ? "bg-ink text-paper" : "border border-line"}`}>{s}</Link>)}</div>
+      <div className="mb-4 flex gap-2"><FilterPills className="contents" base="rounded-full px-3 py-1 text-sm" on="bg-ink text-paper" off="border border-line" label="Filter" items={["open", "pending", "resolved", "closed"].map((s) => ({ href: `/admin/support?status=${s}`, label: s, active: s === status }))} /></div>
       <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
         <Card className="divide-y divide-line">
           {(tickets ?? []).map((t) => (

@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Signed storage URLs. */
 import { FitImg } from "@/components/fit-img";
+import { FilterPills } from "@/components/filter-pills";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Plus, Search } from "lucide-react";
 import { CATEGORIES, isCategoryId } from "@packshot/core";
@@ -27,7 +28,7 @@ export default async function Products({ searchParams }: { searchParams: Promise
     {bulk && products.length > 1 && <BulkCta />}
     {(total > 0 || sp.q || archived) && <div className="tb">
       <form className="srch" action="/app/products"><Search /><input name="q" defaultValue={sp.q} placeholder="Search by name or SKU" aria-label="Search products" />{archived && <input type="hidden" name="archived" value="1" />}</form>
-      <Link href={qs({ archived: archived ? undefined : "1", page: undefined })} className="pill">{archived ? "Hide archived" : "Show archived"}</Link>
+      <FilterPills className="" label="Archived products" off="" on="" items={[{ href: qs({ archived: archived ? undefined : "1", page: undefined }), label: archived ? "Hide archived" : "Show archived", active: false }]} />
       <span className="sm muted d-only" style={{ marginLeft: "auto" }}>{total} product{total === 1 ? "" : "s"}</span>
     </div>}
     {products.length === 0
