@@ -32,7 +32,7 @@ export async function localOriginalityCheck(image:Buffer,previous:{id:string;ima
 }
 
 
-const STUDIO_ORIGINALITY_VERSION="2026-11-02.foreground-1";
+const STUDIO_ORIGINALITY_VERSION="2026-11-03.appearance-2";
 /** Exclude white margins and pale contact shadows before measuring product structure. */
 async function foreground(image:Buffer){
  const {data,info}=await sharp(image).rotate().flatten({background:"#fff"}).resize(256,256,{fit:"inside"}).removeAlpha().toColourspace("srgb").raw().toBuffer({resolveWithObject:true});
@@ -57,7 +57,8 @@ async function studioFeatures(image:Buffer):Promise<Features[]>{
  if(!object)return [await features(image)];
  const aligned=await sharp(object.png).rotate(90-object.angle,{background:"#fff"}).png().toBuffer();
  const cropped=(await foreground(aligned))?.png??aligned;
- const canvas=await sharp(cropped).resize(32,32,{fit:"contain",background:"#fff"}).png().toBuffer();
+ // Normalize the appearance area, not white padding: slim products otherwise lose label information.
+ const canvas=await sharp(cropped).resize(32,32,{fit:"fill"}).png().toBuffer();
  return [await features(canvas),await features(await sharp(canvas).rotate(180).png().toBuffer())];
 }
 /** Detect same-pack copies after zoom, translation or image-plane rotation; never exports history. */
@@ -67,7 +68,8 @@ export async function studioOriginalityCheck(image:Buffer,previous:{id:string;im
   const prior=await studioFeatures(p.image);
   const variants=current.flatMap(a=>prior.map(b=>{let intersection=0,union=0;for(let i=0;i<a.spatial.length;i+=3){const am=Math.min(a.spatial[i],a.spatial[i+1],a.spatial[i+2])<220,bm=Math.min(b.spatial[i],b.spatial[i+1],b.spatial[i+2])<220;if(am||bm)union++;if(am&&bm)intersection++;}return {...compare(a,b),silhouetteOverlap:union?intersection/union:0};}));
   const best=variants.sort((a,b)=>a.hashDistance/63+a.spatialDistance-(b.hashDistance/63+b.spatialDistance))[0];
-  const duplicate=variants.some(c=>c.paletteDistance<=.14&&((c.hashDistance<=10&&c.spatialDistance<=.07)||(c.silhouetteOverlap>=.92&&c.spatialDistance<=.065)));
+  // A shared outline alone is not evidence of duplication (for example front/back labels on a bottle).
+  const duplicate=variants.some(c=>c.paletteDistance<=.14&&((c.hashDistance<=10&&c.spatialDistance<=.07)||(c.silhouetteOverlap>=.98&&c.spatialDistance<=.03)));
   return {assetId:p.id,...best,duplicate};
  }));
  const duplicate=comparisons.find(c=>c.duplicate);

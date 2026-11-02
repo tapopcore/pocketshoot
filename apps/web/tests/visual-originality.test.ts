@@ -10,6 +10,10 @@ describe("local visual repetition check",()=>{
 
 import {studioOriginalityCheck} from "@/lib/visual-originality";
 describe("studio foreground uniqueness",()=>{
+ it("accepts different label faces on the same narrow cylindrical outline",async()=>{
+  const bottle=async(back:boolean)=>sharp(Buffer.from(`<svg width="512" height="512"><rect width="512" height="512" fill="white"/><rect x="225" y="70" width="62" height="370" rx="8" fill="#222"/><rect x="231" y="180" width="50" height="180" fill="#eee"/>${back?Array.from({length:16},(_,i)=>`<rect x="235" y="${188+i*10}" width="42" height="3" fill="#333"/>`).join(""):`<rect x="238" y="200" width="35" height="60" fill="#333"/><circle cx="256" cy="310" r="16" fill="#b57d21"/>`}</svg>`)).png().toBuffer();
+  expect((await studioOriginalityCheck(await bottle(true),[{id:"front",image:await bottle(false)}])).decision).toBe("pass");
+ });
  it("rejects a zoomed and translated copy on white",async()=>{
   const a=await sample();
   const small=await sharp(a).resize(300,300).extend({left:140,right:72,top:60,bottom:152,background:"#fff"}).png().toBuffer();

@@ -2418,7 +2418,11 @@ export function lookEligibility(look: CategoryLook, profile: ShootProfile, refs:
  return null;
 }
 export function inferCollection(category: CategoryId, text: string): CollectionId | null {
- const t=text.toLowerCase();
+ const t=text.toLowerCase().replace(/fragrance[ -]free|perfume[ -]free|unscented/g,"");
+ // Explicit function takes precedence over incidental ingredient/scent wording.
+ if(category==="beauty"&&/makeup|setting spray|fixing spray|foundation|lipstick|mascara|eyeshadow|nail (polish|lacquer|art)/.test(t))return "makeup";
+ if(category==="beauty"&&/serum|cream|lotion|moisturi[sz]er|cleanser|sunscreen|face wash|body wash|skin care|skincare/.test(t)&&!/^(?:perfume|fragrance)\b/.test(t))return "skincare";
+ if(category==="jewellery"&&/necklace|choker/.test(t))return "necklace";
  const rules:[CollectionId,RegExp][]=[['saree',/saree|sari\b/],['unstitched',/unstitched|dress material/],['lehenga',/lehenga|choli/],['mens-ethnic',/sherwani|kurta.*jacket|mens?.*kurta/],['suit',/salwar|anarkali|kurta|dupatta/],['activewear',/activewear|sportswear|legging|training/],['footwear',/shoe|sneaker|sandal|footwear|boot/],['bags',/handbag|wallet|backpack|tote|bag\b/],['mens-modern',/mens?wear|men.s|shirt|trouser/],['womens-modern',/womens?wear|women.s|dress|blouse|skirt|top\b/],['fragrance',/perfume|fragrance/],['makeup',/lipstick|mascara|makeup|foundation|eyeshadow|nail (polish|lacquer|paint|art)|press.on nail|false nail|worn nail|kajal|eyeliner|blush|highlighter|compact powder/],['skincare',/serum|cream|lotion|moisturi[sz]er|face ?wash|cleanser|toner|sunscreen|shampoo|conditioner|body wash|soap|face oil|hair oil|skincare|skin care/],['earrings',/earring/],['necklace',/necklace|pendant|chain/],['bracelets',/bracelet|bangle/],['rings',/ring/],['beverage',/juice|beverage|soda|drink|tea bottle/],['prepared-food',/cake|pastry|dish|bread|sweet|cookie|dosa|idli|sambar|curry|paneer|biryani|thali|snack|sandwich|pizza|dal\b/],['bottle',/bottle|mug|drinkware|cup\b/],['cookware',/cookware|pan\b|container|utensil|kitchen tool/]];
  for(const [id,re] of rules) if(re.test(t)&&collectionById(id)?.category===category)return id;
  // No confident match: use looks that suit any product, never another product type's looks.

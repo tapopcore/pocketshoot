@@ -23,3 +23,10 @@ it("rejects an elevated oblique shot when only the front face is known",()=>{
  const r=raw();r.understanding.unseenSurfaces=["top"];r.shots[1].view="oblique";r.shots[1].elevation=35;
  expect(parseStudioPlan(r,slots,refs).errors.join()).toContain("unreferenced top");
 });
+
+
+it("accepts actual front and back faces at equal local camera coordinates",()=>{const r=raw();r.understanding.coverage.push({reference:2,faces:[{id:"back label",description:"Actual printed rear panel"}]});r.understanding.unseenSurfaces=[];r.shots[1]={...r.shots[1],view:"back",elevation:5,references:[1,2],visibleFaces:["back label"]};expect(parseStudioPlan(r,slots,[...refs,{id:"back",view:"back",width:1024,height:1024}]).plan?.shots).toHaveLength(2);});
+it("keeps a supported shot when a second requested face is unsupported",()=>{const r=raw();r.shots[1].view="back";const result=parseStudioPlan(r,slots,refs);expect(result.plan).toBeNull();expect(result.partial?.shots.map(s=>s.idx)).toEqual([0]);expect(result.rejected?.find(s=>s.idx===1)?.errors.join()).toContain("actual back");});
+it("accepts visually documented side coverage in an angle-tagged original",()=>{const r=raw();r.understanding.coverage.push({reference:2,faces:[{id:"body-side",description:"Actual lateral side profile of product"}]});r.shots[1]={...r.shots[1],view:"side",references:[1,2],visibleFaces:["body-side"]};expect(parseStudioPlan(r,slots,[...refs,{id:"angle",view:"angle",width:1024,height:1024}]).plan).not.toBeNull();});
+
+it("adds inventory reference to a single supporting-view selection without another model call",()=>{const r=raw();r.understanding.coverage.push({reference:2,faces:[{id:"back label",description:"Actual rear panel"}]});r.shots[1]={...r.shots[1],view:"back",references:[2],visibleFaces:["back label"]};const result=parseStudioPlan(r,slots,[...refs,{id:"back",view:"back",width:1024,height:1024}]);expect(result.plan?.shots[1].studio?.references).toEqual([1,2]);});

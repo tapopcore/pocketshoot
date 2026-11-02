@@ -94,7 +94,7 @@ const planning = new Map<string, Promise<void>>();
 async function ensureShots(job: JobRow, analysis: ProductAnalysis | null, productName: string): Promise<void> {
   const pending = planning.get(job.id);
   if (pending) return pending;
-  const task = planShots(job, analysis, productName);
+  const task = job.settings?.pack==="studio"?planShots(job,analysis,productName):withJobLease(job.organization_id,job.id,"campaignPlanningLease",()=>planShots(job,analysis,productName));
   planning.set(job.id, task);
   try { await task; } finally { if (planning.get(job.id) === task) planning.delete(job.id); }
 }
@@ -186,6 +186,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   if (!edit){try{await ensureShots(job, analysis, product.name);}catch(e){return failItem(item,job,"direction_unavailable",(e as Error).message);}}
   const { data: itemRow } = await db.from("generation_items").select("style, params").eq("id", item.id).single();
   const params = (itemRow?.params ?? {}) as ItemParams;
+  if((params as ItemParams & {studioPlanError?:string}).studioPlanError)return failItem(item,job,"studio_reference_needed",(params as ItemParams & {studioPlanError:string}).studioPlanError);
   if(!edit&&(job.settings?.pack==="studio"||params.shot?.studio)){
     const geometry=params.shot?.studio;
     if(!geometry||params.shotSource!=="studio-v3"||!params.studioReferenceIds)return failItem(item,job,"direction_unavailable","The studio shot plan is incomplete. No image was generated.");
@@ -242,7 +243,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
 
   const isStudioPack=(job.settings?.pack==="studio"||!!params.shot?.studio)&&!edit;
   const studioPackId=params.studioPackJobId??job.id;
-  const priorDeliverables=isStudioPack?[]:await previousDeliverables(job.organization_id,job.product_id,job.id,chosenLook?.id,styleId,item.id);
+
 
   // ---- generation, trying providers in order
   await setItem(item.id, { status: "generating" });
@@ -338,7 +339,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   if(isStudioPack){
     const currentPack=await studioPackDeliverables(job.organization_id,studioPackId,item.id,params.studioSlotItemId??item.id);
     checks.push(await studioOriginalityCheck(finalImage,currentPack));
-  }else checks.push(await localOriginalityCheck(finalImage,priorDeliverables));
+  }else checks.push(await localOriginalityCheck(finalImage,await previousDeliverables(job.organization_id,job.product_id,job.id,chosenLook?.id,styleId,item.id)));
   const decision: Decision = aggregate(checks);
   // A quality rejection is final for this request. Do not silently buy another image.
   if (decision === "fail") {
@@ -367,7 +368,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   await finishIfDone(job);
   };
   if(isStudioPack)return withJobLease(job.organization_id,studioPackId,"studioDeliveryLease",deliver);
-  return deliver();
+  return withJobLease(job.organization_id,job.id,"campaignDeliveryLease",deliver);
 }
 
 function scalePlace(p: Place, fromW: number, fromH: number, W: number, H: number): Place {

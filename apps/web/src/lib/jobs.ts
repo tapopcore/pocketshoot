@@ -57,6 +57,7 @@ export function withPreserve(look: CategoryLook, productType?: string | null): C
 }
 
 export interface JobOptions {
+  retryShot?:ShotDirection;
   studioRetry?:{shot:ShotDirection;referenceIds:string[];packJobId:string;slotItemId:string};
   /** Server-stored photographic role retained by a remake/retry. */
   directionRole?:CampaignRole;
@@ -168,7 +169,7 @@ export async function createJob(ctx: AuthContext, input: CreateJobInput, opts: J
   ];
   await db.from("generation_items").insert(Array.from({ length: input.count }, (_, idx) => {
     const slot = slots[idx % slots.length];
-    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: {...slot.params,...(opts.studioRetry?{shot:opts.studioRetry.shot,shotSource:"studio-v3",studioReferenceIds:opts.studioRetry.referenceIds,studioPackJobId:opts.studioRetry.packJobId,studioSlotItemId:opts.studioRetry.slotItemId,ideaTitle:opts.studioRetry.shot.studio?.title??slot.params.ideaTitle}:{})}, ...(recipe || packSet ? { max_attempts: 1 } : {}) };
+    return { job_id: job.id, organization_id: ctx.orgId, idx, style: slot.style, params: {...slot.params,...(opts.retryShot?{shot:opts.retryShot,shotSource:"ai"}:{}),...(opts.studioRetry?{shot:opts.studioRetry.shot,shotSource:"studio-v3",studioReferenceIds:opts.studioRetry.referenceIds,studioPackJobId:opts.studioRetry.packJobId,studioSlotItemId:opts.studioRetry.slotItemId,ideaTitle:opts.studioRetry.shot.studio?.title??slot.params.ideaTitle}:{})}, ...(recipe || packSet ? { max_attempts: 1 } : {}) };
   }));
 
   if (!opts.freeRemake && !opts.internal) {
@@ -252,7 +253,7 @@ export async function retryItem(ctx: AuthContext, jobId: string, itemId: string,
   const res = await createJob(
     ctx,
     { productId: job.product_id, projectId: job.project_id, mode: job.mode, style: item.style && item.style in STYLES ? item.style : job.style, output: job.output, count: 1, customBrief: job.custom_brief, brandKitId: job.settings?.brandKitId ?? null, shootStyle: job.settings?.shootStyle ?? null, suggestions: job.settings?.suggestions ?? null, ...idea, ...(await inheritedRecipe(job, params.lookId)), idempotencyKey },
-    { retryOf: { jobId, itemId }, parentAssetId: job.parent_asset_id ?? undefined, edit: job.settings?.edit,directionRole:params.directionRole,...(params.shot?.studio&&params.studioReferenceIds?{studioRetry:{shot:params.shot,referenceIds:params.studioReferenceIds,packJobId:params.studioPackJobId??jobId,slotItemId:params.studioSlotItemId??itemId}}:{}) },
+    { retryOf: { jobId, itemId }, parentAssetId: job.parent_asset_id ?? undefined, edit: job.settings?.edit,retryShot:params.shot&&!params.shot.studio?params.shot:undefined,directionRole:params.directionRole,...(params.shot?.studio&&params.studioReferenceIds?{studioRetry:{shot:params.shot,referenceIds:params.studioReferenceIds,packJobId:params.studioPackJobId??jobId,slotItemId:params.studioSlotItemId??itemId}}:{}) },
   );
   await db.from("generation_items").update({ params: { ...params, retryJobId: res.jobId } }).eq("id", itemId);
   await audit(ctx, "job.retry_item", { type: "job", id: jobId }, { item: itemId, retryJob: res.jobId });

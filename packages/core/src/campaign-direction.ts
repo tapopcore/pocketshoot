@@ -1,13 +1,13 @@
 import {compatibleApproaches} from "./photographic-direction";
 import type {ProductAnalysis,ShotDirection} from "./director";
 import type {CategoryLook} from "./product-looks";
-export const COMMISSION_VERSION="2026-11-02.visual-commission-3";
+export const COMMISSION_VERSION="2026-11-02.product-directed-4";
 export type CampaignRole="catalogue"|"wearable"|"graphic"|"context"|"detail"|"human-detail";
 export interface VisualCommission {
  version:string;role:CampaignRole;paletteHue?:number;paletteName?:string;humanDirection?:string;environment:"studio"|"indoor"|"outdoor";
- light:"client-directed"|"white-diffusion"|"hard-shaped"|"selective-low-key"|"soft-sculpted"|"edge-transmitted";
- composition:"client-directed"|"isolated-readable"|"sculptural-diagonal"|"graphic-negative-space"|"near-far"|"gesture-led"|"product-body-crop"|"tactile-crop"|"spatial-layers";
- tone:"client-directed"|"white"|"deep-tonal"|"colour-block"|"natural-contrast";
+ light:"product-directed"|"client-directed"|"white-diffusion"|"hard-shaped"|"selective-low-key"|"soft-sculpted"|"edge-transmitted";
+ composition:"product-directed"|"client-directed"|"isolated-readable"|"sculptural-diagonal"|"graphic-negative-space"|"near-far"|"gesture-led"|"product-body-crop"|"tactile-crop"|"spatial-layers";
+ tone:"product-directed"|"client-directed"|"white"|"deep-tonal"|"colour-block"|"natural-contrast";
  presentation:"catalogue-support"|"concealed-support"|"human-contact";
  focus:"whole-product"|"product-plane"|"material-plane";
 }
@@ -24,38 +24,13 @@ export function referenceLessons(a:ProductAnalysis|null|undefined,collection?:st
 }
 /** Commission observable visual decisions; the actual place, palette and story remain open-ended. */
 export function commissionFor(input:{analysis:ProductAnalysis|null;look:Pick<CategoryLook,"human"|"environment"|"framing">&{directionRole?:CampaignRole;collection?:string};edition:number;slot:number;previous?:ShotDirection[];siblings?:VisualCommission[];customerNotes?:string|null;palette?:string[]}):VisualCommission{
- const {look,edition,slot}=input;
- const role=look.directionRole??(look.framing==="close"?"detail":look.environment==="studio"?"catalogue":look.human!=="none"?"wearable":look.environment==="outdoor"?"context":"graphic");
- const studio=look.environment==="studio";
- const crop=role==="detail"||role==="human-detail";
- const human=look.human!=="none";
- const base:VisualCommission={version:COMMISSION_VERSION,role,environment:look.environment,
- light:studio?"white-diffusion":look.environment==="outdoor"?(edition%2?"hard-shaped":"soft-sculpted"):role==="human-detail"?"selective-low-key":role==="wearable"?"hard-shaped":"selective-low-key",
- composition:studio?(crop?"tactile-crop":"isolated-readable"):role==="human-detail"?"product-body-crop":human?"gesture-led":role==="graphic"?(edition%2?"sculptural-diagonal":"graphic-negative-space"):(edition%2?"near-far":"spatial-layers"),
- tone:studio?"white":look.environment==="outdoor"?"natural-contrast":edition%3===0?"colour-block":"deep-tonal",
- presentation:human?"human-contact":studio?"catalogue-support":"concealed-support",
- focus:crop?"material-plane":human?"product-plane":"whole-product"};
- if(!studio&&(input.customerNotes?.trim()||input.palette?.length))return {...base,light:"client-directed",composition:"client-directed",tone:"client-directed"};
- if(human&&!studio){
-  const collection=look.collection??"";const jewelleryPortrait=/necklace|earring/.test(collection)||(!collection&&input.analysis?.category==="jewellery"&&/necklace|choker|earring/i.test(input.analysis.name));
-  const necklacePoses=["Sculptural shoulder diagonal, chin gently raised and hand at temple; camera slightly below eye level. Both actual earrings and necklace stay visible. No hand resting at neck, collarbone or earring.","Seated forward with forearms supported below frame, shoulders at unequal heights and gaze off-camera. Face and full real set remain visible. No hand resting at neck, collarbone or earring.","One forearm creates a diagonal above the forehead, eyes look beyond it, shoulders relaxed. Keep the full real set unobstructed. No hand resting at neck, collarbone or earring."];
-  base.humanDirection=jewelleryPortrait&&look.human==="model"?(role==="human-detail"?"Crop the upper face. Create asymmetric shoulder and collarbone geometry with hands outside the product plane; show the necklace and both earrings. No familiar hand-at-neck gesture.":necklacePoses[(edition+slot)%necklacePoses.length]):collection==="footwear"?"Direct believable leg/foot geometry and real shoe contact; keep the actual shoe the optical hero. The face may stay outside frame. Keep unknown sole/rear surfaces concealed.":input.analysis?.category==="fashion"?"Choose a readable phase of a step, seated release or small front-facing turn. Create asymmetric body geometry while keeping the real garment design fully legible and unknown backs hidden.":"Direct a specific product-relevant grip or body contact at true scale. Keep the product the optical hero; include a face only when it serves the actual product and selected human contract.";
- }
- if(!studio){
-  const recent=(input.previous??[]).slice(0,12);const warm=recent.filter(s=>/ochre|terracotta|sandstone|beige|warm stone|warm brown/i.test(s.scene+" "+s.artDirection?.styling)).length>recent.length/2;
-  let hue=look.environment==="outdoor"?110+((edition*47+slot*31)%110):(edition*137.508+slot*71)%360;
-  if(warm&&hue<180)hue=190+(hue%110);
-  base.paletteHue=Math.round(hue);base.paletteName=["crimson red","burnt orange","saffron amber","leaf green","jade green","deep teal","cyan blue","cobalt blue","blue violet","aubergine violet","berry magenta","rose red"][Math.round(hue/30)%12];
- }
- const previous=(input.previous??[]).map(s=>s.artDirection?.commission).filter((v):v is VisualCommission=>!!v&&v.role===role);
- // Rotate actual light/composition families, not only props or a different adjective.
- const lights:VisualCommission["light"][]=studio?["white-diffusion","soft-sculpted"]:look.environment==="outdoor"?["hard-shaped","soft-sculpted","edge-transmitted"]:["hard-shaped","selective-low-key","soft-sculpted","edge-transmitted"];
- for(let n=0;n<lights.length;n++){const light=lights[(edition+(role==="human-detail"?1:role==="wearable"?0:slot)+n)%lights.length];const candidate={...base,light};
-  if(!previous.slice(0,2).some(p=>p.light===light&&p.composition===candidate.composition&&p.tone===candidate.tone)&&!input.siblings?.some(p=>p.role===role&&p.composition===candidate.composition&&p.light===light))return candidate;
- }
- return base;
+ const {look}=input;const role=look.directionRole??(look.framing==="close"?"detail":look.environment==="studio"?"catalogue":look.human!=="none"?"wearable":look.environment==="outdoor"?"context":"graphic");
+ const studio=look.environment==="studio",human=look.human!=="none",crop=role==="detail"||role==="human-detail";
+ return {version:COMMISSION_VERSION,role,environment:look.environment,light:studio?"white-diffusion":input.customerNotes?.trim()||input.palette?.length?"client-directed":"product-directed",composition:studio?(crop?"tactile-crop":"isolated-readable"):role==="human-detail"?"product-body-crop":"product-directed",tone:studio?"white":input.customerNotes?.trim()||input.palette?.length?"client-directed":"product-directed",presentation:human?"human-contact":studio?"catalogue-support":"concealed-support",focus:crop?"material-plane":human?"product-plane":"whole-product",...(human?{humanDirection:"Invent a product-specific believable adult gesture, body geometry and candid expression; vary from supplied recent history. Preserve all requested worn components and contact. The face may stay outside frame when it does not serve the product."}:{})};
 }
+
 const lightWords:Record<VisualCommission["light"],string>={
+ "product-directed":"Develop motivated light from the actual material, product use and original concept; state concrete reflection/shadow/falloff relationships, never default window light.",
  "client-directed":"Honor explicit customer lighting/palette instructions, then use product-specific material shaping and natural shadow logic.",
  "white-diffusion":"A genuine seamless-white catalogue exposure: broad controlled diffusion, clean retained texture and believable contact. Do not introduce a room, coloured backdrop or dramatic darkness.",
  "hard-shaped":"One shaped, directional key with a clearly legible shadow boundary and deliberate negative fill; retained shadow texture. This must visibly differ from flat warm window light.",
@@ -64,6 +39,7 @@ const lightWords:Record<VisualCommission["light"],string>={
  "edge-transmitted":"Motivated edge/transmitted light separates the observed silhouette or translucent material; restrained front fill keeps the actual product readable. No glowing CGI edges or invented translucent contents."
 };
 const compWords:Record<VisualCommission["composition"],string>={
+ "product-directed":"Invent a specific physical composition from this product and buyer purpose. Select the gesture, spatial relationships, camera and palette together. Differentiate the actual idea from recent history, not only colour or crop.",
  "client-directed":"Honor the customer’s explicit composition and scene requests; develop a product-specific photographic idea within those requirements.",
  "isolated-readable":"A deliberate product hierarchy and clean, precise spacing; known full merchandise stays readable.",
  "sculptural-diagonal":"Use an authored diagonal/curve relationship and physically supported depth. Conceal every unobserved surface or attachment.",
@@ -80,11 +56,11 @@ export function commissionPrompt(c:VisualCommission){
  (c.paletteName?" BACKGROUND COLOUR TARGET: "+c.paletteName+" family (approximate hue "+c.paletteHue+" degrees), expressed through actual backdrop/space/material planes; retain natural skin and exact product colour. This is a visible palette requirement, not a coloured light wash on the product. For outdoor use a credible real exterior palette with natural light; never repaint the sky or make a fake studio outdoors. Mention this palette by name in scene or styling. Do not revert to the recent warm-brown/gold room or beige sandstone garden. ":"")+
  (c.tone==="deep-tonal"?" TONAL TARGET: a deliberately deep background with controlled subject separation; invent a product-specific palette rather than beige/cream retail styling.":c.tone==="colour-block"?" TONAL TARGET: an original, deliberate colour-field relationship to actual merchandise, clear graphic separation and restrained props.":c.tone==="natural-contrast"?" TONAL TARGET: outdoor environmental contrast with real spatial cues and true product colour; avoid the automatic warm-stone garden setup.":"")+
  (c.presentation==="concealed-support"?" DISPLAY TARGET: no visible retail neck/bust form or retail earring peg stand, including fabric-covered forms. No default stone podium. Invent a physical arrangement that keeps unknown construction concealed. A hidden neutral support is permitted.":"")+
- " The major light, composition, tone and human direction above are deliverable requirements. The model may invent a fresh compatible setting and incidental props. Those props are not required inventory. Anatomy, exact merchandise, customer environment and source-supported geometry take priority.";
+ " When a treatment is product-directed, the explicit light, camera, styling, gesture and finish in the final director plan ARE its measurable execution targets. The major light, composition, tone and human direction above are deliverable requirements. The model may invent a fresh compatible setting and incidental props. Those props are not required inventory. Anatomy, exact merchandise, customer environment and source-supported geometry take priority.";
 }
 
 export function campaignPlanningPrompt(a:ProductAnalysis|null,human:string,crop:boolean,environment:string){
- return "Return artDirection: one original product idea with actual fact_ids, a concrete product_role, precise light_design, camera_design, styling, gesture and finish. Keep each string under 16 words. Choose a mechanism from "+JSON.stringify(compatibleApproaches(a,human,crop,environment).map(p=>p.id))+". The commissioned major visual treatment is authoritative; these mechanism names do not prescribe locations. ingredient_props may cite only exact label-grounded ingredient/flavour facts. Invent the actual scene from the observed product; no automatic beige bust, warm living room, flowers or stone tabletop. Never expose an unknown rear, closure, sole or interior. Preserve true merchandise and resolved detail.";
+ return "Return artDirection: one original product idea with actual fact_ids, a concrete product_role, precise light_design, camera_design, styling, gesture and finish. Keep each string under 20 words. Before choosing the shot, identify the buyer question and a visual idea specific to visible product facts. Across a pack vary physical relationship/action, camera and light, not adjectives or a recoloured set. No fixed pose, colour wheel or location menu. Do not depict spraying, pouring, opening or activation when the necessary mechanism/contents are not visible in the originals. Choose a mechanism from "+JSON.stringify(compatibleApproaches(a,human,crop,environment).map(p=>p.id))+". The commissioned major visual treatment is authoritative; these mechanism names do not prescribe locations. ingredient_props may cite only exact label-grounded ingredient/flavour facts. Invent the actual scene from the observed product; no automatic beige bust, warm living room, flowers or stone tabletop. Never expose an unknown rear, closure, sole or interior. Preserve true merchandise and resolved detail.";
 }
 
 /** Auto-picked packs select a purpose, not the catalogue’s incidental surface/wardrobe recipe. */

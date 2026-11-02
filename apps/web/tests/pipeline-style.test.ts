@@ -1,3 +1,4 @@
+vi.mock("@/lib/job-lease",()=>({withJobLease:async(_o:string,_j:string,_k:string,work:()=>Promise<unknown>)=>work()}));
 vi.mock("@/lib/creative-history",()=>({creativeHistory:async()=>({family:"test",productIds:["p"],shots:[],specs:[]}),creativeEdition:async()=>({family:"test",edition:1}),previousDeliverables:async()=>[]}));
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
