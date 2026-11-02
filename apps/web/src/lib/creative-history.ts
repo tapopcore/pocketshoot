@@ -34,3 +34,10 @@ export async function previousDeliverables(orgId:string,productId:string,jobId:s
  const images=await Promise.all(candidates.map(async a=>{try{return {id:a.id,image:await getObject("outputs",a.thumb_key??a.storage_key)};}catch{return null;}}));
  return images.filter((v):v is {id:string;image:Buffer}=>v!==null);
 }
+
+/** Fresh same-pack candidates, read only while the studio delivery lease is held. */
+export async function studioPackDeliverables(orgId:string,jobId:string,itemId:string){
+ const {data,error}=await admin().from("generated_assets").select("id,storage_key,thumb_key").eq("organization_id",orgId).eq("job_id",jobId).neq("item_id",itemId).in("quality_status",["pass","review"]);
+ if(error)throw error;
+ return Promise.all((data??[]).map(async a=>({id:a.id,image:await getObject("outputs",a.thumb_key??a.storage_key)})));
+}

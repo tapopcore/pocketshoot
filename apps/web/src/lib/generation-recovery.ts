@@ -5,9 +5,10 @@ import { admin } from "./supabase";
 import { getObject, putObject } from "./storage";
 import { getSettings } from "./settings";
 import { thumbnail } from "./images";
-import {localOriginalityCheck} from "./visual-originality";
-import {previousDeliverables} from "./creative-history";
+import {localOriginalityCheck,studioOriginalityCheck} from "./visual-originality";
+import {previousDeliverables,studioPackDeliverables} from "./creative-history";
 import {withAiScope} from "./ai-spend";
+import {withJobLease} from "./job-lease";
 import {selectReferences} from "./cost-policy";
 import { reviewGeneratedImage } from "./generation-review";
 
@@ -25,19 +26,21 @@ export async function recheckSavedItem(itemId: string, orgId?: string) {
   if (!asset || !job || asset.watermarked) return null;
   const [{ data: product }, { data: refs }, settings] = await Promise.all([
     db.from("products").select("attributes").eq("id", job.product_id).single(),
-    db.from("product_assets").select("storage_key,view_type").eq("product_id", job.product_id).order("created_at"),
+    db.from("product_assets").select("id,storage_key,view_type").eq("organization_id",item.organization_id).eq("product_id", job.product_id).order("created_at"),
     getSettings(),
   ]);
   if (!refs?.length) throw new Error("Product references unavailable");
-  const params = item.params as { lookId?: string; brief?: string; shot?: ShotDirection } | null;
+  const params = item.params as { lookId?: string; brief?: string; shot?: ShotDirection;studioReferenceIds?:string[] } | null;
   const saved = job.settings as { recipe?: CategoryLook; shootStyle?: ShootStyleId; subjectCount?: number } | null;
   const base = params?.lookId ? categoryLook(params.lookId) : saved?.recipe;
   const recipe = base ? { ...base, brief: params?.brief ?? base.brief } : undefined;
   const image = await getObject("outputs", asset.storage_key);
-  const originals = await Promise.all(selectReferences([...refs].sort((a,b) => Number(b.view_type === "front") - Number(a.view_type === "front")),recipe?.id).map(r => getObject("originals", r.storage_key)));
+  const chosen=params?.shot?.studio&&params.studioReferenceIds?params.shot.studio.references.map(n=>refs.find(r=>r.id===params.studioReferenceIds![n-1])):selectReferences([...refs].sort((a,b)=>Number(b.view_type==="front")-Number(a.view_type==="front")),recipe?.id);
+  if(chosen.some(r=>!r))throw new Error("A planned original reference is missing");
+  const originals=await Promise.all(chosen.map(r=>getObject("originals",r!.storage_key)));
   const review = await withAiScope({organizationId:item.organization_id,productId:job.product_id,jobId:item.job_id,itemId:item.id},()=>reviewGeneratedImage({ refs: originals, image, models: settings.providers.llm.models, context: { recipe, shot: params?.shot, selectedStyle: recipe ? styleForLook(recipe) : saved?.shootStyle, analysis: (product?.attributes as { analysis?: ProductAnalysis })?.analysis, confirmedSubjectCount: saved?.subjectCount } }));
-  const previous=await previousDeliverables(item.organization_id,job.product_id,item.job_id,recipe?.id,item.style??"",item.id);
-  review.checks.push(await localOriginalityCheck(image,previous));
+  if(params?.shot?.studio)review.checks.push(await studioOriginalityCheck(image,await studioPackDeliverables(item.organization_id,item.job_id,item.id)));
+  else{const previous=await previousDeliverables(item.organization_id,job.product_id,item.job_id,recipe?.id,item.style??"",item.id);review.checks.push(await localOriginalityCheck(image,previous));}
   return { item, asset, image, ...review, decision: aggregate(review.checks) };
 }
 
@@ -45,6 +48,9 @@ export async function recheckSavedItem(itemId: string, orgId?: string) {
 export async function tryRecoverFailedItem(itemId: string, orgId: string) {
   const result = await recheckSavedItem(itemId, orgId);
   if (!result || result.decision !== "pass" || result.item.status !== "failed") return null;
+  const isStudio=!!(result.item.params as {shot?:ShotDirection}|null)?.shot?.studio;
+  const deliver=async()=>{
+  if(isStudio&&(await studioOriginalityCheck(result.image,await studioPackDeliverables(orgId,result.item.job_id,itemId))).decision==="fail")return null;
   const db = admin();
   const { width, height } = await sharp(result.image).metadata();
   const key = result.asset.storage_key.replace(/\.png$/, "-rechecked-thumb.webp");
@@ -66,5 +72,7 @@ export async function tryRecoverFailedItem(itemId: string, orgId: string) {
     throw e;
   }
   return { jobId: result.item.job_id, recovered: true, duplicate: false };
+  };
+  return isStudio?withJobLease(orgId,result.item.job_id,"studioDeliveryLease",deliver):deliver();
 }
 

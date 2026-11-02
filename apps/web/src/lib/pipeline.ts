@@ -19,7 +19,7 @@ import {selectReferences,ECONOMY_EDGE} from "./cost-policy";
 import {localOriginalityCheck,studioOriginalityCheck} from "./visual-originality";
 import {planStudioPack} from "./studio-planner";
 import {withJobLease} from "./job-lease";
-import {creativeHistory,creativeEdition,previousDeliverables} from "./creative-history";
+import {creativeHistory,creativeEdition,previousDeliverables,studioPackDeliverables} from "./creative-history";
 import {withAiScope} from "./ai-spend";
 import { getProvider, isConfigured, modelFor, providerChain, ProviderError, type ProviderId } from "./providers";
 import { refreshJobStatus } from "./jobs";
@@ -331,9 +331,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   if (judgeNeeded && !checks.some(c => c.type === "vlm_judge")) checks.push({ type: "vlm_judge", score: null, decision: "fail", details: { note: "The product accuracy check was unavailable." } });
   const deliver=async()=>{
   if(isStudioPack){
-    const {data:delivered,error:historyError}=await db.from("generated_assets").select("id,storage_key,thumb_key").eq("organization_id",job.organization_id).eq("job_id",job.id).neq("item_id",item.id).in("quality_status",["pass","review"]);
-    if(historyError)throw historyError;
-    const currentPack=await Promise.all((delivered??[]).map(async a=>({id:a.id,image:await getObject("outputs",a.thumb_key??a.storage_key)})));
+    const currentPack=await studioPackDeliverables(job.organization_id,job.id,item.id);
     checks.push(await studioOriginalityCheck(finalImage,currentPack));
   }else checks.push(await localOriginalityCheck(finalImage,priorDeliverables));
   const decision: Decision = aggregate(checks);
