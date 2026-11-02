@@ -237,6 +237,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
     const picked=(job.settings?.suggestions??[]).filter((t):t is string=>typeof t==="string").slice(0,4);
     promptText=renderPrompt({look:chosenLook?{...chosenLook,environment:"environment" in chosenLook?chosenLook.environment:selectedStyle==="outdoor"?"outdoor":selectedStyle==="indoor"?"indoor":undefined}:null,shot:params.shot,analysis,name:product.name,count:job.settings.subjectCount,notes:job.custom_brief,mustNotChange:product.must_not_change,suggestions:picked,palette:job.settings.palette,brand:job.settings.brand});
   }
+  if(!edit&&studioLook)promptVersion=params.shot?.studio?"2026-11-02.studio-geometry-4":"2026-11-02.studio-lean-1";
   await db.from("generation_jobs").update({ prompt_version: promptVersion }).eq("id", job.id);
 
   const isStudioPack=(job.settings?.pack==="studio"||!!params.shot?.studio)&&!edit;
