@@ -1,6 +1,6 @@
 import type {ProductAnalysis, ShotDirection} from "./director";
 
-export const STUDIO_PLAN_VERSION = "2026-11-02.geometry-5";
+export const STUDIO_PLAN_VERSION = "2026-11-02.geometry-6";
 export const STUDIO_VIEWS = ["front","oblique","elevated","low","axial","overhead","side","back"] as const;
 export const STUDIO_POSES = ["upright","lying","leaning","draped"] as const;
 export interface StudioReference { id:string; view:string; width?:number; height?:number }
@@ -8,15 +8,15 @@ export interface StudioSlot { idx:number; title:string; framing:"full"|"close"|"
 export interface StudioGeometry {
  version:string;title:string;purpose:string;view:typeof STUDIO_VIEWS[number];pose:typeof STUDIO_POSES[number];
  arrangement:string;azimuth:number;elevation:number;references:number[];visibleFaces:string[];
- difference:string;feature:string;hiddenSurfaces?:string[];region:{reference:number;x:number;y:number;width:number;height:number}|null;
+ difference:string;feature:string;productForm?:string;inventory?:string[];shapeConstraints?:string[];hiddenSurfaces?:string[];region:{reference:number;x:number;y:number;width:number;height:number}|null;
 }
-export interface StudioUnderstanding {form:string;inventory:string[];safePoses:string[];coverage:{reference:number;faces:{id:string;description:string}[]}[];unknowns:string[];unseenSurfaces:("top"|"bottom"|"back"|"side"|"interior")[]}
+export interface StudioUnderstanding {form:string;shapeConstraints:string[];inventory:string[];safePoses:string[];coverage:{reference:number;faces:{id:string;description:string}[]}[];unknowns:string[];unseenSurfaces:("top"|"bottom"|"back"|"side"|"interior")[]}
 export interface StudioPlan {understanding:StudioUnderstanding;shots:ShotDirection[]}
 const string={type:"string"};
 const strings={type:"array",items:string};
 export const STUDIO_PLAN_SCHEMA={type:"object",additionalProperties:false,required:["feasible","missingReferences","understanding","shots"],properties:{
  feasible:{type:"boolean"},missingReferences:strings,
- understanding:{type:"object",additionalProperties:false,required:["form","inventory","safePoses","coverage","unknowns","unseenSurfaces"],properties:{form:string,inventory:{...strings,minItems:1,maxItems:12},safePoses:{type:"array",items:{type:"string",enum:STUDIO_POSES},minItems:1,maxItems:4},coverage:{type:"array",minItems:1,maxItems:6,items:{type:"object",additionalProperties:false,required:["reference","faces"],properties:{reference:{type:"integer",minimum:1,maximum:6},faces:{type:"array",minItems:1,items:{type:"object",additionalProperties:false,required:["id","description"],properties:{id:string,description:string}}}}}},unknowns:strings,unseenSurfaces:{type:"array",items:{type:"string",enum:["top","bottom","back","side","interior"]}}}},
+ understanding:{type:"object",additionalProperties:false,required:["form","inventory","safePoses","coverage","unknowns","unseenSurfaces","shapeConstraints"],properties:{form:string,shapeConstraints:{...strings,minItems:1,maxItems:8},inventory:{...strings,minItems:1,maxItems:12},safePoses:{type:"array",items:{type:"string",enum:STUDIO_POSES},minItems:1,maxItems:4},coverage:{type:"array",minItems:1,maxItems:6,items:{type:"object",additionalProperties:false,required:["reference","faces"],properties:{reference:{type:"integer",minimum:1,maximum:6},faces:{type:"array",minItems:1,items:{type:"object",additionalProperties:false,required:["id","description"],properties:{id:string,description:string}}}}}},unknowns:strings,unseenSurfaces:{type:"array",items:{type:"string",enum:["top","bottom","back","side","interior"]}}}},
  shots:{type:"array",maxItems:6,items:{type:"object",additionalProperties:false,required:["slot","title","purpose","view","pose","arrangement","azimuth","elevation","references","visibleFaces","difference","feature","region","camera","lighting","framing"],properties:{
  slot:{type:"integer",minimum:0,maximum:5},framing:{type:"string",enum:["full","close"]},title:string,purpose:string,view:{type:"string",enum:STUDIO_VIEWS},pose:{type:"string",enum:STUDIO_POSES},arrangement:string,
  azimuth:{type:"number",minimum:-90,maximum:90},elevation:{type:"number",minimum:-10,maximum:90},references:{type:"array",minItems:1,maxItems:2,items:{type:"integer",minimum:1,maximum:6}},visibleFaces:strings,difference:string,feature:string,
@@ -45,7 +45,7 @@ export function parseStudioPlan(raw:unknown,slots:StudioSlot[],refs:StudioRefere
  const r=raw as {feasible?:boolean;missingReferences?:string[];understanding?:StudioUnderstanding;shots?:Record<string,unknown>[]};
  if(r.feasible!==true)return {plan:null,errors:["More reference coverage is required: "+(r.missingReferences??[]).join("; ")]};
  const u=r.understanding;
- if(!u||!words(u.form,5)||!Array.isArray(u.inventory)||!u.inventory.length||!Array.isArray(u.coverage)||u.coverage.length!==refs.length||!Array.isArray(u.safePoses)||!Array.isArray(u.unseenSurfaces))return {plan:null,errors:["First inspect inventory, form, safe physical poses and every original reference"]};
+ if(!u||!words(u.form,5)||!Array.isArray(u.inventory)||!u.inventory.length||!Array.isArray(u.coverage)||u.coverage.length!==refs.length||!Array.isArray(u.shapeConstraints)||!u.shapeConstraints.length||!Array.isArray(u.safePoses)||!Array.isArray(u.unseenSurfaces))return {plan:null,errors:["First inspect inventory, form, safe physical poses and every original reference"]};
  const coverage=new Map(u.coverage.map(c=>[c.reference,c.faces?.map(f=>norm(f.id))??[]]));
  if(refs.some((_,i)=>!coverage.has(i+1)))errors.push("Reference coverage indexes must cover every supplied original once");
  if(!Array.isArray(r.shots)||r.shots.length!==slots.length)return {plan:null,errors:["Return exactly one photograph for every requested slot"]};
@@ -70,7 +70,7 @@ export function parseStudioPlan(raw:unknown,slots:StudioSlot[],refs:StudioRefere
    if(!region||!words(s.feature,5)||!ids.includes(region.reference)||[region.x,region.y,region.width,region.height].some(n=>typeof n!=="number"||!Number.isFinite(n))||region.x<0||region.y<0||region.width<.05||region.height<.05||region.x+region.width>1.01||region.y+region.height>1.01){errors.push("Slot "+slot.idx+" needs a resolved, bounded feature in an actual selected reference");continue;}
    const ref=refs[region.reference-1];if(ref.width&&ref.height&&Math.min(ref.width*region.width,ref.height*region.height)<48)errors.push("Slot "+slot.idx+" would invent unresolved microdetail; select a larger real feature or request a detail photo");
   }else if(region!==null)errors.push("A full-product view cannot be relabelled as a detail crop");
-  const geometry:StudioGeometry={version:STUDIO_PLAN_VERSION,title:String(s.title),purpose:String(s.purpose),view:s.view as StudioGeometry["view"],pose:s.pose as StudioGeometry["pose"],arrangement:String(s.arrangement),azimuth:s.azimuth,elevation:s.elevation,references:ids,visibleFaces:s.visibleFaces as string[],difference:String(s.difference),feature:String(s.feature??""),hiddenSurfaces:u.unseenSurfaces??[],region};
+  const geometry:StudioGeometry={version:STUDIO_PLAN_VERSION,title:String(s.title),purpose:String(s.purpose),view:s.view as StudioGeometry["view"],pose:s.pose as StudioGeometry["pose"],arrangement:String(s.arrangement),azimuth:s.azimuth,elevation:s.elevation,references:ids,visibleFaces:s.visibleFaces as string[],difference:String(s.difference),feature:String(s.feature??""),hiddenSurfaces:u.unseenSurfaces??[],productForm:u.form,inventory:u.inventory,shapeConstraints:u.shapeConstraints,region};
   shots.push({scene:"Seamless pure-white commercial studio. "+geometry.purpose+". Arrangement: "+geometry.arrangement,camera:String(s.camera),lighting:String(s.lighting),framing:framing as "full"|"close",human_presence:"none",product_scale:framing==="close"?.9:.74,offset_x:0,baseline:.82,studio:geometry});
  }
  if(slots.length===6&&shots.filter(s=>s.framing==="full").length<3)errors.push("A six-photo studio pack requires at least three genuinely distinct full-product photographs; do not replace it with mostly detail crops.");
@@ -82,6 +82,7 @@ export function studioPlanningPrompt(a:ProductAnalysis|null,name:string,slots:St
  "Use short stable face IDs in coverage.faces (for example box-front or cartridge-barrel) and describe each face separately in description. Every shot.visibleFaces MUST COPY those IDs EXACTLY. safePoses MUST use only the canonical schema codes, with no prose inside the code.",
  "Declare unseenSurfaces using canonical codes for physical faces not evidenced. When top is unseen, an upright view may not exceed 10 degrees elevation. Choose a different useful pose/feature rather than asking the renderer to invent a standard cap/closure.",
  "A partial rim/edge is NOT evidence of its entire adjacent top/end face or closure. Never claim a pull tab, cap mechanism, underside or marking is visible when only its edge is seen. Upright overhead and axial end views require an actual angle/top/detail original; otherwise choose a supported pose or a different resolved feature instead.",
+ "Record shapeConstraints for each real unit: observed long-axis/width proportions, taper, thickness, silhouette and attached-component relationships. Give approximate visible ratios when reliable, no invented centimetres. A tall slim can must stay tall/slim when lying, a slender pen must not become thicker. Do not request exaggerated foreshortening or a wide-angle distortion as variety; use a moderate-to-long studio perspective and preserve intrinsic dimensions.",
  "FIRST understand physical form, exact separate merchandise units and assembly, actual visible faces in each reference, safe resting/leaning/standing poses, unresolved details and unsupported rear/inside views. Use source pixels, not category stereotypes. Do not describe a face as known merely because a generic product usually has it.",
  "SAFE REPOSITIONING: a pose does NOT need to have been photographed already. Infer stable upright/lying/leaning poses from the observed rigid or flexible form. Move independent known units freely while keeping their actual design-bearing faces visible. A source-backed pose means the design is supported, not that every pose needs another upload.",
  "THEN plan this product's buyer questions: what it is; its three-dimensional shape/depth; a genuinely different safe physical pose; meaningful independent-unit arrangement where there are multiple units; actual construction/label/finish features. Do not use a fixed list for every product. A can, flat garment, pen, mouse and cartridge kit need different camera/pose decisions.",
@@ -96,6 +97,9 @@ export function studioPlanningPrompt(a:ProductAnalysis|null,name:string,slots:St
  ].filter(Boolean).join("\n");}
 export function studioGeometryPrompt(g:StudioGeometry){return [
  "SHOT PURPOSE: "+g.title+" — "+g.purpose,
+ g.productForm?"PHYSICAL PRODUCT STUDY: "+g.productForm:"",
+ g.inventory?.length?"FULL-FRAME MERCHANDISE INVENTORY: "+g.inventory.join("; ")+". Detail frames retain only the selected visible region.":"",
+ g.shapeConstraints?.length?"MANDATORY INTRINSIC SHAPE: "+g.shapeConstraints.join("; ")+". Preserve these physical proportions through the pose change; do not shorten, thicken or squash the product to fit the frame.":"",
  "PHYSICAL VIEW: "+g.view+"; camera azimuth "+g.azimuth+" degrees, elevation "+g.elevation+" degrees. Physical product pose: "+g.pose+". Arrangement: "+g.arrangement,
  "VISIBLE GEOMETRY CHANGE: "+g.difference+". This must be a three-dimensional projection/physical arrangement change, not zoom or a 2D rotation.",
  "KNOWN VISIBLE FACES: "+g.visibleFaces.join(", ")+". All other faces/construction must stay concealed.",
