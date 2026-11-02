@@ -8,4 +8,8 @@ Campaign commissions constrain customer purpose, environment and merchandise, wh
 
 The public homepage is unchanged. No training or guaranteed uniqueness is claimed. Reference-level quality requires visual evaluation; unit tests and compliance checks alone are insufficient.
 
-Initial checks: 107 core tests, 129 web tests and TypeScript pass. Local production build hit the Windows native compiler path-access limitation; staged production-environment build and visual diagnostics are recorded separately before promotion.
+Checks: 109 core tests, 131 web tests, TypeScript and scoped ESLint pass. Local production build hit the Windows native compiler path-access limitation; staged production-environment build and visual diagnostics are recorded separately before promotion.
+
+Studio duplicate detection now compares the normalized product appearance rather than a white-padded thumbnail; silhouette overlap alone cannot reject a different label face. A narrow-cylinder regression preserves different front/back panels while existing rotated/zoomed-copy regressions still reject duplicates. Saved spray comparisons confirm the prior front/back false positive is removed, but the saved nominal side frame remains visually frontal: no claim that this historical frame improved or that all six views meet reference quality. New planning instructions require observable label landmarks and avoid nominal cylinder angle padding; Studio view checks apply whenever geometry is present.
+
+Real internal diagnostics before these final local fixes: ring 6/6 delivered; spray 4/6 delivered with two originality rejections. No additional image generation was run after the owner declined a new campaign test. Campaign aesthetic quality at the supplied inspiration standard remains unverified.

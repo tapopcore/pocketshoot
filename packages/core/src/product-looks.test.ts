@@ -46,3 +46,5 @@ describe("product-specific directions",()=>{
   }
  });
 });
+
+it("prioritises product function over incidental fragrance and matching pieces",()=>{expect(inferCollection("beauty","Makeup locking spray with fragrance")).toBe("makeup");expect(inferCollection("beauty","Fragrance-free moisturiser cream")).toBe("skincare");expect(inferCollection("jewellery","Gold choker necklace with matching earrings")).toBe("necklace");});
