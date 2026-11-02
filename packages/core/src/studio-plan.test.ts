@@ -2,7 +2,7 @@ import {describe,it,expect} from "vitest";
 import {parseStudioPlan,studioGeometryDistinct,type StudioSlot,type StudioGeometry} from "./studio-plan";
 const refs=[{id:"front",view:"front",width:1024,height:1024}];
 const slots:StudioSlot[]=[{idx:0,title:"Hero",framing:"full"},{idx:1,title:"Depth",framing:"full"}];
-function raw(){return {feasible:true,missingReferences:[],understanding:{form:"Rigid cylindrical container",inventory:["one closed can"],safePoses:["upright","lying"],coverage:[{reference:1,faces:[{id:"front label",description:"Visible printed front"},{id:"top rim",description:"Visible top rim"}]}],unknowns:["rear label"]},shots:[0,1].map((slot)=>({slot,title:slot?"Raised viewpoint":"Front label",purpose:slot?"Show actual top depth":"Identify the product",view:slot?"elevated":"front",pose:"upright",arrangement:"single-unit",azimuth:0,elevation:slot?40:5,references:[1],visibleFaces:["front label","top rim"],difference:slot?"Top ellipse deepens, front foreshortens":"Front label faces camera",feature:"",region:null,camera:"Front and rim relationship shows real depth",lighting:"Large soft key with controlled reflections"}))};}
+function raw(){return {feasible:true,missingReferences:[],understanding:{form:"Rigid cylindrical container",inventory:["one closed can"],safePoses:["upright","lying"],coverage:[{reference:1,faces:[{id:"front label",description:"Visible printed front"},{id:"top rim",description:"Visible top rim"}]}],unknowns:["rear label"],unseenSurfaces:["back"]},shots:[0,1].map((slot)=>({slot,title:slot?"Raised viewpoint":"Front label",purpose:slot?"Show actual top depth":"Identify the product",view:slot?"elevated":"front",pose:"upright",arrangement:"single-unit",azimuth:0,elevation:slot?40:5,references:[1],visibleFaces:["front label","top rim"],difference:slot?"Top ellipse deepens, front foreshortens":"Front label faces camera",feature:"",region:null,camera:"Front and rim relationship shows real depth",lighting:"Large soft key with controlled reflections"}))};}
 describe("studio physical shoot preflight",()=>{
  it("accepts a product-specific supported projection change",()=>{expect(parseStudioPlan(raw(),slots,refs).plan?.shots).toHaveLength(2);});
  it("rejects six-pack padding by zoom, lighting or renamed shot title",()=>{const r=raw();r.shots[1].elevation=5;r.shots[1].title="Rim light";r.shots[1].camera="Zoom out, move product to left, long shadow";expect(parseStudioPlan(r,slots,refs).errors.join()).toContain("repeat geometry");});
@@ -17,4 +17,9 @@ describe("studio physical shoot preflight",()=>{
 it("does not infer an entire closure from a rim visible in a front photo",()=>{
  const r=raw();r.shots[1].view="overhead";r.shots[1].elevation=80;
  expect(parseStudioPlan(r,slots,refs).errors.join()).toContain("a visible rim alone does not prove closure");
+});
+
+it("rejects an elevated oblique shot when only the front face is known",()=>{
+ const r=raw();r.understanding.unseenSurfaces=["top"];r.shots[1].view="oblique";r.shots[1].elevation=35;
+ expect(parseStudioPlan(r,slots,refs).errors.join()).toContain("unreferenced top");
 });
