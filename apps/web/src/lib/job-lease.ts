@@ -17,8 +17,8 @@ export async function updateJobSettings(org:string,id:string,change:(current:Rec
 }
 
 /** Durable leases span server instances; no model calls inside a delivery lease. */
-export async function withJobLease<T>(org:string,id:string,key:"studioPlanningLease"|"studioDeliveryLease",work:()=>Promise<T>):Promise<T>{
- const owner=randomUUID(),ttl=key==="studioPlanningLease"?240_000:90_000;
+export async function withJobLease<T>(org:string,id:string,key:"studioPlanningLease"|"studioDeliveryLease"|"campaignPlanningLease"|"campaignDeliveryLease",work:()=>Promise<T>):Promise<T>{
+ const owner=randomUUID(),ttl=key.endsWith("DeliveryLease")?90_000:240_000;
  const until=Date.now()+ttl;
  let owned=false;
  while(Date.now()<until){

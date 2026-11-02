@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {generationFailure} from "@/lib/generation-failure";
 import { ReferenceViewer } from "./reference-viewer";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -97,7 +98,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   const order = delivered.map((i) => i.delivered_asset_id!) as string[];
   const pct = Math.round(((delivered.length + failed) / Math.max(1, items.length)) * 100);
   const ref = references[0]?.url ?? null;
-  const failedItems = items.filter((i) => i.status === "failed" && !/budget/i.test(i.last_error ?? ""));
+  const failedItems = items.filter((i) => i.status === "failed" && generationFailure(i.last_error).action==="retry");
   const retry = async (list: Item[]) => {
     if (retrying) return;
     setRetrying(list.length === 1 ? list[0].id : "all");
@@ -150,10 +151,11 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
       </header>
       {active.length > 0 && <div className="job-progress" role="status"><div><b>{delivered.length} of {items.length} ready</b><span>{elapsed < 60 ? "Just started" : elapsed < 1200 ? `Creating · ${Math.floor(elapsed / 60)} min` : "Taking longer than usual"} · safe to leave</span></div><div className="pb" role="progressbar" aria-label="Photos processed" aria-valuenow={delivered.length+failed} aria-valuemin={0} aria-valuemax={items.length}><i style={{width:pct+"%"}}/></div></div>}
 
-      {planningStopped?<section className="card p" role="status"><h2 className="h5">Let’s plan a more useful set</h2><p className="sm muted" style={{marginTop:"var(--s3)",maxWidth:560}}>We couldn’t prepare six reliably different shots from these references. Add a clear angled view, or start with a single studio photo. No images were generated and no credits were used.</p><button type="button" className="btn btn-dark" style={{marginTop:"var(--s4)"}} onClick={()=>router.push(`${base}/new?product=${job.products.id}`)}>Review product photos</button></section>:<div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
+      {planningStopped?<section className="card p" role="status"><h2 className="h5">Let’s plan a more useful set</h2><p className="sm muted" style={{marginTop:"var(--s3)",maxWidth:560}}>We couldn’t prepare six reliably different shots from these references. Review the original views before trying the set again. No images were generated and your credits were released.</p><button type="button" className="btn btn-dark" style={{marginTop:"var(--s4)"}} onClick={()=>router.push(`${base}/new?product=${job.products.id}`)}>Review product photos</button></section>:<div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
         {items.map((it, i) => {
           const a = it.delivered_asset_id ? byId.get(it.delivered_asset_id) : undefined;
           const stages = STAGE[it.status] ?? [it.status];
+          const failure=generationFailure(it.last_error);
           return (
             <div key={it.id} className="jt animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
               <div className="ph" style={{ aspectRatio: ratio }}>
@@ -166,9 +168,9 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
                 ) : it.status === "failed" ? (
                   <div className="fail">
                     <span className="ico"><AlertTriangle size={20} /></span>
-                    <b>This photo failed</b>
-                    <span className="why">{it.last_error?.split(/(?<=\.)\s/)[0] ?? "Nothing was charged."}</span>
-                    {/budget/i.test(it.last_error ?? "") ? <span className="xs muted">This photo used all its tries. Start a new shoot to try a different style.</span> : <>
+                    <b>{failure.title}</b>
+                    <span className="why">{failure.message}</span>
+                    {failure.action==="references" ? <button type="button" className="btn btn-sm" onClick={()=>router.push(`${base}/new?product=${job.products.id}`)}>Review product photos</button> : <>
                     <button type="button" className="btn btn-lime btn-sm" disabled={!!retrying} onClick={() => retry([it])}>{retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={16} />}Try again</button>
                     <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span></>}
                   </div>
