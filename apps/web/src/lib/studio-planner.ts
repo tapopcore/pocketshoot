@@ -27,7 +27,7 @@ export async function planStudioPack(job:{id:string;organization_id:string;produ
    const ordered=[first,...assets!.filter(a=>a.id!==first.id)].slice(0,6);
    const originals=await Promise.all(ordered.map(async a=>sharp(await getObject("originals",a.storage_key)).rotate().resize(1024,1024,{fit:"inside",withoutEnlargement:true}).jpeg({quality:88}).toBuffer({resolveWithObject:true})));
    const refs=ordered.map((a,i)=>({id:a.id,view:a.view_type,width:originals[i].info.width,height:originals[i].info.height}));
-   const slots:StudioSlot[]=items.map(i=>{const look=categoryLook(i.params?.lookId);if(look?.collection!=="studio")throw new Error("Studio pack contains an incompatible slot");return {idx:i.idx,title:look.title,framing:look.framing==="close"?"close":"full",...(look.id==="studio-back"?{requiredView:"back" as const}:look.id==="studio-side"?{requiredView:"side" as const}:{})};});
+   const slots:StudioSlot[]=items.map(i=>{const look=categoryLook(i.params?.lookId);if(look?.collection!=="studio")throw new Error("Studio pack contains an incompatible slot");return {idx:i.idx,title:look.title,framing:i.idx===0?"full":i.idx>=4?"close":"adaptive",...(look.id==="studio-back"?{requiredView:"back" as const}:look.id==="studio-side"?{requiredView:"side" as const}:{})};});
    const prompt=studioPlanningPrompt(analysis,name,slots,refs,job.custom_brief);
    const settings=await getSettings();
    let feedback="";
@@ -43,8 +43,8 @@ export async function planStudioPack(job:{id:string;organization_id:string;produ
      await updateJobSettings(job.organization_id,job.id,current=>({...current,studioPlan:{version:STUDIO_PLAN_VERSION,understanding:parsed.plan!.understanding,referenceIds:refs.map(r=>r.id),plannedAt:new Date().toISOString()}}));
      return;
     }
-    if((result.data as {feasible?:boolean}).feasible===false)throw new Error(parsed.errors.join(" "));
-    feedback="\nRevise the complete plan BEFORE any image generation. Validation errors: "+parsed.errors.join("; ");
+    await updateJobSettings(job.organization_id,job.id,current=>({...current,studioPlanRejected:{version:STUDIO_PLAN_VERSION,errors:parsed.errors,understanding:(result.data as {understanding?:unknown}).understanding??null}}));
+    feedback="\nRevise the complete plan BEFORE any image generation. A requested new pose is not itself a reason for another upload: safely reposition supported units while retaining their known faces. Try a different physical plan within existing source coverage; do not invent hidden information. Validation errors: "+parsed.errors.join("; ");
     if(attempt===1)throw new Error("Could not prepare six distinct source-supported photos. "+parsed.errors.join(" "));
    }
   }catch(e){
