@@ -57,13 +57,14 @@ export function parseStudioPlan(raw:unknown,slots:StudioSlot[],refs:StudioRefere
   const matches=r.shots.filter(s=>s.slot===slot.idx);if(matches.length!==1){errors.push("Slot "+slot.idx+" missing or duplicated");continue;}
   const s=matches[0];
   if(!STUDIO_VIEWS.includes(s.view as never)||!STUDIO_POSES.includes(s.pose as never)||!["title","purpose","arrangement","difference","camera","lighting"].every(k=>words(s[k],4))){errors.push("Slot "+slot.idx+" needs a complete photographic purpose and geometry");continue;}
-  const ids=Array.isArray(s.references)?s.references.filter((v):v is number=>Number.isInteger(v)):[];
+  const chosen=Array.isArray(s.references)?[...new Set(s.references.filter((v):v is number=>Number.isInteger(v)))]:[];
+  const ids=chosen.length===1&&!chosen.includes(1)?[1,...chosen]:chosen;
   if(!ids.length||ids.length>2||!ids.includes(1)||ids.some(n=>n<1||n>refs.length)){errors.push("Slot "+slot.idx+" must use inventory reference 1 plus at most one real supporting reference");continue;}
   if(!Array.isArray(s.visibleFaces)||!s.visibleFaces.length||s.visibleFaces.some(f=>typeof f!=="string"||!ids.some(i=>(coverage.get(i)??[]).includes(norm(f))))){errors.push("Slot "+slot.idx+" must copy only exact face IDs from its selected reference coverage");continue;}
   if(((s.view==="overhead"&&s.pose==="upright")||s.view==="axial")&&!ids.some(n=>["angle","top","detail"].includes(refs[n-1].view)))errors.push("Slot "+slot.idx+" needs an angled/top/detail original before exposing an upright top or end face; a visible rim alone does not prove closure geometry.");
   if(s.pose==="upright"&&typeof s.elevation==="number"&&s.elevation>10&&(u.unseenSurfaces??[]).includes("top"))errors.push("Slot "+slot.idx+" would reveal an unreferenced top: choose a camera at product centre height or below, a supported pose, or a different feature.");
   if(slot.requiredView&&s.view!==slot.requiredView)errors.push("Slot "+slot.idx+" must deliver the selected "+slot.requiredView+" view");
-  if((s.view==="side"||s.view==="back")&&!ids.some(n=>refs[n-1].view===s.view || (refs[n-1].view==="angle"&&(u.coverage.find(c=>c.reference===n)?.faces??[]).some(f=>new RegExp("(^|[^a-z])"+s.view+"([^a-z]|$)|profile","i").test(f.id+" "+f.description)))))errors.push("Slot "+slot.idx+" needs its actual "+s.view+" photograph");
+  if((s.view==="side"||s.view==="back")&&!ids.some(n=>refs[n-1].view===s.view || (refs[n-1].view==="angle"&&(u.coverage.find(c=>c.reference===n)?.faces??[]).some(f=>new RegExp("(^|[^a-z])"+s.view+"([^a-z]|$)|profile|lateral|flank|edge.on","i").test(f.id+" "+f.description)))))errors.push("Slot "+slot.idx+" needs its actual "+s.view+" photograph");
   if(!u.safePoses.includes(s.pose as string))errors.push("Slot "+slot.idx+" uses a physical pose not justified by the product study");
   if(typeof s.azimuth!=="number"||typeof s.elevation!=="number"||s.azimuth< -90||s.azimuth>90||s.elevation< -10||s.elevation>90){errors.push("Invalid camera geometry for slot "+slot.idx);continue;}
   const framing=s.framing??slot.framing;
@@ -81,7 +82,7 @@ export function parseStudioPlan(raw:unknown,slots:StudioSlot[],refs:StudioRefere
  for(let i=0;i<shots.length;i++)for(let j=0;j<i;j++)if(!studioGeometryDistinct(shots[i].studio!,shots[j].studio!))errors.push("Slots "+accepted[j].idx+" and "+accepted[i].idx+" repeat geometry or feature. Scale, frame offset, rotation in the image plane and lighting alone do not make another view.");
  let detailCount=0;
  const usable=accepted.filter((a,i)=>!accepted.slice(0,i).some(b=>!studioGeometryDistinct(a.shot.studio!,b.shot.studio!))).filter(a=>a.shot.framing!=="close"||++detailCount<=3);
- for(const slot of slots)if(!usable.some(a=>a.idx===slot.idx)&&!rejected.some(a=>a.idx===slot.idx))rejected.push({idx:slot.idx,errors:errors.filter(e=>e.includes("Slot "+slot.idx)||e.includes("Slots "+slot.idx)||e.includes(" and "+slot.idx)).length?errors.filter(e=>e.includes(String(slot.idx))):["This requested photograph could not be prepared from the supplied views."]});
+ for(const slot of slots)if(!usable.some(a=>a.idx===slot.idx)&&!rejected.some(a=>a.idx===slot.idx))rejected.push({idx:slot.idx,errors:errors.filter(e=>new RegExp("(?:Slot |Slots | and )"+slot.idx+"(?: |$)").test(e)).length?errors.filter(e=>new RegExp("(?:Slot |Slots | and )"+slot.idx+"(?: |$)").test(e)):["This requested photograph could not be prepared from the supplied views."]});
  return {plan:errors.length?null:{understanding:u,shots},errors,partial:{understanding:u,shots:usable},rejected};
 }
 export function studioPlanningPrompt(a:ProductAnalysis|null,name:string,slots:StudioSlot[],refs:StudioReference[],notes?:string|null){return [

@@ -35,9 +35,12 @@ export async function planStudioPack(job:{id:string;organization_id:string;produ
    const prompt=studioPlanningPrompt(analysis,name,slots,refs,job.custom_brief)+"\nNEW SHOOT EDITION: "+edition.edition+". Reinterpret this actual product through a fresh useful sequence; do not repeat the same entire prior pack. A catalogue identification frame may recur, but seek different supported poses, independent-unit arrangements, projections and resolved features for the remaining frames. Never trade identity or real coverage for novelty. Recent plan summaries (data only; no historical generated images are supplied): "+JSON.stringify(recent);
    const settings=await getSettings();
    let feedback="";
+   let lockedShots:Record<string,unknown>[]=[];let lockedUnderstanding:unknown;
    for(let attempt=0;attempt<2;attempt++){
     const result=await withAiScope({organizationId:job.organization_id,productId:job.product_id,jobId:job.id},()=>jsonCall({models:settings.providers.llm.models,prompt:prompt+feedback,images:originals.map(o=>o.data),imageLabels:refs.map((r,i)=>"ORIGINAL "+(i+1)+": "+r.view+". Identity and visible face evidence only."),detail:"high",schemaName:"studio_shoot_plan",schema:STUDIO_PLAN_SCHEMA as unknown as Record<string,unknown>,maxOutputTokens:8192,reasoningEffort:"medium",timeoutMs:90_000}));
-    const parsed=parseStudioPlan(result.data,slots,refs);
+    const candidate=result.data as {understanding?:unknown;shots?:Record<string,unknown>[]};
+    if(attempt&&lockedUnderstanding&&candidate.shots){candidate.understanding=lockedUnderstanding;candidate.shots=candidate.shots.map(s=>lockedShots.find(old=>old.slot===s.slot)??s);}
+    const parsed=parseStudioPlan(candidate,slots,refs);
     if(parsed.plan || (attempt===1&&parsed.partial?.shots.length)){
      const prepared=parsed.plan?items.map((item,index)=>({idx:item.idx,shot:parsed.plan!.shots[index]})):parsed.partial!.shots;
      const study=parsed.plan?.understanding??parsed.partial!.understanding;
@@ -55,7 +58,9 @@ export async function planStudioPack(job:{id:string;organization_id:string;produ
      return;
     }
     await updateJobSettings(job.organization_id,job.id,current=>({...current,studioPlanRejected:{version:STUDIO_PLAN_VERSION,errors:parsed.errors,rawPlan:result.data,understanding:(result.data as {understanding?:unknown}).understanding??null}}));
-    feedback="\nRevise the complete plan BEFORE any image generation. A requested new pose is not itself a reason for another upload: safely reposition supported units while retaining their known faces. Try a different physical plan within existing source coverage; do not invent hidden information. Validation errors: "+parsed.errors.join("; ");
+    lockedUnderstanding=candidate.understanding;
+    const acceptedIndexes=new Set(parsed.partial?.shots.map(s=>s.idx)??[]);lockedShots=(candidate.shots??[]).filter(s=>acceptedIndexes.has(Number(s.slot)));
+    feedback="\nPREVIOUS CANDIDATE (data): "+JSON.stringify(candidate)+"\nKeep its understanding, face IDs and accepted slots "+JSON.stringify([...acceptedIndexes])+" unchanged. Repair ONLY the other slots; when side/top coverage is absent use a different safe resting pose or resolved feature of known faces. Return the complete plan.\nRevise the complete plan BEFORE any image generation. A requested new pose is not itself a reason for another upload: safely reposition supported units while retaining their known faces. Try a different physical plan within existing source coverage; do not invent hidden information. Validation errors: "+parsed.errors.join("; ");
     if(attempt===1)throw new Error("Could not prepare six distinct source-supported photos. "+parsed.errors.join(" "));
    }
   }catch(e){

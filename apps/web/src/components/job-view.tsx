@@ -127,7 +127,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
         <div style={{ minWidth: 0 }}>
           <h1>{job.products.name}</h1>
           <div className="pills" style={{ marginTop: "var(--s3)" }}>
-            
+
             {allChecked && <span className="pill good sm"><ShieldCheck size={14} />{delivered.length === 1 ? "Photo checked" : delivered.length === 2 ? "Both photos checked" : `All ${delivered.length} photos checked`}</span>}
             {!planningStopped && active.length === 0 && failed > 0 && <span className="pill sm" role="status">{delivered.length} of {items.length} ready · {failed} need attention</span>}
             {job.settings?.edit && <span className="pill sm">Edit: {job.settings.edit.instruction.slice(0, 40)}</span>}
