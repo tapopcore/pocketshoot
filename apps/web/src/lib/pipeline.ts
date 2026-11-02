@@ -17,6 +17,7 @@ import {renderPrompt} from "./render-prompt";
 import { customSize } from "./providers/openai";
 import {selectReferences,ECONOMY_EDGE} from "./cost-policy";
 import {localOriginalityCheck,studioOriginalityCheck} from "./visual-originality";
+import {studioReferences} from "./studio-references";
 import {planStudioPack} from "./studio-planner";
 import {withJobLease} from "./job-lease";
 import {creativeHistory,creativeEdition,previousDeliverables,studioPackDeliverables} from "./creative-history";
@@ -53,6 +54,8 @@ interface JobRow {
 
 interface ItemParams {
   studioReferenceIds?:string[];
+  studioPackJobId?:string;
+  studioSlotItemId?:string;
   directionRole?:CampaignRole;
   framing?: "full" | "close" | "macro";
   /** A campaign idea chosen in the studio (its description acts as the brief). */
@@ -169,7 +172,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   const primary = refs.find((r) => r.view_type === "front") ?? refs[0];
   // Every angle the customer uploaded is a reference, front view first.
   const ordered = selectReferences([primary, ...refs.filter((r) => r.id !== primary.id)].slice(0, MAX_REFERENCE_PHOTOS), chosenLook?.id);
-  let refImages = await Promise.all(ordered.map(async (r) => sharp(await getObject("originals", r.storage_key)).resize(1024, 1024, { fit: "inside", withoutEnlargement:true }).png().toBuffer()));
+  let refImages:Buffer[] = await Promise.all(ordered.map(async (r) => sharp(await getObject("originals", r.storage_key)).resize(1024, 1024, { fit: "inside", withoutEnlargement:true }).png().toBuffer()));
 
   // Final size: full preset for paid images, capped for trials.
   const cap = job.is_trial ? TRIAL_MAX_EDGE : Math.max(output.width, output.height);
@@ -183,12 +186,12 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   if (!edit){try{await ensureShots(job, analysis, product.name);}catch(e){return failItem(item,job,"direction_unavailable",(e as Error).message);}}
   const { data: itemRow } = await db.from("generation_items").select("style, params").eq("id", item.id).single();
   const params = (itemRow?.params ?? {}) as ItemParams;
-  if(!edit&&job.settings?.pack==="studio"){
+  if(!edit&&(job.settings?.pack==="studio"||params.shot?.studio)){
     const geometry=params.shot?.studio;
     if(!geometry||params.shotSource!=="studio-v3"||!params.studioReferenceIds)return failItem(item,job,"direction_unavailable","The studio shot plan is incomplete. No image was generated.");
     const chosen=geometry.references.map(n=>refs.find(r=>r.id===params.studioReferenceIds![n-1]));
     if(chosen.some(r=>!r))return failItem(item,job,"missing_reference","A planned reference is missing. No image was generated.");
-    refImages=await Promise.all(chosen.map(async r=>sharp(await getObject("originals",r!.storage_key)).rotate().resize(1024,1024,{fit:"inside",withoutEnlargement:true}).png().toBuffer()));
+    refImages=await studioReferences(await Promise.all(chosen.map(async r=>sharp(await getObject("originals",r!.storage_key)).rotate().resize(1024,1024,{fit:"inside",withoutEnlargement:true}).png().toBuffer())),geometry);
   }
   if (!edit && !studioLook && params.shotSource === "rules") return failItem(item, job, "direction_unavailable", "We could not prepare a reliable shoot direction. No image was generated and no credit was used. Please try again.");
   const styleId = (output.forceStyle ?? chosenLook?.scene ?? (itemRow?.style && itemRow.style in STYLES ? itemRow.style : job.style)) as StyleId;
@@ -236,7 +239,8 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   }
   await db.from("generation_jobs").update({ prompt_version: promptVersion }).eq("id", job.id);
 
-  const isStudioPack=job.settings?.pack==="studio"&&!edit;
+  const isStudioPack=(job.settings?.pack==="studio"||!!params.shot?.studio)&&!edit;
+  const studioPackId=params.studioPackJobId??job.id;
   const priorDeliverables=isStudioPack?[]:await previousDeliverables(job.organization_id,job.product_id,job.id,chosenLook?.id,styleId,item.id);
 
   // ---- generation, trying providers in order
@@ -331,7 +335,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   if (judgeNeeded && !checks.some(c => c.type === "vlm_judge")) checks.push({ type: "vlm_judge", score: null, decision: "fail", details: { note: "The product accuracy check was unavailable." } });
   const deliver=async()=>{
   if(isStudioPack){
-    const currentPack=await studioPackDeliverables(job.organization_id,job.id,item.id);
+    const currentPack=await studioPackDeliverables(job.organization_id,studioPackId,item.id,params.studioSlotItemId??item.id);
     checks.push(await studioOriginalityCheck(finalImage,currentPack));
   }else checks.push(await localOriginalityCheck(finalImage,priorDeliverables));
   const decision: Decision = aggregate(checks);
@@ -361,7 +365,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   await track("generation_completed", { orgId: job.organization_id, userId: job.created_by }, { provider: result.provider, decision, mode: job.mode, style: styleId, attempt: attemptNo, edit: !!edit });
   await finishIfDone(job);
   };
-  if(isStudioPack)return withJobLease(job.organization_id,job.id,"studioDeliveryLease",deliver);
+  if(isStudioPack)return withJobLease(job.organization_id,studioPackId,"studioDeliveryLease",deliver);
   return deliver();
 }
 

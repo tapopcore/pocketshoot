@@ -41,7 +41,7 @@ export async function planStudioPack(job:{id:string;organization_id:string;produ
     if(parsed.plan){
      for(const [index,item] of items.entries()){
       const shot=parsed.plan.shots[index];
-      const {error:saveError}=await db.from("generation_items").update({params:{...item.params,shot,shotSource:"studio-v3",ideaTitle:shot.studio!.title,studioPurpose:shot.studio!.purpose,studioReferenceIds:refs.map(r=>r.id)}}).eq("organization_id",job.organization_id).eq("id",item.id);
+      const {error:saveError}=await db.from("generation_items").update({params:{...item.params,shot,shotSource:"studio-v3",ideaTitle:shot.studio!.title,studioPurpose:shot.studio!.purpose,studioPackJobId:job.id,studioSlotItemId:item.id,studioReferenceIds:refs.map(r=>r.id)}}).eq("organization_id",job.organization_id).eq("id",item.id);
       if(saveError)throw saveError;
      }
      await updateJobSettings(job.organization_id,job.id,current=>({...current,studioPlan:{version:STUDIO_PLAN_VERSION,edition:edition.edition,understanding:parsed.plan!.understanding,referenceIds:refs.map(r=>r.id),plannedAt:new Date().toISOString()}}));

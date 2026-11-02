@@ -13,3 +13,8 @@ describe("studio physical shoot preflight",()=>{
  it("does not pad an infeasible source with generated hidden information",()=>{expect(parseStudioPlan({feasible:false,missingReferences:["clear side photo"]},slots,refs)).toMatchObject({plan:null});});
  it("requires all requested slots before permitting generation",()=>{const r=raw();r.shots.pop();expect(parseStudioPlan(r,slots,refs).plan).toBeNull();});
 });
+
+it("does not infer an entire closure from a rim visible in a front photo",()=>{
+ const r=raw();r.shots[1].view="overhead";r.shots[1].elevation=80;
+ expect(parseStudioPlan(r,slots,refs).errors.join()).toContain("a visible rim alone does not prove closure");
+});

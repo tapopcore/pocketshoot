@@ -94,3 +94,11 @@ describe("canonical photographic jobs",()=>{
   });
 
 });
+
+it("preserves a failed pack slot's planned geometry and reference selection before the worker starts",async()=>{
+ fakes.product={id:"p",name:"Cartridge",category:"other",attributes:{shootProfile:{type:"general",construction:"not_applicable",referenceForm:"object"}}};
+ const shot={scene:"Known box and cartridge",camera:"Standing cartridge beside box",lighting:"Soft white studio",framing:"full",human_presence:"none",product_scale:.74,offset_x:0,baseline:.82,studio:{version:"2026-11-02.geometry-4",title:"Standing pose",purpose:"Show height",view:"elevated",pose:"upright",arrangement:"box-beside-standing-cartridge",azimuth:30,elevation:25,references:[1],visibleFaces:["box-front","cartridge-barrel"],difference:"Cartridge stands on its actual end",feature:"",region:null}} as import("@packshot/core").ShotDirection;
+ await createJob(ctx,{productId:"p",mode:"preserve",style:"pure_white",recipeId:"studio-pose",recipeVersion:RECIPE_VERSION,quotedCredits:2,output:"square",count:1,idempotencyKey:"retry-studio-slot"},{studioRetry:{shot,referenceIds:["source-front"],packJobId:"original-pack",slotItemId:"original-slot"}});
+ expect(fakes.items.mock.calls[0][0][0].params).toMatchObject({shot,shotSource:"studio-v3",studioReferenceIds:["source-front"],studioPackJobId:"original-pack",studioSlotItemId:"original-slot"});
+ expect(fakes.job.mock.calls[0][0].settings).toMatchObject({studioPackJobId:"original-pack"});
+});

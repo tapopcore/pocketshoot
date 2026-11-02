@@ -21,7 +21,7 @@ interface Item { id: string; job_id: string; idx: number; status: string; attemp
 interface JobData {
   job: {
     id: string; status: string; statusLabel: string; statusTone: string; mode: string; style: string; output: string; requested_count: number; is_trial: boolean;
-    created_at: string; custom_brief: string | null; parent_asset_id: string | null; settings: { edit?: { instruction: string }; pack?: "studio" | "variety" | null } | null; products: { id: string; name: string; category: string };
+    created_at: string; custom_brief: string | null; parent_asset_id: string | null; settings: { studioPlanFailure?:string; edit?: { instruction: string }; pack?: "studio" | "variety" | null } | null; products: { id: string; name: string; category: string };
   };
   items: Item[]; assets: Asset[]; references: { id: string; url: string | null; view_type: string }[];
 }
@@ -97,7 +97,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
   const order = delivered.map((i) => i.delivered_asset_id!) as string[];
   const pct = Math.round(((delivered.length + failed) / Math.max(1, items.length)) * 100);
   const ref = references[0]?.url ?? null;
-  const failedItems = items.filter((i) => i.status === "failed" && !/budget/i.test(i.last_error ?? ""));
+  const failedItems = items.filter((i) => i.status === "failed");
   const retry = async (list: Item[]) => {
     if (retrying) return;
     setRetrying(list.length === 1 ? list[0].id : "all");
@@ -114,6 +114,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
 
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / 1000));
   const styles = job.settings?.edit ? [] : job.settings?.pack ? [job.settings.pack === "studio" ? "Studio pack" : "Photo set"] : [...new Set(items.map((i) => i.params?.ideaTitle ?? styleName(i.style ?? job.style)))];
+  const planningStopped=job.settings?.pack==="studio"&&!!job.settings.studioPlanFailure&&active.length===0&&delivered.length===0;
   const allChecked = active.length === 0 && failed === 0 && delivered.length > 0 && delivered.every((i) => byId.get(i.delivered_asset_id!)?.quality_status === "pass");
 
   return (
@@ -127,7 +128,7 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
           <div className="pills" style={{ marginTop: "var(--s3)" }}>
             
             {allChecked && <span className="pill good sm"><ShieldCheck size={14} />{delivered.length === 1 ? "Photo checked" : delivered.length === 2 ? "Both photos checked" : `All ${delivered.length} photos checked`}</span>}
-            {active.length === 0 && failed > 0 && <span className="pill sm" role="status">{delivered.length} of {items.length} ready · {failed} need attention</span>}
+            {!planningStopped && active.length === 0 && failed > 0 && <span className="pill sm" role="status">{delivered.length} of {items.length} ready · {failed} need attention</span>}
             {job.settings?.edit && <span className="pill sm">Edit: {job.settings.edit.instruction.slice(0, 40)}</span>}
             {styles.map((s) => <span key={s} className="pill sm">{s}</span>)}
             <span className="pill sm">{output?.name} {output?.ratio}</span>
@@ -142,14 +143,14 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
         </div>
         {active.length === 0 && (
           <div className="acts">
-            {failedItems.length > 1 && <button type="button" className="btn btn-lime" disabled={!!retrying} onClick={() => retry(failedItems)}>{retrying === "all" ? <Spinner /> : <RefreshCw size={18} />}Try {failedItems.length} failed again</button>}
+            {!planningStopped && failedItems.length > 1 && <button type="button" className="btn btn-lime" disabled={!!retrying} onClick={() => retry(failedItems)}>{retrying === "all" ? <Spinner /> : <RefreshCw size={18} />}Try {failedItems.length} failed again</button>}
             {order.length > 1 && surface === "web" && <ZipButton ids={order} primary={failedItems.length <= 1} />}
           </div>
         )}
       </header>
-      {active.length > 0 && <div className="job-progress" role="status"><div><b>{delivered.length} of {items.length} ready</b><span>{elapsed < 60 ? "Just started" : elapsed < 1200 ? `Creating · ${Math.floor(elapsed / 60)} min` : "Taking longer than usual"} · safe to leave</span></div><div className="pb" role="progressbar" aria-label="Photos processed" aria-valuenow={delivered.length+failed} aria-valuemin={0} aria-valuemax={items.length}><i style={{width:pct+"%"}}/></div></div>}
+      {active.length > 0 && <div className="job-progress" role="status"><div><b>{delivered.length} of {items.length} ready</b><span>Creating · {elapsed}s · safe to leave</span></div><div className="pb" role="progressbar" aria-label="Photos processed" aria-valuenow={delivered.length+failed} aria-valuemin={0} aria-valuemax={items.length}><i style={{width:pct+"%"}}/></div></div>}
 
-      <div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
+      {planningStopped?<section className="card p" role="status"><h2 className="h5">Let’s plan a more useful set</h2><p className="sm muted" style={{marginTop:"var(--s3)",maxWidth:560}}>We couldn’t prepare six reliably different shots from these references. Add a clear angled view, or start with a single studio photo. No images were generated and no credits were used.</p><button type="button" className="btn btn-dark" style={{marginTop:"var(--s4)"}} onClick={()=>router.push(`${base}/new?product=${job.products.id}`)}>Review product photos</button></section>:<div className={clsx("jgrid", items.length === 1 && "one", output && output.width > output.height * 1.3 && "wide")}>
         {items.map((it, i) => {
           const a = it.delivered_asset_id ? byId.get(it.delivered_asset_id) : undefined;
           const stages = STAGE[it.status] ?? [it.status];
@@ -167,9 +168,8 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
                     <span className="ico"><AlertTriangle size={20} /></span>
                     <b>This photo failed</b>
                     <span className="why">{it.last_error?.split(/(?<=\.)\s/)[0] ?? "Nothing was charged."}</span>
-                    {/budget/i.test(it.last_error ?? "") ? <span className="xs muted">This photo used all its tries. Start a new shoot to try a different style.</span> : <>
                     <button type="button" className="btn btn-lime btn-sm" disabled={!!retrying} onClick={() => retry([it])}>{retrying === it.id ? <Spinner className="size-3.5" /> : <RefreshCw size={16} />}Try again</button>
-                    <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span></>}
+                    <span className="xs muted">{(it.tries ?? 1) > 1 ? `Attempt ${it.tries}. ` : ""}You pay only if it works</span>
                   </div>
                 ) : it.status === "cancelled" ? (
                   <div className="fail"><b>Cancelled</b><span className="why">Nothing was charged.</span></div>
@@ -191,11 +191,11 @@ export function JobView({ jobId, surface = "web", freeRemakes = 1, embedded = fa
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {active.length > 0 && !embedded && <p className="leave2"><Check size={16} /><span><b>You can leave.</b> Photos land in My shoots.</span></p>}
 
-      {active.length === 0 && !embedded && <div className="nx card">
+      {!planningStopped && active.length === 0 && !embedded && <div className="nx card">
         <div><h2 className="h5">{delivered.length ? "Happy with these photos?" : "Want to try a different look?"}</h2><p className="sm muted" style={{ marginTop: 2 }}>Try another style for the same product. Your photos and details are saved.</p></div>
         <div className="row">{surface === "web" && <button type="button" className="btn btn-dark" onClick={() => router.push(`/app/new?product=${job.products.id}`)}><Sparkles size={18} />Try another style</button>}</div>
       </div>}
