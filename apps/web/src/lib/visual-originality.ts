@@ -30,3 +30,46 @@ export async function localOriginalityCheck(image:Buffer,previous:{id:string;ima
  const duplicate=comparisons.find(c=>c.duplicate);
  return {type:"visual_originality",score:duplicate?0:1,decision:duplicate?"fail":"pass",details:{method:ORIGINALITY_VERSION,compared:comparisons.length,closest,matchedAssetId:duplicate?.assetId??null,note:duplicate?"The composition, spatial colour layout and perceptual structure closely repeat a prior delivered photo.":"No near-duplicate found by local perceptual/layout comparison. This is not a semantic or artistic-quality guarantee."}};
 }
+
+
+const STUDIO_ORIGINALITY_VERSION="2026-11-02.foreground-1";
+/** Exclude white margins and pale contact shadows before measuring product structure. */
+async function foreground(image:Buffer){
+ const {data,info}=await sharp(image).rotate().flatten({background:"#fff"}).resize(256,256,{fit:"inside"}).removeAlpha().toColourspace("srgb").raw().toBuffer({resolveWithObject:true});
+ let left=info.width,top=info.height,right=0,bottom=0,count=0,sx=0,sy=0;
+ const points:[number,number][]=[];
+ for(let y=0;y<info.height;y++)for(let x=0;x<info.width;x++){
+  const p=(y*info.width+x)*3,r=data[p],g=data[p+1],b=data[p+2];
+  if(Math.min(r,g,b)<210||(Math.max(r,g,b)-Math.min(r,g,b)>22&&Math.min(r,g,b)<240)){
+   left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);count++;sx+=x;sy+=y;points.push([x,y]);
+  }
+ }
+ if(count<40)return null;
+ const mx=sx/count,my=sy/count;
+ let xx=0,yy=0,xy=0;
+ for(const [x,y] of points){xx+=(x-mx)**2;yy+=(y-my)**2;xy+=(x-mx)*(y-my);}
+ const angle=Math.atan2(2*xy,xx-yy)*90/Math.PI;
+ const png=await sharp(data,{raw:{width:info.width,height:info.height,channels:3}}).extract({left,top,width:right-left+1,height:bottom-top+1}).png().toBuffer();
+ return {png,angle};
+}
+async function studioFeatures(image:Buffer):Promise<Features[]>{
+ const object=await foreground(image);
+ if(!object)return [await features(image)];
+ const aligned=await sharp(object.png).rotate(90-object.angle,{background:"#fff"}).png().toBuffer();
+ const cropped=(await foreground(aligned))?.png??aligned;
+ const canvas=await sharp(cropped).resize(32,32,{fit:"contain",background:"#fff"}).png().toBuffer();
+ return [await features(canvas),await features(await sharp(canvas).rotate(180).png().toBuffer())];
+}
+/** Detect same-pack copies after zoom, translation or image-plane rotation; never exports history. */
+export async function studioOriginalityCheck(image:Buffer,previous:{id:string;image:Buffer}[]):Promise<CheckResult>{
+ const current=await studioFeatures(image);
+ const comparisons=await Promise.all(previous.map(async p=>{
+  const prior=await studioFeatures(p.image);
+  const variants=current.flatMap(a=>prior.map(b=>{let intersection=0,union=0;for(let i=0;i<a.spatial.length;i+=3){const am=Math.min(a.spatial[i],a.spatial[i+1],a.spatial[i+2])<220,bm=Math.min(b.spatial[i],b.spatial[i+1],b.spatial[i+2])<220;if(am||bm)union++;if(am&&bm)intersection++;}return {...compare(a,b),silhouetteOverlap:union?intersection/union:0};}));
+  const best=variants.sort((a,b)=>a.hashDistance/63+a.spatialDistance-(b.hashDistance/63+b.spatialDistance))[0];
+  const duplicate=variants.some(c=>c.paletteDistance<=.14&&((c.hashDistance<=10&&c.spatialDistance<=.07)||(c.silhouetteOverlap>=.92&&c.spatialDistance<=.065)));
+  return {assetId:p.id,...best,duplicate};
+ }));
+ const duplicate=comparisons.find(c=>c.duplicate);
+ return {type:"visual_originality",score:duplicate?0:1,decision:duplicate?"fail":"pass",details:{method:STUDIO_ORIGINALITY_VERSION,scope:"current-studio-pack",compared:previous.length,matchedAssetId:duplicate?.assetId??null,comparisons,note:duplicate?"The product repeats another delivered frame after removing white margins, scale and image-plane rotation.":"No close foreground duplicate found within this pack. Physical view is assessed separately against its planned geometry."}};
+}

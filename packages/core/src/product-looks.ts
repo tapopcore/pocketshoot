@@ -3,7 +3,7 @@ import type { CategoryId } from './categories';
 import type { ShootStyleId } from './shoots';
 export const COLLECTION_IDS = ["saree","suit","unstitched","lehenga","mens-modern","womens-modern","mens-ethnic","activewear","footwear","bags","skincare","makeup","fragrance","packaged-food","prepared-food","beverage","rings","bracelets","earrings","necklace","bottle","cookware","decor","electronics","general"] as const;
 export type CollectionId = typeof COLLECTION_IDS[number];
-export const RECIPE_VERSION = '2026-10-31.coverage-variety-2';
+export const RECIPE_VERSION = '2026-11-02.physical-studio-3';
 export interface ShootProfile { type: CollectionId; construction: 'stitched'|'unstitched'|'semi_stitched'|'not_applicable'|'unknown'; referenceForm: 'worn'|'flat'|'object'|'unknown'; contentsConfirmed?: boolean; subjectCount?: number }
 export interface CategoryLook { directionRole?:CampaignRole; id: string; collection: string; title: string; subtitle: string; brief: string; condition: string; human: 'none'|'hands'|'model'; framing: 'full'|'close'; environment: 'indoor'|'outdoor'|'studio'; scene: string; tile: number; atlas: string; requiresDetail: boolean; requiresWorn: boolean; requiresMultiple: boolean; requiresContents: boolean }
 export interface ProductCollection { id: CollectionId; category: CategoryId; label: string; preserve: string; references: string; looks: CategoryLook[] }
@@ -2439,6 +2439,9 @@ const studio = (id: string, title: string, subtitle: string, brief: string, extr
 /** White-studio angles and lighting used by the studio pack. Perspective changes require a supporting angle; detail crops use visible geometry. */
 export const STUDIO_LOOKS: CategoryLook[] = [
   studio("front", "Front hero", "Straight on, centred", "Straight-on front view at product height, centred with even margins, large soft key light from the front left and a fill from the right."),
+  studio("depth", "Shape and depth", "Planned for your product", "A source-supported perspective revealing this product’s actual volume and depth."),
+  studio("pose", "Different physical pose", "A useful second presentation", "A genuinely different safe product pose, preserving visible construction."),
+  studio("arrangement", "Product-specific view", "A distinct buyer question", "A distinct supported camera projection or arrangement of independent units; never another zoom or lighting variant."),
   studio("three-quarter", "Three-quarter", "Front and one side", "Product turned about thirty degrees so the front and one side are both visible, shot from slightly above product height, soft wrap-around light."),
   studio("high", "Top-down", "Directly overhead", "True 90-degree overhead view, long axis vertical; show the complete top-facing silhouette with bright even light."),
   studio("low", "Low perspective", "Ground-level depth", "Camera just below product height looking slightly up, making the product feel bold and premium, soft top light and a crisp edge highlight."),
@@ -2455,7 +2458,7 @@ export const STUDIO_LOOKS: CategoryLook[] = [
 export type PackId = "studio" | "variety";
 export const PACK_SIZE = 6;
 export const PACKS: Record<PackId, { title: string; short: string; description: string }> = {
-  studio: { title: "Studio pack", short: "6 white background photos", description: "Six white-studio photos with different lighting, compositions and visible details. Add side or back references for those views; we never invent hidden design." },
+  studio: { title: "Studio pack", short: "6 white background photos", description: "Six product-specific views and details, planned from your photos. Additional references may be needed for hidden faces; no duplicate padding." },
   variety: { title: "Photo set", short: "6 different looks", description: "Six different scenes and poses picked for your product. A full set for your listing and social posts." },
 };
 
@@ -2467,14 +2470,15 @@ export function packLooks(pack: PackId, profile: ShootProfile, refs: { view_type
   const ok = (l: CategoryLook) => !lookEligibility(l, profile, refs);
   const has = (v: string) => refs.some((r) => r.view_type === v);
   if (pack === "studio") {
-    // Six honest compositions from one clear front, never six invented angles.
-    const ids = ["front", ...(has("angle") ? ["three-quarter"] : []), ...(has("side") ? ["side"] : []), ...(has("back") ? ["back"] : []), "rim", "shadow", "offset", "detail", "texture"];
+    // Carrier roles are resolved into distinct product-specific geometry before image spending.
+    const full = ["front", ...(has("back") ? ["back"] : []), ...(has("side") ? ["side"] : []), ...(has("angle") ? ["three-quarter"] : []), "depth", "pose", "arrangement"].slice(0,5);
+    const ids = [...full, "detail", "texture"];
     return ids.map(id=>STUDIO_LOOKS.find(l=>l.id==="studio-"+id)!).filter(ok).slice(0,PACK_SIZE);
 
   }
   const own = (collectionById(profile.type)?.looks ?? []).filter(ok);
   const general = (collectionById("general")?.looks ?? []).filter(ok);
-  const pool=[...own,...general,...STUDIO_LOOKS.filter(ok)];
+  const pool=[...own,...general,...STUDIO_LOOKS.filter(l=>!["studio-depth","studio-pose","studio-arrangement"].includes(l.id)&&ok(l))];
   const out:CategoryLook[]=[];
   const add=(look:CategoryLook|undefined,role:CampaignRole)=>{if(look&&!out.some(l=>l.id===look.id)&&out.length<PACK_SIZE)out.push({...look,directionRole:role});};
   const available=(test:(look:CategoryLook)=>boolean)=>pool.find(l=>!out.some(o=>o.id===l.id)&&test(l));

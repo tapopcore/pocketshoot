@@ -41,8 +41,8 @@ describe("selected style production pipeline", () => {
     f.studio=true;f.judge.mockResolvedValue({data:{...verdict,environment:"studio",reference_product_count:2,output_product_count:2,studio_view_match:true}});
     await processItem({...item,max_attempts:1});
     expect(f.direct).not.toHaveBeenCalled();expect(f.edit).toHaveBeenCalledTimes(1);
-    expect(f.edit.mock.calls[0][0].prompt).toContain("Exactly 2 product unit(s)");
-    expect(f.edit.mock.calls[0][0].prompt).toContain("Remove the original hands");
+    expect(f.edit.mock.calls[0][0].prompt).toContain("exactly 2 confirmed units");
+    expect(f.edit.mock.calls[0][0].prompt).toContain("Replace source room, hands and display");
     expect(f.assets.mock.calls[0][0]).toMatchObject({quality_status:"pass"});
   });
   it("blocks an invented third product unit and releases credit without regenerating",async()=>{

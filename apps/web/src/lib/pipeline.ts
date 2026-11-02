@@ -16,7 +16,9 @@ import {recordQaArtifact} from "./qa-artifacts";
 import {renderPrompt} from "./render-prompt";
 import { customSize } from "./providers/openai";
 import {selectReferences,ECONOMY_EDGE} from "./cost-policy";
-import {localOriginalityCheck} from "./visual-originality";
+import {localOriginalityCheck,studioOriginalityCheck} from "./visual-originality";
+import {planStudioPack} from "./studio-planner";
+import {withJobLease} from "./job-lease";
 import {creativeHistory,creativeEdition,previousDeliverables} from "./creative-history";
 import {withAiScope} from "./ai-spend";
 import { getProvider, isConfigured, modelFor, providerChain, ProviderError, type ProviderId } from "./providers";
@@ -42,7 +44,7 @@ interface JobRow {
   style: StyleId;
   output: OutputId;
   custom_brief: string | null;
-  settings: { internalQa?:boolean; subjectCount?: number | null; recipeId?: string; recipe?: CategoryLook; shootStyle?: ShootStyleId; palette?: string[]; category?: string; styles?: string[]; suggestions?: string[]; brand?: { moods: string[]; rules: string | null }; edit?: { assetId: string; instruction: string } };
+  settings: { pack?:"studio"|"variety"; internalQa?:boolean; subjectCount?: number | null; recipeId?: string; recipe?: CategoryLook; shootStyle?: ShootStyleId; palette?: string[]; category?: string; styles?: string[]; suggestions?: string[]; brand?: { moods: string[]; rules: string | null }; edit?: { assetId: string; instruction: string } };
   is_trial: boolean;
   status: string;
   created_by: string | null;
@@ -50,6 +52,7 @@ interface JobRow {
 }
 
 interface ItemParams {
+  studioReferenceIds?:string[];
   directionRole?:CampaignRole;
   framing?: "full" | "close" | "macro";
   /** A campaign idea chosen in the studio (its description acts as the brief). */
@@ -57,7 +60,7 @@ interface ItemParams {
   brief?: string;
   ideaTitle?: string;
   shot?: ShotDirection;
-  shotSource?: "ai" | "rules" | "studio-v1" | "studio-v2";
+  shotSource?: "ai" | "rules" | "studio-v1" | "studio-v2" | "studio-v3";
   place?: Place;
   cutoutAssetId?: string;
   /** One photo of a pack: its own look (scene, people, framing), checked like a chosen recipe. */
@@ -100,6 +103,7 @@ async function savePlan(id: string, previous: ItemParams | null, patch: Record<s
   if (error) throw error;
 }
 async function planShots(job: JobRow, analysis: ProductAnalysis | null, productName: string): Promise<void> {
+  if(job.settings?.pack==="studio")return planStudioPack(job,analysis,productName);
   const db = admin();
   const { data: items } = await db.from("generation_items").select("id, idx, style, params").eq("job_id", job.id).order("idx");
   const selected = job.settings?.shootStyle && SHOOT_STYLE_IDS.includes(job.settings.shootStyle) ? job.settings.shootStyle : undefined;
@@ -165,7 +169,7 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   const primary = refs.find((r) => r.view_type === "front") ?? refs[0];
   // Every angle the customer uploaded is a reference, front view first.
   const ordered = selectReferences([primary, ...refs.filter((r) => r.id !== primary.id)].slice(0, MAX_REFERENCE_PHOTOS), chosenLook?.id);
-  const refImages = await Promise.all(ordered.map(async (r) => sharp(await getObject("originals", r.storage_key)).resize(1024, 1024, { fit: "inside", withoutEnlargement:true }).png().toBuffer()));
+  let refImages = await Promise.all(ordered.map(async (r) => sharp(await getObject("originals", r.storage_key)).resize(1024, 1024, { fit: "inside", withoutEnlargement:true }).png().toBuffer()));
 
   // Final size: full preset for paid images, capped for trials.
   const cap = job.is_trial ? TRIAL_MAX_EDGE : Math.max(output.width, output.height);
@@ -176,9 +180,16 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   // ---- understand the product, then direct the shot
   const analysis = await analyzeProduct(product.id);
   const edit = job.settings?.edit;
-  if (!edit) await ensureShots(job, analysis, product.name);
+  if (!edit){try{await ensureShots(job, analysis, product.name);}catch(e){return failItem(item,job,"direction_unavailable",(e as Error).message);}}
   const { data: itemRow } = await db.from("generation_items").select("style, params").eq("id", item.id).single();
   const params = (itemRow?.params ?? {}) as ItemParams;
+  if(!edit&&job.settings?.pack==="studio"){
+    const geometry=params.shot?.studio;
+    if(!geometry||params.shotSource!=="studio-v3"||!params.studioReferenceIds)return failItem(item,job,"direction_unavailable","The studio shot plan is incomplete. No image was generated.");
+    const chosen=geometry.references.map(n=>refs.find(r=>r.id===params.studioReferenceIds![n-1]));
+    if(chosen.some(r=>!r))return failItem(item,job,"missing_reference","A planned reference is missing. No image was generated.");
+    refImages=await Promise.all(chosen.map(async r=>sharp(await getObject("originals",r!.storage_key)).rotate().resize(1024,1024,{fit:"inside",withoutEnlargement:true}).png().toBuffer()));
+  }
   if (!edit && !studioLook && params.shotSource === "rules") return failItem(item, job, "direction_unavailable", "We could not prepare a reliable shoot direction. No image was generated and no credit was used. Please try again.");
   const styleId = (output.forceStyle ?? chosenLook?.scene ?? (itemRow?.style && itemRow.style in STYLES ? itemRow.style : job.style)) as StyleId;
 
@@ -225,7 +236,8 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   }
   await db.from("generation_jobs").update({ prompt_version: promptVersion }).eq("id", job.id);
 
-  const priorDeliverables=await previousDeliverables(job.organization_id,job.product_id,job.id,chosenLook?.id,styleId,item.id);
+  const isStudioPack=job.settings?.pack==="studio"&&!edit;
+  const priorDeliverables=isStudioPack?[]:await previousDeliverables(job.organization_id,job.product_id,job.id,chosenLook?.id,styleId,item.id);
 
   // ---- generation, trying providers in order
   await setItem(item.id, { status: "generating" });
@@ -317,7 +329,13 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   }
 
   if (judgeNeeded && !checks.some(c => c.type === "vlm_judge")) checks.push({ type: "vlm_judge", score: null, decision: "fail", details: { note: "The product accuracy check was unavailable." } });
-  checks.push(await localOriginalityCheck(finalImage,priorDeliverables));
+  const deliver=async()=>{
+  if(isStudioPack){
+    const {data:delivered,error:historyError}=await db.from("generated_assets").select("id,storage_key,thumb_key").eq("organization_id",job.organization_id).eq("job_id",job.id).neq("item_id",item.id).in("quality_status",["pass","review"]);
+    if(historyError)throw historyError;
+    const currentPack=await Promise.all((delivered??[]).map(async a=>({id:a.id,image:await getObject("outputs",a.thumb_key??a.storage_key)})));
+    checks.push(await studioOriginalityCheck(finalImage,currentPack));
+  }else checks.push(await localOriginalityCheck(finalImage,priorDeliverables));
   const decision: Decision = aggregate(checks);
   // A quality rejection is final for this request. Do not silently buy another image.
   if (decision === "fail") {
@@ -344,6 +362,9 @@ async function processBudgetedItem(item: ItemRow): Promise<void> {
   await db.rpc("settle_item", { p_item: item.id, p_capture: true });
   await track("generation_completed", { orgId: job.organization_id, userId: job.created_by }, { provider: result.provider, decision, mode: job.mode, style: styleId, attempt: attemptNo, edit: !!edit });
   await finishIfDone(job);
+  };
+  if(isStudioPack)return withJobLease(job.organization_id,job.id,"studioDeliveryLease",deliver);
+  return deliver();
 }
 
 function scalePlace(p: Place, fromW: number, fromH: number, W: number, H: number): Place {

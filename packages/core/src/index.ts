@@ -26,3 +26,5 @@ export * from "./creative-edition";
 export * from "./photographic-direction";
 
 export * from "./campaign-direction";
+
+export * from "./studio-plan";

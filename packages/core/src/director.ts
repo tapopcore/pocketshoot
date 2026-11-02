@@ -1,3 +1,4 @@
+import type {StudioGeometry} from "./studio-plan";
 import type {VisualCommission} from "./campaign-direction";
 import {INTELLIGENCE_SCHEMA,ART_DIRECTION_SCHEMA,parseIntelligence,parseArtDirection,productEvidencePrompt,type ProductIntelligence,type ArtDirection} from "./photographic-direction";
 import { categoryArtDirection, campaignPlan } from "./art-direction";
@@ -229,6 +230,7 @@ export function parseAnalysis(raw: unknown, sceneIds: string[]): ProductAnalysis
 }
 
 export interface ShotDirection {
+  studio?:StudioGeometry;
   artDirection?: ArtDirection;
   /** Server-assigned fresh edition; never chosen by the LLM. */
   creativeSpec?: import("./creative-edition").CreativeSpec;

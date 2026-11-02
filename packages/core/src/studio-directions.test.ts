@@ -5,13 +5,13 @@ const profile:ShootProfile={type:"general",construction:"not_applicable",referen
 describe("supported studio view contracts",()=>{
  it("offers distinct supported views when an angle reference is present",()=>{
   const looks=packLooks("studio",profile,[{view_type:"front"},{view_type:"angle"}]);
-  expect(looks.map(l=>l.id)).toEqual(["studio-front","studio-three-quarter","studio-rim","studio-shadow","studio-offset","studio-detail"]);
-  expect(new Set(looks.map(l=>studioDirection(l).camera)).size).toBe(6);
+  expect(looks.map(l=>l.id)).toEqual(["studio-front","studio-three-quarter","studio-depth","studio-pose","studio-arrangement","studio-detail"]);
+  expect(looks.some(l=>["studio-rim","studio-shadow","studio-offset"].includes(l.id))).toBe(false);
   expect(looks.some(l=>l.id==="studio-back")).toBe(false);
  });
  it("offers six compositions without inventing hidden angles from one front",()=>{
   const looks=packLooks("studio",profile,[{view_type:"front"}]);
-  expect(looks.map(l=>l.id)).toEqual(["studio-front","studio-rim","studio-shadow","studio-offset","studio-detail","studio-texture"]);
+  expect(looks.map(l=>l.id)).toEqual(["studio-front","studio-depth","studio-pose","studio-arrangement","studio-detail","studio-texture"]);
   expect(looks.some(l=>["studio-side","studio-back","studio-high"].includes(l.id))).toBe(false);
  });
  it("does not treat a second front or detail photo as proof of a side",()=>{
