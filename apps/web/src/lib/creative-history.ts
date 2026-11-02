@@ -34,3 +34,14 @@ export async function previousDeliverables(orgId:string,productId:string,jobId:s
  const images=await Promise.all(candidates.map(async a=>{try{return {id:a.id,image:await getObject("outputs",a.thumb_key??a.storage_key)};}catch{return null;}}));
  return images.filter((v):v is {id:string;image:Buffer}=>v!==null);
 }
+
+/** Fresh same-pack candidates, read only while the studio delivery lease is held. */
+export async function studioPackDeliverables(orgId:string,jobId:string,itemId:string,slotItemId=itemId){
+ const db=admin();
+ const {data:children,error:childError}=await db.from("generation_jobs").select("id").eq("organization_id",orgId).contains("settings",{studioPackJobId:jobId}).limit(96);
+ if(childError)throw childError;
+ const ids=[jobId,...(children??[]).map(j=>j.id)];
+ const {data,error}=await db.from("generated_assets").select("id,item_id,storage_key,thumb_key,generation_items!generated_assets_item_id_fkey(params)").eq("organization_id",orgId).in("job_id",ids).neq("item_id",itemId).in("quality_status",["pass","review"]);
+ if(error)throw error;
+ return Promise.all((data??[]).filter(a=>{const p=(a.generation_items as unknown as {params?:{studioSlotItemId?:string}}|null)?.params;return (p?.studioSlotItemId??a.item_id)!==slotItemId;}).map(async a=>({id:a.id,image:await getObject("outputs",a.thumb_key??a.storage_key)})));
+}

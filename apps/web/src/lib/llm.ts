@@ -24,6 +24,7 @@ export interface JsonCall {
   schema: Record<string, unknown>;
   timeoutMs?: number;
   maxOutputTokens?: number;
+  reasoningEffort?:"low"|"medium";
 }
 
 export interface JsonResult {
@@ -59,7 +60,7 @@ export async function jsonCall(call: JsonCall): Promise<JsonResult> {
     const estimate=textUsageCost(model,Buffer.byteLength(call.prompt,"utf8")+(call.images?.length??0)*4096,maxOutput)!*fx;
     const spend=await reserveSpend(call.schemaName,model,estimate,fx);
     try {
-      const reasoning = /^(gpt-5|o\d)/.test(model) ? { reasoning_effort: "low" as const } : { temperature: 0.4 };
+      const reasoning = /^(gpt-5|o\d)/.test(model) ? { reasoning_effort: call.reasoningEffort??"low" as const } : { temperature: 0.4 };
       const res = await openai().chat.completions.create(
         {
           model,
