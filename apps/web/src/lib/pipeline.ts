@@ -134,7 +134,7 @@ async function planShots(job: JobRow, analysis: ProductAnalysis | null, productN
   const avoid=[...new Set(history.shots.map(shotHistory).filter(Boolean))];
   const {data:planningRefs,error:referenceError}=await db.from("product_assets").select("storage_key,view_type").eq("organization_id",job.organization_id).eq("product_id",job.product_id).order("created_at");if(referenceError)throw referenceError;
   const front=planningRefs?.find(r=>r.view_type==="front")??planningRefs?.[0];
-  const directionRefs=front?[front,...(planningRefs??[]).filter(r=>r!==front)].slice(0,2):[];
+  const directionRefs=front?selectReferences([front,...(planningRefs??[]).filter(r=>r!==front)]):[];
   const vision=await Promise.all(directionRefs.map(async r=>sharp(await getObject("originals",r.storage_key)).resize(1024,1024,{fit:"inside",withoutEnlargement:true}).jpeg({quality:88}).toBuffer()));
   // One coordinated direction request replaces one request per look. Static studio views use no text call.
   const { shots, source } = await directShots({ style: STYLES[plans[0].sid as StyleId], output, count: plans.length, analysis, productName, assignments: plans.map(p => p.assignment), palette: job.settings?.palette, avoid, creativeTerritory:"Invent an original campaign from the observed product and the commissioned photographic decisions. No mandatory location template." },vision);

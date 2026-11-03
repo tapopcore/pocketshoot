@@ -14,5 +14,6 @@ export async function studioReferences(images:Buffer[],geometry:StudioGeometry):
  const width=Math.min(meta.width-left,Math.round(region.width*meta.width)),height=Math.min(meta.height-top,Math.round(region.height*meta.height));
  if(width<1||height<1)throw new Error("The planned feature is outside its original");
  const crop=await sharp(source).extract({left,top,width,height}).png().toBuffer();
- return [images[0],crop];
+ // Keep the complete photo that actually proves the requested component, even when the crop is inaccurate.
+ return [source,crop];
 }
