@@ -1,3 +1,4 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { admin } from "@/lib/supabase";
@@ -9,6 +10,8 @@ import { JobCard } from "@/components/job-card";
 import { adjustCreditsAction, suspendOrgAction } from "../../actions";
 
 export default async function OrgDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const { id } = await params;
   const db = admin();
   const { data: org } = await db.from("organizations").select("*").eq("id", id).maybeSingle();

@@ -201,3 +201,23 @@ describe("invoices", () => {
     expect([a.rows[0].next_invoice_seq, b.rows[0].next_invoice_seq, c.rows[0].next_invoice_seq]).toEqual([1, 2, 1]);
   });
 });
+
+// No network calls: exercise real admission transactions and retry ancestry in Postgres.
+describe("AI spend admission",()=>{
+ async function fixture(){const {org}=await newUser(Math.random()+"-budget@example.com");const {job,items}=await newJob(org,2);const p=await db.query<{product_id:string}>("select product_id from generation_jobs where id=$1",[job]);return {org,job,items,product:p.rows[0].product_id,policy:Math.random().toString()};}
+ async function reserve(f:Awaited<ReturnType<typeof fixture>>,item:string|null,estimate:number,stage="image"){
+  const r=await db.query<{ok:boolean}>("select reserve_ai_spend(gen_random_uuid(),$1,$2,$3,$4,$5,'gpt-image-2.5-sunburst',$6,100,$7,5) as ok",[f.org,f.product,f.job,item,stage,estimate,f.policy]);return r.rows[0].ok;
+ }
+ it("shares one planning charge and prevents duplicate in-flight spending per photo",async()=>{const f=await fixture();expect(await reserve(f,null,1,"shot_briefs")).toBe(true);expect(await reserve(f,f.items[0],4)).toBe(true);expect(await reserve(f,f.items[0],1)).toBe(false);expect(await reserve(f,f.items[1],4)).toBe(true);});
+ it("carries the budget into child retry jobs and includes historical image attempts",async()=>{const f=await fixture();await db.query("insert into generation_attempts(item_id,job_id,organization_id,attempt_no,provider,model,status,cost_inr) values($1,$2,$3,1,'openai','gpt-image-2.5-sunburst','succeeded',4)",[f.items[0],f.job,f.org]);expect(await reserve(f,f.items[0],2)).toBe(false);const c=await db.query<{id:string}>("insert into generation_jobs(organization_id,product_id,mode,style,output,requested_count,idempotency_key,settings) values($1,$2,'preserve','pure_white','square',1,gen_random_uuid()::text,$3) returning id",[f.org,f.product,JSON.stringify({retryOf:{jobId:f.job,itemId:f.items[0]}})]);const i=await db.query<{id:string}>("insert into generation_items(job_id,organization_id,idx)values($1,$2,0)returning id",[c.rows[0].id,f.org]);expect(await reserve({...f,job:c.rows[0].id},i.rows[0].id,2)).toBe(false);});
+ it("retains unknown provider charges and pauses further image admissions",async()=>{const f=await fixture();expect(await reserve(f,f.items[0],3)).toBe(true);await db.query("update ai_spend_events set status='unknown' where policy=$1",[f.policy]);expect(await reserve(f,f.items[1],3)).toBe(false);});
+ it("refuses workspace mismatch before recording any reservation",async()=>{const f=await fixture();expect(await reserve({...f,org:crypto.randomUUID()},f.items[0],2)).toBe(false);});
+});
+
+describe("creative edition reservations",()=>{
+ async function fixture(){const {org}=await newUser(Math.random()+"-edition@example.com");const {job}=await newJob(org,1);const p=await db.query<{product_id:string}>("select product_id from generation_jobs where id=$1",[job]);return {org,job,product:p.rows[0].product_id};}
+ async function reserve(job:string,org:string,family:string,related:string[]){const r=await db.query<{plan:{family:string;edition:number}}>("select reserve_creative_edition($1,$2,$3,$4) as plan",[job,org,family,related]);return r.rows[0].plan;}
+ it("keeps one edition stable across concurrent/restarted planning",async()=>{const f=await fixture();const first=await reserve(f.job,f.org,"photo-a",[f.product]);const again=await reserve(f.job,f.org,"changed-input",[f.product]);expect(first).toEqual({family:"photo-a",edition:1});expect(again).toEqual(first);});
+ it("continues the edition counter when the same photo becomes a new product record",async()=>{const f=await fixture();await reserve(f.job,f.org,"photo-a",[f.product]);const {job}=await newJob(f.org,1);const next=await reserve(job,f.org,"new-record-fingerprint",[f.product]);expect(next).toEqual({family:"photo-a",edition:2});});
+ it("rejects cross-workspace history and is not executable by customers",async()=>{const a=await fixture(),b=await fixture();await expect(reserve(a.job,a.org,"photo",[b.product])).rejects.toThrow("Workspace mismatch");const r=await db.query<{allowed:boolean}>("select has_function_privilege('authenticated','reserve_creative_edition(uuid,uuid,text,uuid[])','execute') as allowed");expect(r.rows[0].allowed).toBe(false);});
+});

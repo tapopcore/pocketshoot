@@ -1,5 +1,6 @@
 import "server-only";
 import { admin } from "./supabase";
+import { mediaUrl, type MediaBucket } from "./media";
 
 export type Bucket = "uploads" | "originals" | "outputs" | "brand" | "public";
 
@@ -30,6 +31,7 @@ export async function signedUrl(bucket: Bucket, key: string, seconds = 600, down
   return data.signedUrl;
 }
 
+/** Short-lived signed links for many objects at once (downloads and AI providers). For showing photos use viewUrls. */
 export async function signedUrls(bucket: Bucket, keys: string[], seconds = 600): Promise<Record<string, string>> {
   const unique = [...new Set(keys.filter(Boolean))];
   if (unique.length === 0) return {};
@@ -44,4 +46,11 @@ export async function signedUpload(bucket: Bucket, key: string) {
   const { data, error } = await admin().storage.from(bucket).createSignedUploadUrl(key);
   if (error || !data) throw new Error(`Could not create upload URL: ${error?.message}`);
   return { url: data.signedUrl, token: data.token, path: data.path };
+}
+
+/** Stable view links for photos shown in the app. No network call: links are signed locally. */
+export function viewUrls(bucket: MediaBucket, keys: string[], width: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of new Set(keys.filter(Boolean))) out[k] = mediaUrl(bucket, k, width);
+  return out;
 }

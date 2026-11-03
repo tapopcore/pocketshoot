@@ -4,14 +4,17 @@ import { z } from "zod";
 import { CATEGORIES, isCategoryId, collectionById, type CategoryId } from "@packshot/core";
 import { admin } from "./supabase";
 import { getObject, putObject, removeObjects, signedUpload } from "./storage";
-import { normalizeUpload, ImageRejected } from "./images";
+// Image tools load sharp, so they are imported only when a photo is processed (keeps page cold starts fast).
+const imageTools = () => import("./images");
 import { ApiError } from "./api";
 import { assertRole, type AuthContext } from "./auth";
 import { rateLimit, track } from "./observe";
 import { productSchema } from "./jobs";
 import { getProduct as getShopifyProduct } from "./shopify/admin";
 
-export const VIEW_TYPES = ["front", "angle", "back", "detail", "other"] as const;
+export const VIEW_TYPES = ["front", "angle", "side", "back", "detail", "other"] as const;
+/** Photos per product. Every one is studied and sent to the image engine. */
+export const MAX_PRODUCT_PHOTOS = 6;
 
 export const uploadRequestSchema = z.object({
   files: z.array(z.object({ name: z.string().max(200), type: z.string().max(100), size: z.number().int().positive() })).min(1).max(10),
@@ -33,7 +36,7 @@ export async function createUploadUrls(ctx: AuthContext, files: z.infer<typeof u
 }
 
 export const createProductSchema = productSchema.extend({
-  uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("front") })).min(1).max(3),
+  uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("front") })).min(1).max(MAX_PRODUCT_PHOTOS),
 });
 
 /** Validates uploaded files and stores clean copies as the product's reference photos. */
@@ -50,10 +53,10 @@ async function ingestUploads(ctx: AuthContext, productId: string, uploads: { key
     }
     let clean;
     try {
-      clean = await normalizeUpload(raw);
+      clean = await (await imageTools()).normalizeUpload(raw);
     } catch (e) {
       await removeObjects("uploads", [u.key]);
-      if (e instanceof ImageRejected) throw new ApiError(400, e.message);
+      if (e instanceof (await imageTools()).ImageRejected) throw new ApiError(400, e.message);
       throw e;
     }
     const id = randomUUID();
@@ -93,7 +96,7 @@ export async function addProductPhotos(ctx: AuthContext, productId: string, uplo
   const { data: p } = await db.from("products").select("id").eq("id", productId).eq("organization_id", ctx.orgId).maybeSingle();
   if (!p) throw new ApiError(404, "Product not found");
   const { count } = await db.from("product_assets").select("id", { count: "exact", head: true }).eq("product_id", productId);
-  if ((count ?? 0) + uploads.length > 5) throw new ApiError(400, "Up to 5 photos per product");
+  if ((count ?? 0) + uploads.length > MAX_PRODUCT_PHOTOS) throw new ApiError(400, `Up to ${MAX_PRODUCT_PHOTOS} photos per product. Remove one to add another.`);
   return ingestUploads(ctx, productId, uploads);
 }
 
@@ -103,7 +106,7 @@ export async function updateProduct(ctx: AuthContext, productId: string, input: 
   if (input.shootProfile) {
     const { data: current } = await admin().from("products").select("attributes, category").eq("id", productId).eq("organization_id", ctx.orgId).maybeSingle();
     if (!current) throw new ApiError(404, "Product not found");
-    if (collectionById(input.shootProfile.type)?.category !== (input.category ?? current.category)) throw new ApiError(400, "Choose a product type in this industry.");
+    if (input.shootProfile.type !== "general" && collectionById(input.shootProfile.type)?.category !== (input.category ?? current.category)) throw new ApiError(400, "Choose a product type in this industry.");
     patch.attributes = { ...(current.attributes ?? {}), shootProfile: input.shootProfile };
   }
   if (input.name !== undefined) patch.name = input.name;
@@ -171,7 +174,7 @@ export async function importShopifyProducts(ctx: AuthContext, productIds: string
         const r = await fetch(img.url, { signal: AbortSignal.timeout(30_000) });
         if (!r.ok) continue;
         try {
-          const clean = await normalizeUpload(Buffer.from(await r.arrayBuffer()));
+          const clean = await (await imageTools()).normalizeUpload(Buffer.from(await r.arrayBuffer()));
           const id = randomUUID();
           const key = `${ctx.orgId}/${productId}/${id}.jpg`;
           await putObject("originals", key, clean.buffer, "image/jpeg");
@@ -193,4 +196,13 @@ export async function importShopifyProducts(ctx: AuthContext, productIds: string
 
 export function categoryOrOther(v: string): CategoryId {
   return isCategoryId(v) ? v : "other";
+}
+
+/** Scope both identifiers to this workspace; labels never move photos between products. */
+export async function updatePhotoView(ctx: AuthContext, productId: string, assetId: string, viewType: typeof VIEW_TYPES[number]) {
+ assertRole(ctx,"editor"); const db=admin();
+ const {data,error}=await db.from("product_assets").update({view_type:viewType}).eq("id",assetId).eq("product_id",productId).eq("organization_id",ctx.orgId).select("id");
+ if(error)throw error; if(!data?.length)throw new ApiError(404,"Photo not found");
+ const {data:p}=await db.from("products").select("attributes").eq("id",productId).eq("organization_id",ctx.orgId).single();
+ if(p){ const attrs={...(p.attributes??{})}; delete attrs.analysis; await db.from("products").update({attributes:attrs}).eq("id",productId).eq("organization_id",ctx.orgId); }
 }

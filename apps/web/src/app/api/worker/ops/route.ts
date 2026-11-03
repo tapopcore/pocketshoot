@@ -11,7 +11,8 @@ import { createJob } from "@/lib/jobs";
 import { getScenePreviews, saveScenePreviews } from "@/lib/scene-previews";
 import type { AuthContext } from "@/lib/auth";
 
-export const maxDuration = 300;
+// 299, not 300: heavy image work gets its own server function, apart from app pages and quick APIs.
+export const maxDuration = 299;
 
 /**
  * Operator tasks (scene preview photos). Authorised by sha256(CRON_SECRET + ":" + op + ":" + arg),

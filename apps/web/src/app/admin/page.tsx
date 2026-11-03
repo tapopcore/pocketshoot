@@ -1,3 +1,4 @@
+import { requirePlatform } from "@/lib/auth";
 import { kpis, funnel } from "@/lib/metrics";
 import { integrationStatus } from "@/lib/env";
 import { admin } from "@/lib/supabase";
@@ -5,6 +6,8 @@ import { Badge, Card, PageHeader, Stat, formatDate, money } from "@/components/u
 import { resolveAlertAction } from "./actions";
 
 export default async function AdminOverview({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const days = Math.min(365, Math.max(1, Number((await searchParams).days ?? 30)));
   const [k, f, { data: alerts }] = await Promise.all([kpis(days), funnel(days), admin().from("alerts").select("*").is("resolved_at", null).order("created_at", { ascending: false }).limit(20)]);
   const status = integrationStatus();

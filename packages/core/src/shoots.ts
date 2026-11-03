@@ -40,7 +40,7 @@ export function shootRecipe(id: ShootStyleId, category: CategoryId) {
 export function styleRequirement(id: ShootStyleId): string {
   const rules: Record<ShootStyleId,string> = {
     outdoor: "MUST be outdoors in open air with clear exterior landscape or sky context. No room, window-side tabletop, interior counter, studio wall or window-frame shadows. Keep the product dry unless the reference establishes safe wet use.",
-    indoor: "MUST be an interior or studio photograph with an intentional indoor architectural setting, not an outdoor landscape.",
+    indoor: "MUST be an interior or studio photograph, either an intentional indoor setting or a seamless studio backdrop, not an outdoor landscape.",
     model: "MUST visibly include an anonymous adult interacting naturally with the product. A product-only still life does not satisfy this style.",
     closeup: "MUST be a tight close-up of a genuinely visible product detail, with recognisable product context; not a distant whole-product still life.",
     macro: "MUST be a highly magnified material or craft detail with a deliberate macro focus plane; not a whole-product catalogue shot.",

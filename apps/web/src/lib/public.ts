@@ -1,6 +1,6 @@
 import "server-only";
 import { admin } from "./supabase";
-import { signedUrls } from "./storage";
+import { viewUrls } from "./storage";
 
 export interface PublicPack { id: string; code: string; name: string; credits: number; price_minor: number; currency: string; badge: string | null }
 
@@ -23,6 +23,16 @@ export async function webPacks(): Promise<PublicPack[]> {
   }
 }
 
+/** Shopify app packs (billed in USD through Shopify). Empty if the database can't be reached. */
+export async function shopifyPacks(): Promise<PublicPack[]> {
+  try {
+    const { data, error } = await admin().from("pricing_packs").select("id, code, name, credits, price_minor, currency, badge").eq("channel", "shopify").eq("active", true).order("sort");
+    return error || !data ? [] : data;
+  } catch {
+    return [];
+  }
+}
+
 export interface Showcase { assetId: string; caption: string; category: string; url?: string }
 
 /** Real customer images an admin has chosen to show, with the customer's permission. */
@@ -33,7 +43,7 @@ export async function showcase(): Promise<Showcase[]> {
     if (!items.length) return [];
     const { data: assets } = await admin().from("generated_assets").select("id, storage_key").in("id", items.map((i) => i.assetId));
     const keys = new Map((assets ?? []).map((a) => [a.id, a.storage_key]));
-    const urls = await signedUrls("outputs", [...keys.values()], 3600);
+    const urls = viewUrls("outputs", [...keys.values()], 1080);
     return items.filter((i) => keys.has(i.assetId)).map((i) => ({ ...i, url: urls[keys.get(i.assetId)!] }));
   } catch {
     return [];

@@ -1,0 +1,12 @@
+import {describe,it,expect} from "vitest";
+import {chooseCreativeSpec,creativeDistance,creativeSpecPrompt,type CreativeSpec} from "./creative-edition";
+import {studioDirection} from "./studio-directions";
+import {categoryLook} from "./product-looks";
+describe("durable fresh composition decisions",()=>{
+ it("supports 200 repeat editions without reusing a recent contract",()=>{const past:CreativeSpec[]=[];for(let edition=1;edition<=200;edition++){const next=chooseCreativeSpec({family:"same-photo",edition,slot:0,contract:"studio-front",environment:"studio",previous:past});if(past.length){expect(next.layout).not.toBe(past[0].layout);expect(next.light).not.toBe(past[0].light);expect(next.scale).not.toBe(past[0].scale);expect(creativeDistance(next,past[0])).toBeGreaterThanOrEqual(3);}expect(past.slice(0,24).some(p=>creativeDistance(p,next)===0)).toBe(false);past.unshift(next);}});
+ it("plans six different composition-light pairs within a pack",()=>{const siblings:CreativeSpec[]=[];for(let slot=0;slot<6;slot++)siblings.push(chooseCreativeSpec({family:"f",edition:1,slot,contract:"slot-"+slot,environment:"studio",siblings}));expect(new Set(siblings.map(s=>s.layout+":"+s.light)).size).toBe(6);});
+ it("keeps repeated studio shots white and source-supported while changing their composition",()=>{const a=chooseCreativeSpec({family:"same",edition:1,slot:0,contract:"studio-front",environment:"studio"}),b=chooseCreativeSpec({family:"same",edition:2,slot:0,contract:"studio-front",environment:"studio",previous:[a]});const first=studioDirection(categoryLook("studio-front")!,null,a),second=studioDirection(categoryLook("studio-front")!,null,b);expect(first.scene).toContain("pure-white");expect(second.scene).toContain("pure-white");expect(first.scene).not.toBe(second.scene);expect(second.camera).toContain("supported view");expect(creativeSpecPrompt(b)).toContain("never invent an unseen angle");});
+ it("keeps model interactions within the selected human contract",()=>{const p=chooseCreativeSpec({family:"cloth",edition:1,slot:2,contract:"worn",environment:"outdoor"});expect(creativeSpecPrompt(p,"model")).toContain("PRESENTATION:");expect(creativeSpecPrompt(p,"model")).not.toContain("source bust or peg");});
+});
+
+it("does not force full inventory into a requested detail crop",()=>{const spec=chooseCreativeSpec({family:"f",edition:1,slot:0,contract:"studio-detail",environment:"studio"});const text=creativeSpecPrompt(spec,"none",true);expect(text).not.toContain("complete merchandise group");expect(text).toContain("Intentional crop");});

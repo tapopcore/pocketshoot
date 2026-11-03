@@ -1,4 +1,7 @@
+/* eslint-disable @next/next/no-img-element -- Signed storage URLs. */
+import { FitImg } from "@/components/fit-img";
 import Link from "next/link";
+import clsx from "clsx";
 import { JOB_STATUS_LABEL, OUTPUTS, STYLES, type JobStatus, type OutputId, type StyleId } from "@packshot/core";
 
 export interface JobSummary {
@@ -11,45 +14,40 @@ export interface JobSummary {
   isTrial: boolean;
   product: { id: string; name: string };
   thumbs: string[];
+  productPhoto?: string | null;
+  pack?: string | null;
 }
 
-function ago(d: string) {
+export function ago(d: string) {
   const s = (Date.now() - new Date(d).getTime()) / 1000;
-  if (s < 60) return "just now";
+  if (s < 60) return "Just now";
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  if (s < 604800) return `${Math.floor(s / 86400)} d ago`;
+  if (s < 172800) return "Yesterday";
+  if (s < 604800) return new Intl.DateTimeFormat("en-IN", { weekday: "long" }).format(new Date(d));
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(new Date(d));
 }
 
+/** One shoot in a grid: cover photo, photo count, product, style and a status pill. */
 export function JobCard({ job, index, hrefBase = "/app/jobs" }: { job: JobSummary; index: number; hrefBase?: string }) {
   const s = JOB_STATUS_LABEL[job.status as JobStatus] ?? { label: job.status, tone: "neutral" as const };
   const busy = s.tone === "busy" || job.status === "queued";
   const cover = job.thumbs[0];
+  const pill = busy ? <span className="pill sm"><span className="live" />Creating</span>
+    : s.tone === "good" ? <span className="pill good sm">Ready</span>
+    : s.tone === "warn" ? <span className="pill warn sm">Check</span>
+    : s.tone === "bad" ? <span className="pill bad sm">Failed</span>
+    : <span className="pill sm">{s.label}</span>;
   return (
-    <Link href={`${hrefBase}/${job.id}`} className="group block animate-rise" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
-      <div className="relative aspect-square overflow-hidden rounded-2xl bg-paper-2 ring-1 ring-black/5">
-        {cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04] animate-develop" />
-        ) : (
-          <div className={`size-full ${busy ? "skeleton" : ""}`} />
-        )}
-        {job.thumbs.length > 1 && (
-          <div className="absolute bottom-2 right-2 flex -space-x-2">
-            {job.thumbs.slice(1, 4).map((t, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={t} alt="" className="size-9 rounded-lg border-2 border-white object-cover shadow-sm" />
-            ))}
-          </div>
-        )}
-        {busy && <span className="glass absolute left-2 top-2 rounded-full px-2.5 py-1 text-[11px] font-medium">Creating…</span>}
-        {s.tone === "warn" && !busy && <span className="absolute left-2 top-2 rounded-full bg-[#fff3d6] px-2.5 py-1 text-[11px] font-medium text-warn">Check label</span>}
-        {s.tone === "bad" && <span className="absolute left-2 top-2 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-bad">Failed</span>}
+    <Link href={`${hrefBase}/${job.id}`} className="shoot lift animate-rise" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
+      <div className="ph r45 zoom">
+        {cover ? <FitImg src={cover} className="animate-develop" />
+          : <div className={clsx("nocover", busy && "busy")}>{job.productPhoto && <FitImg src={job.productPhoto} />}<span className="pill glass sm">{busy ? "In progress" : s.tone === "bad" ? "Not charged" : "No photos yet"}</span></div>}
+        <span className="pill glass sm cnt">{job.count} photo{job.count === 1 ? "" : "s"}</span>
       </div>
-      <div className="mt-2 min-w-0 px-0.5">
-        <div className="truncate text-sm font-semibold">{job.product?.name ?? "Product"}</div>
-        <div className="truncate text-xs text-mute">{STYLES[job.style as StyleId]?.name ?? job.style} · {OUTPUTS[job.output as OutputId]?.ratio} · {ago(job.createdAt)}</div>
+      <div className="meta">
+        <div><b>{job.product?.name ?? "Product"}</b><span>{job.pack === "studio" ? "Studio pack" : job.pack === "variety" ? "Photo set" : STYLES[job.style as StyleId]?.name ?? "Custom"} · {OUTPUTS[job.output as OutputId]?.ratio ?? "1:1"} · {ago(job.createdAt)}</span></div>
+        {pill}
       </div>
     </Link>
   );

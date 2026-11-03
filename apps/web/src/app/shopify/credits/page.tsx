@@ -39,7 +39,7 @@ function ShopifyCredits() {
       <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {packs.map((p) => (
           <div key={p.id} className={clsx("rounded-xl border bg-card p-5", p.badge ? "border-ink" : "border-line")}>
-            {p.badge && <div className="mb-2 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent-ink">{p.badge}</div>}
+            {p.badge && <div className="mb-2 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent-ink">{p.badge}</div>}
             <div className="eyebrow">{p.name}</div>
             <div className="display mt-1 text-5xl">{p.credits}</div>
             <div className="text-sm text-mute">credits</div>

@@ -1,8 +1,12 @@
+import { requirePlatform } from "@/lib/auth";
+import { FilterPills } from "@/components/filter-pills";
 import Link from "next/link";
 import { admin } from "@/lib/supabase";
 import { Card, PageHeader, formatDate } from "@/components/ui";
 
 export default async function Ledger({ searchParams }: { searchParams: Promise<{ type?: string; before?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const sp = await searchParams;
   let q = admin().from("credit_ledger").select("id, entry_type, quantity, created_at, note, job_id, order_id, organization_id, organizations(name), credit_lots(kind)").order("id", { ascending: false }).limit(100);
   if (sp.type) q = q.eq("entry_type", sp.type);
@@ -15,7 +19,7 @@ export default async function Ledger({ searchParams }: { searchParams: Promise<{
       <PageHeader eyebrow="Append-only" title="Credit ledger">Every credit movement across all workspaces. Balances are always derived from these rows.</PageHeader>
       <div className="mb-4 flex flex-wrap gap-2">
         <Link href="/admin/ledger" className={`rounded-full px-3 py-1 text-sm ${!sp.type ? "bg-ink text-paper" : "border border-line"}`}>all</Link>
-        {types.map((t) => <Link key={t} href={`/admin/ledger?type=${t}`} className={`rounded-full px-3 py-1 text-sm ${sp.type === t ? "bg-ink text-paper" : "border border-line"}`}>{t}</Link>)}
+        <FilterPills className="contents" base="rounded-full px-3 py-1 text-sm" on="bg-ink text-paper" off="border border-line" label="Filter" items={types.map((t) => ({ href: `/admin/ledger?type=${t}`, label: t, active: sp.type === t }))} />
       </div>
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">

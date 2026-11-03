@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { ApiError, body, handler } from "@/lib/api";
-import { addProductPhotos, deleteProductPhoto, VIEW_TYPES } from "@/lib/products";
+import { updatePhotoView, addProductPhotos, deleteProductPhoto, MAX_PRODUCT_PHOTOS, VIEW_TYPES } from "@/lib/products";
 
 export const POST = handler<{ id: string }>(async (req, ctx, { id }) => {
-  const { uploads } = await body(req, z.object({ uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("angle") })).min(1).max(4) }));
+  const { uploads } = await body(req, z.object({ uploads: z.array(z.object({ key: z.string(), viewType: z.enum(VIEW_TYPES).default("angle") })).min(1).max(MAX_PRODUCT_PHOTOS) }));
   return { photos: await addProductPhotos(ctx, id, uploads) };
 });
 
@@ -12,4 +12,10 @@ export const DELETE = handler<{ id: string }>(async (req, ctx) => {
   if (!assetId) throw new ApiError(400, "assetId is required");
   await deleteProductPhoto(ctx, assetId);
   return { ok: true };
+});
+
+export const PATCH = handler<{id:string}>(async(req,ctx,{id})=>{
+ const input=await body(req,z.object({assetId:z.string().uuid(),viewType:z.enum(VIEW_TYPES)}));
+ await updatePhotoView(ctx,id,input.assetId,input.viewType);
+ return {ok:true};
 });

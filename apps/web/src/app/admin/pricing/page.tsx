@@ -1,9 +1,12 @@
+import { requirePlatform } from "@/lib/auth";
 import { admin } from "@/lib/supabase";
 import { Badge, Card, Field, Input, PageHeader, Select, formatDate, money } from "@/components/ui";
 import { ActionForm } from "@/components/action-form";
 import { saveCouponAction, savePackAction, toggleCouponAction, togglePackAction } from "../actions";
 
 export default async function Pricing() {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const db = admin();
   const [{ data: packs }, { data: coupons }] = await Promise.all([
     db.from("pricing_packs").select("*").order("channel").order("sort").order("version", { ascending: false }),

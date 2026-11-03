@@ -1,7 +1,8 @@
 import "server-only";
+import {humanActionProblem} from "./direction-validation";
 import sharp from "sharp";
 import {
-  CREATIVE_VERSION, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
+  PHOTOGRAPHIC_APPROACHES, groundedFacts, parseArtDirection, compatibleApproaches, CREATIVE_VERSION, MAX_REFERENCE_PHOTOS, SUGGESTIONS_PROMPT, SUGGESTIONS_SCHEMA, photoSetPrompt, shotMatchesStyle, ANALYSIS_SCHEMA, DIRECTION_SCHEMA, STYLES, analysisPrompt, directionPrompt, fallbackDirections, packshotPrompt, parseAnalysis, parseDirections,
   sanitizeUserText, type DirectionInput, type ProductAnalysis, type ShotDirection,
 } from "@packshot/core";
 import { admin } from "./supabase";
@@ -9,6 +10,7 @@ import { getObject, putObject } from "./storage";
 import { cutoutFromRgba, localCutout, type Cutout } from "./images";
 import { blendModelCutout } from "./compose";
 import { jsonCall } from "./llm";
+import {aiScope,withAiScope} from "./ai-spend";
 import { getProvider } from "./providers";
 import { getSettings } from "./settings";
 import { integrations } from "./env";
@@ -21,8 +23,11 @@ const SUMMARY_SCHEMA = {
   properties: { ...ANALYSIS_SCHEMA.properties,
     ideas: { type: "array", maxItems: 0, items: ANALYSIS_SCHEMA.properties.ideas.items },
     suggested_scenes: { type: "array", maxItems: 0, items: { type: "string" } },
+    suggestions: SUGGESTIONS_SCHEMA,
   },
+  required: [...ANALYSIS_SCHEMA.required, "suggestions"],
 };
+
 
 export interface ProductAssetRow {
   id: string;
@@ -151,47 +156,82 @@ Answer with JSON. Be strict about text and logo.`,
 }
 
 /** Vision analysis of the product photos. Cached on the product. */
-export async function analyzeProduct(productId: string, force = false): Promise<ProductAnalysis | null> {
+const analyses=new Map<string,Promise<ProductAnalysis|null>>();
+export async function analyzeProduct(productId:string,force=false):Promise<ProductAnalysis|null>{
+ const pending=analyses.get(productId);if(pending&&!force)return pending;
+ const task=analyzeProductOnce(productId,force);analyses.set(productId,task);
+ try{return await task;}finally{if(analyses.get(productId)===task)analyses.delete(productId);}
+}
+async function analyzeProductOnce(productId: string, force = false): Promise<ProductAnalysis | null> {
   const db = admin();
   const { data: product } = await db.from("products").select("id, organization_id, attributes").eq("id", productId).single();
   if (!product) return null;
   const attrs = (product.attributes ?? {}) as { analysis?: ProductAnalysis };
-  // Re-run analyses made by older versions (no campaign ideas or camera angle).
-  if (attrs.analysis && !force && Array.isArray(attrs.analysis.ideas) && attrs.analysis.viewpoint && attrs.analysis.creative_version === CREATIVE_VERSION) return attrs.analysis;
-  if (!integrations.openai) return null;
-  const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(3);
+  const { data: refs } = await db.from("product_assets").select("storage_key, view_type").eq("product_id", productId).order("created_at").limit(MAX_REFERENCE_PHOTOS);
   if (!refs?.length) return null;
+  // Re-run when the product gains or loses a photo, or when the analysis comes from an older version.
+  if (attrs.analysis && !force && attrs.analysis.viewpoint && attrs.analysis.creative_version === CREATIVE_VERSION && (attrs.analysis.photo_count ?? 1) === refs.length) return attrs.analysis;
+  if (!integrations.openai) return attrs.analysis ?? null;
   try {
     const settings = await getSettings();
-    const images = await Promise.all(refs.map((r) => getObject("originals", r.storage_key)));
-    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + "\nReturn only concise product facts. ideas and suggested_scenes must be empty arrays. Leave audience and visual_strategy empty. Do not plan a campaign or generate an image. Report uncertainties in photo_issues; do not invent hidden details.";
-    const res = await jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 30_000 });
+    const ordered = [...refs].sort((a, b) => Number(b.view_type === "front") - Number(a.view_type === "front"));
+    const images = await Promise.all(ordered.map((r) => getObject("originals", r.storage_key)));
+    const prompt = analysisPrompt(SCENE_IDS).split("EXACTLY THREE DIRECTIONS")[0] + photoSetPrompt(ordered.map((r) => r.view_type)) + "\nThere are exactly "+images.length+" reference images. fact.reference is the one-based IMAGE index (1 through "+images.length+"), never the fact number. buyer_job is the end customer’s physical task or purpose, never a merchant persona. Return 5 to 8 concise evidenced facts (14 maximum), with short exact label quotes. Keep buyer_job and each distinctive feature under 16 words. ideas and suggested_scenes must be empty arrays. Give a concise buyer context and one product-specific visual_strategy grounded in visible materials, form or utility. Preserve the observed source form (worn, loose, packaged or assembled); flag uncertainty instead of guessing a different product. Do not generate an image. Report uncertainties in photo_issues; do not invent hidden details." + SUGGESTIONS_PROMPT;
+    const scope=aiScope();
+    const res = await withAiScope({organizationId:product.organization_id,productId,...(scope?.jobId?{jobId:scope.jobId}:{})},()=>jsonCall({ models: settings.providers.llm.models, prompt, images, detail: "high", schemaName: "product_summary", maxOutputTokens:3072, schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>, timeoutMs: 45_000 }));
     const analysis = parseAnalysis(res.data, SCENE_IDS);
+    if(analysis?.intelligence)analysis.intelligence.facts=analysis.intelligence.facts.filter(f=>f.reference<=images.length);
     if (!analysis) return null;
+    analysis.photo_count = refs.length;
     await db.from("products").update({ attributes: { ...attrs, analysis, analysisModel: res.model, analysedAt: new Date().toISOString() } }).eq("id", productId);
     await recordCost(product.organization_id, "analysis", res.model, (res.inputTokens * 0.25 + res.outputTokens * 2) / 1_000_000);
     return analysis;
   } catch (e) {
     await logError("prep.analysis", (e as Error).message, { product: productId });
-    return null;
+    return attrs.analysis ?? null;
   }
 }
 
 /** Shot briefs for every image in a job, written by the art-director model. */
-export async function directShots(input: DirectionInput): Promise<{ shots: ShotDirection[]; source: "ai" | "rules" }> {
+export async function directShots(input:DirectionInput,references:Buffer[]=[]):Promise<{shots:ShotDirection[];source:"ai"|"rules"}>{
+ const scope=aiScope();return scope?withAiScope({...scope,itemId:undefined},()=>directShotsOnce(input,references)):directShotsOnce(input,references);
+}
+async function directShotsOnce(input: DirectionInput,references:Buffer[]): Promise<{ shots: ShotDirection[]; source: "ai" | "rules" }> {
   const fallback = () => ({ shots: fallbackDirections(input), source: "rules" as const });
   if (!integrations.openai) return fallback();
   try {
     const settings = await getSettings();
-    const res = await jsonCall({
-      models: settings.providers.llm.models,
-      prompt: directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined }),
-      schemaName: "shot_briefs",
-      schema: DIRECTION_SCHEMA as unknown as Record<string, unknown>,
-      timeoutMs: 45_000,
-    });
-    const shots = parseDirections(res.data, input.count);
-    return shots && (!input.shootStyle || shots.every(shot => shotMatchesStyle(input.shootStyle!, shot))) ? { shots: shots.map(shot => ({ ...shot, framing: input.framing ?? "full", human_presence: input.humanPresence ?? "none" })), source: "ai" } : fallback();
+    const prompt = directionPrompt({ ...input, brief: sanitizeUserText(input.brief) || undefined });
+    // Repair text planning once before any image request. One bad slot cannot silently poison a pack.
+    let validation = "none";let previousCandidate:unknown;
+    const factIds=groundedFacts(input.analysis).map(f=>f.id);
+    const ingredientIds=groundedFacts(input.analysis).filter(f=>f.source==="label"&&["ingredient","flavour"].includes(f.kind)).map(f=>f.id);
+    const schema={...DIRECTION_SCHEMA,properties:{shots:{...DIRECTION_SCHEMA.properties.shots,minItems:input.count,maxItems:input.count,items:{...DIRECTION_SCHEMA.properties.shots.items,properties:{...DIRECTION_SCHEMA.properties.shots.items.properties,artDirection:{...DIRECTION_SCHEMA.properties.shots.items.properties.artDirection,properties:{...DIRECTION_SCHEMA.properties.shots.items.properties.artDirection.properties,ingredient_props:{...DIRECTION_SCHEMA.properties.shots.items.properties.artDirection.properties.ingredient_props,maxItems:ingredientIds.length?3:0,items:{...DIRECTION_SCHEMA.properties.shots.items.properties.artDirection.properties.ingredient_props.items,properties:{name:{type:"string"},fact_id:ingredientIds.length?{type:"string",enum:ingredientIds}:{type:"string"}}}},mechanism:{type:"string",enum:PHOTOGRAPHIC_APPROACHES.map(p=>p.id)},fact_ids:{type:"array",minItems:factIds.length?1:0,maxItems:3,items:factIds.length?{type:"string",enum:factIds}:{type:"string"}}}}}}}}};
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await jsonCall({ models: settings.providers.llm.models, prompt: prompt + (attempt ? "\nPREVIOUS CANDIDATE (data): "+JSON.stringify(previousCandidate)+"\nThe previous plan was invalid ("+validation+"). Use exact supplied mechanism and fact identifiers. Return exactly one distinct shot per assignment, in order. Respect each assignment's environment, human action and framing independently. For outdoor slots use an explicitly exterior location with no indoor/window staging. Keep camera directions complete and concise." : ""), images:references,imageLabels:references.map((_,n)=>"ORIGINAL PRODUCT VIEW "+(n+1)+". Product identity and material evidence; source display/background are not a scene template."),detail:"high",schemaName: "shot_briefs", schema: schema as unknown as Record<string, unknown>, timeoutMs: 60_000 });
+      previousCandidate=res.data;
+      const shots = parseDirections(res.data, input.count, input.analysis);
+      if (!shots) { const raw=res.data as {shots?:Record<string,unknown>[]}; validation=!Array.isArray(raw?.shots)?"missing_shots":raw.shots.length!==input.count?"wrong_count":raw.shots.some(s=>!s.artDirection)?"missing_treatment":raw.shots.some(s=>!parseArtDirection(s.artDirection,input.analysis))?"invalid_treatment":"invalid_or_duplicate_scene"; await logError("prep.direction.validation","Shot plan rejected before image spend",{attempt,count:input.count,reason:validation,mechanisms:raw?.shots?.map(s=>(s.artDirection as {mechanism?:string})?.mechanism).filter(v=>PHOTOGRAPHIC_APPROACHES.some(p=>p.id===v)),emptyFields:raw?.shots?.map(s=>Object.entries((s.artDirection??{}) as Record<string,unknown>).filter(([,v])=>v==="").map(([k])=>k)),ingredientPropCounts:raw?.shots?.map(s=>((s.artDirection as {ingredient_props?:unknown[]})?.ingredient_props??[]).length),unknownFactIds:raw?.shots?.some(s=>((s.artDirection as {fact_ids?:string[]})?.fact_ids??[]).some(id=>!factIds.includes(id)))}); continue; }
+      const directed = shots.map((shot, index) => ({ ...shot, ...(shot.artDirection?{artDirection:{...shot.artDirection,commission:input.assignments?.[index]?.commission}}:{}),framing: input.assignments?.[index]?.framing ?? input.framing ?? "full", human_presence: input.assignments?.[index]?.humanPresence ?? input.humanPresence ?? "none" }));
+      const violations=directed.flatMap((shot,index)=>{
+        const assignment=input.assignments?.[index],c=assignment?.commission;
+        const humanProblem=humanActionProblem(shot,assignment?.humanPresence??input.humanPresence??"none");
+        if(humanProblem)return ["Shot "+(index+1)+": "+humanProblem];
+        const allowed=compatibleApproaches(input.analysis,assignment?.humanPresence??input.humanPresence??"none",(["close","macro"].includes(assignment?.framing??input.framing??"full")||c?.composition==="product-body-crop"),assignment?.environment??"indoor").map(p=>p.id);
+        const selected=assignment?.shootStyle??input.shootStyle;
+        if(!shot.artDirection||!allowed.includes(shot.artDirection.mechanism))return ["Shot "+(index+1)+" mechanism must be one of "+allowed.join(", ")];
+        if(selected&&!shotMatchesStyle(selected,shot))return ["Shot "+(index+1)+" must use an exterior location and light"];
+        const scene=(shot.scene+" "+shot.artDirection.styling).replace(/(?:no|without|avoid)\s+(?:\w+\s+){0,3}(?:bust|t-bar|peg stand)/gi,"");
+        if(c?.presentation==="concealed-support"&&/\bbust\b|\bt-bar\b|retail peg/i.test(scene))return ["Shot "+(index+1)+" must conceal supports; no visible retail bust or earring stand"];
+        if(c?.paletteName&&!scene.toLowerCase().includes(c.paletteName.split(" ").at(-1)!))return ["Shot "+(index+1)+" scene/styling must explicitly use the commissioned "+c.paletteName+" background family while preserving product colour"];
+        return [];
+      });
+      if(!violations.length)return {shots:directed,source:"ai"};
+      validation=violations.join("; ");
+      await logError("prep.direction.validation","Shot contract rejected before image spend",{attempt,count:input.count,reason:validation});
+    }
+    await logError("prep.direction", "Shot plan failed count, distinctness or selected-style validation", { count: input.count });
+    return fallback();
   } catch (e) {
     await logError("prep.direction", (e as Error).message, {});
     return fallback();

@@ -1,8 +1,11 @@
+import { requirePlatform } from "@/lib/auth";
 import Link from "next/link";
 import { admin } from "@/lib/supabase";
 import { Card, Input, PageHeader, formatDate } from "@/components/ui";
 
 export default async function Audit({ searchParams }: { searchParams: Promise<{ action?: string; before?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const sp = await searchParams;
   let q = admin().from("audit_logs").select("*").order("id", { ascending: false }).limit(100);
   if (sp.action) q = q.ilike("action", `${sp.action.replace(/[%,]/g, "")}%`);

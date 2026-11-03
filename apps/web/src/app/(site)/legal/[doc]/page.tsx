@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { Check } from "lucide-react";
 
 const NAME = process.env.NEXT_PUBLIC_APP_NAME || "PocketShoot";
 const UPDATED = "26 October 2026";
@@ -7,9 +9,10 @@ const UPDATED = "26 October 2026";
  * Starting drafts written in plain language. They must be reviewed by a lawyer
  * (DPDP Act, Consumer Protection (E-Commerce) Rules, GST) before launch.
  */
-const DOCS: Record<string, { title: string; sections: [string, string[]][] }> = {
+const DOCS: Record<string, { title: string; summary?: string[]; sections: [string, string[]][] }> = {
   terms: {
     title: "Terms of Service",
+    summary: ["You own the photos you create.", "Only upload products you have the right to sell or show.", "If a photo fails our check, the credit comes back."],
     sections: [
       ["Who we are", [`${NAME} ("we") provides an online service that creates product images from photos you upload. The legal entity operating the service and its address are shown on your invoice and on the Contact page.`]],
       ["Your account", ["You need a verified email to use the service. You're responsible for activity in your workspace, including what team members you invite do.", "You must be 18 or older and able to enter into a contract."]],
@@ -24,6 +27,7 @@ const DOCS: Record<string, { title: string; sections: [string, string[]][] }> = 
   },
   privacy: {
     title: "Privacy Policy",
+    summary: ["We never sell your data or train AI on your photos.", "Uploads are private and reached only through short-lived links.", "You can ask us to delete your data at any time."],
     sections: [
       ["What we collect", ["Account details: your email, name and the workspace you belong to.", "Billing details: business name, GSTIN, address and state for invoices. Card and UPI details are handled by our payment partner (Razorpay), Shopify, Apple or Google, and never reach us.", "Your content: product photos you upload and the images we create.", "Usage data: which features you use and basic technical logs, to run and improve the service. We store network addresses only as one-way hashes for fraud prevention."]],
       ["How we use it", ["To provide the service, send you the images, process payments, issue invoices, prevent abuse and give support.", "We do not sell your personal data. We do not use your photos or images to train AI models."]],
@@ -34,7 +38,8 @@ const DOCS: Record<string, { title: string; sections: [string, string[]][] }> = 
     ],
   },
   refunds: {
-    title: "Credits & Refunds Policy",
+    title: "Credits and Refunds Policy",
+    summary: ["Credits are only used when a photo is delivered.", "Failed photos and changed products give the credit back.", "Unused packs can be refunded within 7 days."],
     sections: [
       ["When a credit is used", ["Credits are held when a shoot starts and only used when an image is delivered to you."]],
       ["Automatic returns", ["If an image fails, times out, or doesn't pass our automatic checks after retries, its credit is returned automatically. You don't need to do anything."]],
@@ -46,6 +51,7 @@ const DOCS: Record<string, { title: string; sections: [string, string[]][] }> = 
   },
   "acceptable-use": {
     title: "Acceptable Use Policy",
+    summary: ["Only upload products you have rights to.", "No images of real people without consent, and none of minors.", "Don't use photos to mislead buyers."],
     sections: [
       ["Don't upload", ["Products or brands you don't have rights to, including counterfeits.", "Weapons, drugs, tobacco or alcohol where advertising them is illegal, or any illegal product.", "Images of real people without their consent, or any images of minors.", "Sexual, violent or hateful content."]],
       ["Don't use images to", ["Mislead buyers about what a product is, what it contains, or what it does.", "Add false health, safety or certification claims.", "Impersonate another brand."]],
@@ -62,19 +68,28 @@ export async function generateMetadata({ params }: { params: Promise<{ doc: stri
   return { title: DOCS[(await params).doc]?.title };
 }
 
+const NAV: [string, string][] = [["terms", "Terms of service"], ["privacy", "Privacy policy"], ["refunds", "Refund policy"], ["acceptable-use", "Acceptable use"]];
+const slug = (h: string) => h.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
 export default async function Legal({ params }: { params: Promise<{ doc: string }> }) {
-  const d = DOCS[(await params).doc];
+  const doc = (await params).doc;
+  const d = DOCS[doc];
   if (!d) notFound();
   return (
-    <article className="prose-legal mx-auto max-w-3xl px-4 py-16 sm:px-8">
-      <div className="eyebrow">Last updated {UPDATED}</div>
-      <h1 className="display mt-4 text-6xl">{d.title}</h1>
-      {d.sections.map(([h, ps]) => (
-        <section key={h}>
-          <h2>{h}</h2>
-          {ps.map((p, i) => <p key={i}>{p}</p>)}
-        </section>
-      ))}
-    </article>
+    <div className="pg-legal">
+      <section style={{ padding: "var(--s8) 0 var(--section)" }}><div className="wrap lg">
+        <aside className="toc d-only"><div className="sm muted" style={{ fontWeight: 600, marginBottom: "var(--s3)" }}>Legal</div>
+          {NAV.map(([k, l]) => <Link key={k} href={`/legal/${k}`} className={k === doc ? "on" : ""}>{l}</Link>)}
+          <div className="sm muted" style={{ fontWeight: 600, margin: "var(--s6) 0 var(--s3)" }}>On this page</div>
+          {d.sections.map(([h]) => <a key={h} href={`#${slug(h)}`} className="s">{h}</a>)}
+        </aside>
+        <article className="prose-legal"><span className="xs muted">Last updated {UPDATED}</span><h1 className="h2" style={{ marginTop: "var(--s3)" }}>{d.title}</h1>
+          {d.summary && <div className="sum"><h2 className="h5" style={{ margin: 0 }}>In short</h2><ul>{d.summary.map((x) => <li key={x}><Check />{x}</li>)}</ul></div>}
+          {d.sections.map(([h, ps], i) => (
+            <section key={h} id={slug(h)}><h2>{i + 1}. {h}</h2>{ps.map((p, n) => <p key={n}>{p}</p>)}</section>
+          ))}
+        </article>
+      </div></section>
+    </div>
   );
 }

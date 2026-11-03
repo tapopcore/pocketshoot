@@ -1,20 +1,28 @@
-import { Mail, MessageCircle } from "lucide-react";
+import { HelpCircle, ChevronRight, Mail, MessageCircle, Users } from "lucide-react";
+import { ContactForm } from "@/components/site/contact-form";
 
-export const metadata = { title: "Contact" };
+export const metadata = { title: "Contact PocketShoot", description: "Talk to the PocketShoot team about product photos, billing or bulk work." };
 
 export default function Contact() {
-  const email = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@example.com";
+  const email = process.env.NEXT_PUBLIC_SUPPORT_EMAIL;
   const wa = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP;
+  const channels: [typeof Mail, string, string, string | null][] = [
+    ...(email ? [[Mail, email, "General questions and billing", `mailto:${email}`] as [typeof Mail, string, string, string]] : []),
+    ...(wa ? [[MessageCircle, "WhatsApp chat", wa, `https://wa.me/${wa.replace(/\D/g, "")}`] as [typeof Mail, string, string, string]] : []),
+    [HelpCircle, "Quick answers", "Most questions are answered in the FAQ", "/faq"],
+    [Users, "Agencies and large catalogues", "Choose Bulk work in the form and tell us your volume", "#message"],
+  ];
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
-      <div className="eyebrow">Contact</div>
-      <h1 className="display mt-4 text-6xl">Talk to a person.</h1>
-      <p className="mt-4 text-ink-2">Questions about an image, a bulk order, or using us for your clients? We reply within one working day, usually sooner.</p>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
-        <a href={`mailto:${email}`} className="rounded-xl border border-line bg-card p-6 hover:border-ink"><Mail /><div className="display mt-3 text-3xl">Email</div><div className="mt-1 text-sm text-mute">{email}</div></a>
-        {wa && <a href={`https://wa.me/${wa.replace(/\D/g, "")}`} className="rounded-xl border border-line bg-card p-6 hover:border-ink"><MessageCircle /><div className="display mt-3 text-3xl">WhatsApp</div><div className="mt-1 text-sm text-mute">{wa}</div></a>}
-      </div>
-      <p className="mt-8 text-sm text-mute">Already a customer? Use Help inside the app so we can see your shoot.</p>
+    <div className="pg-contact">
+      <section className="phero"><div className="wrap ct">
+        <div><span className="kicker"><i />Contact</span><h1 className="h1 s">Talk to a <span className="it">real person</span></h1><p className="lead">Questions about a photo, a payment or a large catalogue. We reply within one working day.</p>
+          <div className="chs">{channels.map(([I, h, p, href]) => {
+            const inner = <><span className="ico"><I /></span><div style={{ flex: 1, minWidth: 0 }}><div className="h5">{h}</div><div className="sm muted">{p}</div></div>{href && <ChevronRight className="chev" aria-hidden />}</>;
+            return href ? <a key={h} className="ch" href={href}>{inner}</a> : <div key={h} className="ch">{inner}</div>;
+          })}</div></div>
+        <ContactForm />
+      </div></section>
+      <section style={{ height: "var(--section)" }} />
     </div>
   );
 }

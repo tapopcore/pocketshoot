@@ -10,7 +10,10 @@ import { admin } from "@/lib/supabase";
 export const GET = publicHandler(async (req) => {
   const u = new URL(req.url);
   const orderId = u.searchParams.get("order") ?? "";
-  const shopDomain = u.searchParams.get("shop") ?? "";
+  const shopParam = u.searchParams.get("shop") ?? "";
+  // Only ever redirect back to a real Shopify admin, never to a domain taken from the URL.
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopParam)) return NextResponse.redirect(env.appUrl);
+  const shopDomain = shopParam.toLowerCase();
   const db = admin();
   const { data: order } = await db.from("orders").select("id, organization_id, gateway_order_id, total_minor, status").eq("id", orderId).eq("gateway", "shopify").maybeSingle();
   const { data: shop } = await db.from("shopify_shops").select("organization_id, access_token_enc").eq("shop_domain", shopDomain).maybeSingle();

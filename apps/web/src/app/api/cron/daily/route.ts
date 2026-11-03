@@ -3,7 +3,8 @@ import { env } from "@/lib/env";
 import { safeEqual } from "@/lib/crypto";
 import { runDailyChecks } from "@/lib/alerts";
 
-export const maxDuration = 300;
+// 299, not 300: heavy image work gets its own server function, apart from app pages and quick APIs.
+export const maxDuration = 299;
 
 export const POST = publicHandler(async (req) => {
   const auth = req.headers.get("authorization") ?? "";

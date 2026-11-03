@@ -1,3 +1,5 @@
+import { requirePlatform } from "@/lib/auth";
+import { FilterPills } from "@/components/filter-pills";
 import Link from "next/link";
 import { JOB_STATUS_LABEL, type JobStatus } from "@packshot/core";
 import { admin } from "@/lib/supabase";
@@ -6,6 +8,8 @@ import { Badge, Card, PageHeader, formatDate } from "@/components/ui";
 const STATUSES = ["all", "queued", "generating", "completed", "review_needed", "failed"];
 
 export default async function AdminJobs({ searchParams }: { searchParams: Promise<{ status?: string; page?: string }> }) {
+  await requirePlatform(); // pages do their own check: layouts are skipped on client-side navigation
+
   const sp = await searchParams;
   const status = STATUSES.includes(sp.status ?? "") ? sp.status! : "all";
   const page = Math.max(1, Number(sp.page ?? 1));
@@ -16,7 +20,7 @@ export default async function AdminJobs({ searchParams }: { searchParams: Promis
   return (
     <div>
       <PageHeader eyebrow={`${count ?? 0} jobs`} title="Generation jobs" />
-      <div className="mb-4 flex flex-wrap gap-2">{STATUSES.map((s) => <Link key={s} href={`/admin/jobs?status=${s}`} className={`rounded-full px-3 py-1 text-sm ${s === status ? "bg-ink text-paper" : "border border-line"}`}>{s.replace("_", " ")}</Link>)}</div>
+      <div className="mb-4 flex flex-wrap gap-2"><FilterPills className="contents" base="rounded-full px-3 py-1 text-sm" on="bg-ink text-paper" off="border border-line" label="Filter" items={STATUSES.map((s) => ({ href: `/admin/jobs?status=${s}`, label: s.replace("_", " "), active: s === status }))} /></div>
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b border-line text-left text-xs text-mute"><th className="p-3">When</th><th>Workspace</th><th>Product</th><th>Style</th><th>Images</th><th>Attempts</th><th>Cost</th><th>Status</th></tr></thead>
