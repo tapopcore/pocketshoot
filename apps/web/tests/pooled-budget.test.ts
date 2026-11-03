@@ -7,8 +7,8 @@ const org="00000000-0000-0000-0000-000000000001", product="00000000-0000-0000-00
 const policy="2026-11-03.pooled-average-2";
 beforeAll(async()=>{
  await db.exec("create role anon;create role authenticated;create role service_role;create table products(id uuid,organization_id uuid);create table generation_jobs(id uuid,organization_id uuid,product_id uuid,requested_count int,status text,settings jsonb,created_at timestamptz default now());create table generation_items(id uuid,job_id uuid,organization_id uuid,status text,decision text default 'pass');create table ai_spend_events(id uuid,organization_id uuid,product_id uuid,job_id uuid,item_id uuid,budget_job_id uuid,budget_item_id uuid,stage text,model text,policy text,estimated_inr numeric,actual_usd numeric,fx_rate numeric,status text default 'reserved',request_id text);create table generation_attempts(item_id uuid,request_id text,cost_inr numeric);create function pg_advisory_xact_lock(int) returns void language sql as 'select';");
- await db.exec(readFileSync(resolve(process.cwd(),"../../supabase/migrations/20261103135530_pooled_generation_budget.sql"),"utf8"));
- await db.exec(readFileSync(resolve(process.cwd(),"../../supabase/migrations/20261103142400_usable_deliveries_budget.sql"),"utf8"));
+ await db.exec(readFileSync(resolve(process.cwd(),"../../supabase/migrations/20261103141153_pooled_generation_budget.sql"),"utf8"));
+ await db.exec(readFileSync(resolve(process.cwd(),"../../supabase/migrations/20261103142549_usable_deliveries_budget.sql"),"utf8"));
 },30000);
 beforeEach(async()=>{
  await db.exec("truncate products,generation_jobs,generation_items,ai_spend_events,generation_attempts");
