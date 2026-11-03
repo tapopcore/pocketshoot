@@ -1,5 +1,5 @@
 /** Forecasts are admission controls, never provider invoice guarantees. */
-export const COST_POLICY = "2026-10-31.five-rupee-1";
+export const COST_POLICY = "2026-11-03.pooled-average-2";
 export const IMAGE_COST_LIMIT_INR = 5;
 export const ECONOMY_EDGE = 1024;
 export const ECONOMY_QUALITY = "medium" as const;

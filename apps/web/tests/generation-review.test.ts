@@ -65,3 +65,8 @@ it("enforces planned Studio geometry even without a preset recipe",()=>{
  const checks=reviewChecks({...clean,studio_view_match:false},{shot:{studio:{}} as never});
  expect(checks.some(c=>c.type==="studio_view"&&c.decision==="fail")).toBe(true);
 });
+
+it("rejects a changed functional component even when general product checks pass",()=>{
+ const checks=reviewChecks({...clean,component_checks:[{component:"nozzle",reference_image:1,source_geometry:"sloped black actuator with black collar",result_geometry:"flat actuator with silver collar",match:"different"}]},{});expect(aggregate(checks)).toBe("fail");
+});
+it("does not certify a mechanical detail without resolved component evidence",()=>{expect(aggregate(reviewChecks(clean,{shot:{studio:{feature:"actuator-nozzle"}} as never}))).toBe("fail");});

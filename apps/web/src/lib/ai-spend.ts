@@ -13,7 +13,7 @@ export async function reserveSpend(stage:string,model:string,estimatedInr:number
  const id=randomUUID();
  const {data,error}=await admin().rpc("reserve_ai_spend",{p_id:id,p_org:scope.organizationId,p_product:scope.productId,p_job:scope.jobId??null,p_item:scope.itemId??null,p_stage:stage,p_model:model,p_estimate:estimatedInr,p_fx:fx,p_policy:COST_POLICY,p_limit:IMAGE_COST_LIMIT_INR});
  if(error)throw new Error("Cost budget unavailable; request blocked before spending");
- if(data!==true)throw new Error("This photo has reached its generation budget. No additional paid request was made.");
+ if(data!==true)throw new Error("The shared shoot budget has no room for this request yet. No additional paid request was made.");
  return id;
 }
 export async function finishSpend(id:string,costUsd:number|undefined,usage:unknown,requestId?:string){
