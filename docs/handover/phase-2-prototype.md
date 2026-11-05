@@ -53,7 +53,7 @@ Checklist status:
 | G09 | Done | 3–4 looks per offering |
 | G10 | Done | Compact two-column look cards with a single selection outline |
 | G11 | Done | Studio looks use one consistent demo bottle; the customer's raw photo is only ever shown as "Your photo" |
-| G12 | Partly | Every stand-in image is labelled Example. Rights/provenance of the `/public/showcase` images is not documented in the repo; needs your confirmation. |
+| G12 | Done | Every stand-in image is labelled Example. Founder confirmed on 5 Nov 2026 that PocketShoot owns the rights to the `/public/showcase` images. |
 | G13 | Done | Plan list, missing-photo notes, count, size and exact credits before Create |
 | G14 | Done | Every photo opens; Escape or Close; zoom; compare with your photo; focus returns |
 | G15 | Done | Compact header and progress; photos follow directly |
@@ -127,5 +127,5 @@ None. No image generation and no AI review. The allowance is untouched.
 
 ## 8. Next dependent phase
 
-1. **Your product review of the prototype.** Pick a direction and mark anything to change. To review on your phone, the option is to set `PREVIEW_UI=1` on Vercel for this preview branch only (Preview target, branch-scoped, never Production). Not done without your go-ahead.
+1. **Your product review of the prototype.** Approved on 5 Nov 2026: `PREVIEW_UI=1` was added on Vercel for the Preview target, branch `claude/phase2-prototype` only. Production and other branches are unaffected. Remove it after the review.
 2. **Phase 3:** evidence and category coverage, the 25 × 8 matrix, and live fixes for I2, I4, I5, I8, I12 and I13 as additive changes. This does not depend on the direction choice.
