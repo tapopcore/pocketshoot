@@ -16,3 +16,21 @@ A checkbox in `01-TASK-CHECKLIST.md` changes only when a row here records the ev
 | A10 | Claude | Done | two `handover-characterization.test.ts` files | 109 + 147 existing pass; 7 + 11 characterization reproduce defects; web tsc pass; core tsc 1 test-file error; lint 0 errors; build ok | Offline only | Invert per fix |
 | A11 | unassigned | Blocked | n/a | No staging database exists; preview has no service key, so it cannot touch production data either | Needs founder account action | Gate 2 / Phase 5 |
 | A12 | Claude | Done | n/a | SELECT-only queries; no deploy, env, balance or paid call | n/a | n/a |
+
+## Phase 1 (branch `claude/phase1-contracts`)
+
+| Task | Owner | Status | Commit/files | Test or evidence | Limits | Next dependency |
+|---|---|---|---|---|---|---|
+| B01 | Claude | Done (contract) | `contracts/shoot-goal.ts` `OFFERING_DEFINITIONS` | Offering/family mismatch test | Copy and UI in Phase 2 | Phase 2 |
+| B02 | Claude | Done (contract) | `shoot-goal.ts` | Goal, direction, quantity, aspect, additions are separate fields | Not wired live | Phase 4 |
+| B03 | Claude | Done | `contracts/*.ts` | 38 contract tests | Not wired live | Phases 3–5 |
+| B04 | Claude | Done (contract) | `quote.ts` | Expiry, goal, evidence, plan, credit tests | Live quote route unchanged | Phase 5 |
+| B05 | Claude | Done (contract) | `goalFeasibility`, `TransformationPermission` | Unsupported vs needs_reference vs needs_confirmation tests | Category rules are Phase 3 | Phase 3 |
+| B06 | Claude | In progress | `confirmGoal`, `goalIntact` | Frozen, fingerprinted, tamper test | Persistence is Phase 5 migration | Phase 5 |
+| B07 | Claude | Not started | n/a | n/a | Needs all entry points | Phases 4–5 |
+| B08 | Claude | Done (contract) | `ENTITY_ROLES`, `keepInPhotos` | BONKERS clutter and tag tests; FEEO background bottle test | Classification quality is Phase 3 | Phase 3 |
+| B09 | Claude | Done (contract) | `settlement.ts` | Review holds, never captures; transition tests | Live `settle_item` unchanged | Phase 5 |
+| B10 | Claude | Done | `dto.ts`, `fixtures.ts` | Summary-derivation and subpath import tests | Fixture images not yet drawn | Phase 2 |
+| A09 | Claude | Done | `fixtures.ts` | BONKERS, FEEO, pens, caps, beverage, unstitched, SUV, long name | Evidence only, no output images | n/a |
+| C05 | Claude | In progress | `evidenceIsCurrent`, `sourceFingerprint` | Replaced/relabelled photo invalidates cache (test) | Live cache in `prep.ts` unchanged (I12) | Phase 3 |
+| A11 | Claude | Blocked (approval) | `phase-1-contracts.md` staging section | Options A/B/C costed | Needs founder approval to create staging project | Gate 2 |

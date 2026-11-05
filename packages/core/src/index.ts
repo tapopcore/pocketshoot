@@ -28,3 +28,5 @@ export * from "./photographic-direction";
 export * from "./campaign-direction";
 
 export * from "./studio-plan";
+
+// Versioned shoot contracts (Phase 1) are imported from "@packshot/core/contracts" so they never enter client bundles that do not use them.
