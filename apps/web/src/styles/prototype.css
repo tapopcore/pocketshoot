@@ -4,8 +4,10 @@
  *   data-direction="studio"    Precision studio: warm-neutral canvas, compact controls, hairline structure.
  *   data-direction="editorial" Editorial workbench: photo-led, stronger type rhythm, numbered shot purposes.
  */
-/* Width-matched fallback so text does not reflow when Albert Sans arrives late (measured: Albert is ~90% of Arial). */
-@font-face{font-family:"PT Albert Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans");size-adjust:90%}
+/* Width-matched fallback so text does not reflow when Albert Sans arrives late.
+   Measured on this page's text: Albert Sans Variable is 103.4% of Arial at 400-500 and 96.8% of Arial Bold at 600-700. */
+@font-face{font-family:"PT Albert Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans");font-weight:100 549;size-adjust:103.4%}
+@font-face{font-family:"PT Albert Fallback";src:local("Arial Bold"),local("Arial-BoldMT"),local("Helvetica Bold"),local("Liberation Sans Bold");font-weight:550 900;size-adjust:96.8%}
 .pt{
   /* semantic tokens: precision studio (default) */
   --pt-bg:#F7F6F3; --pt-surface:#FFFFFF; --pt-surface-2:#F0EEEA; --pt-line:#E4E1DB; --pt-line-2:#D3CFC7;
@@ -84,7 +86,8 @@
 .pt-tabs .pt-tab-create span.pt-plus{display:grid;place-items:center;width:44px;height:32px;border-radius:12px;background:var(--pt-action);color:var(--pt-on-action)}
 .pt-tabs .pt-tab-create{color:var(--pt-text)}
 .pt-proto{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px var(--pt-pad);font-size:var(--pt-xs);background:var(--pt-ink);color:var(--pt-on-ink)}
-.pt-proto > span:first-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-proto > span:first-child{min-width:0;line-height:1.35}
+@media(max-width:400px){.pt-proto > span:first-child{max-width:15em}}
 .pt-proto .pt-seg{flex:none}
 .pt-proto a{text-decoration:underline;text-underline-offset:2px}
 .pt-seg{display:inline-flex;padding:2px;border-radius:var(--pt-r-pill);background:rgba(255,255,255,.12)}

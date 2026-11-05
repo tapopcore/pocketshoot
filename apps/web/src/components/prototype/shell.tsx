@@ -45,7 +45,7 @@ export function PrototypeShell({ children }: { children: React.ReactNode }) {
     <ToastCtx.Provider value={show}>
       <div className="pt" data-direction={dir}>
         <div className="pt-proto" role="note">
-          <span>Example data. Nothing is saved. <Link href="/prototype/states">All screens</Link></span>
+          <span>Example data, nothing saved. <Link href="/prototype/states">All screens</Link></span>
           <span className="pt-seg" role="group" aria-label="Visual direction">
             <button type="button" aria-pressed={dir === "studio"} onClick={() => choose("studio")}>Studio</button>
             <button type="button" aria-pressed={dir === "editorial"} onClick={() => choose("editorial")}>Editorial</button>

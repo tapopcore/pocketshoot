@@ -88,7 +88,7 @@ Issues found and fixed during testing:
 - A blocked look was announced as disabled even though tapping it opens the photo request.
 - A Studio plan slot asked for a back label and a turned angle that a single front photo cannot support. It now follows `VIEW_NEEDS_SOURCE`.
 - Results showed 6 photos regardless of what was chosen.
-- The banner wrapping and the late-loading font caused a 0.158 layout shift. It is now 0.006.
+- The banner wrapping and the late-loading font caused up to a 0.158 layout shift. A per-weight, width-matched fallback font (scoped to the prototype) brings every cold load at 320–1280 px under 0.01.
 
 ## 4. Screenshots
 
