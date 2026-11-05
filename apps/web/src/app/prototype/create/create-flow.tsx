@@ -250,9 +250,9 @@ function Understand({ d, set, state, onView, onNext }: { d: Draft; set: (p: Part
               <>
                 <b>{DEMO.product.summary}</b>
                 <p className="pt-small pt-muted">{DEMO.product.preserve}</p>
-                <label className="pt-row pt-small" style={{ gap: 8 }}>
+                <label className="pt-stack-s pt-small" style={{ gap: 4 }}>
                   <span className="pt-muted">Type</span>
-                  <select className="pt-chip" value={d.collection} onChange={(e) => set({ collection: e.target.value })} aria-label="Product type">
+                  <select className="pt-chip" style={{ width: "100%", minWidth: 0 }} value={d.collection} onChange={(e) => set({ collection: e.target.value })} aria-label="Product type">
                     {["Skincare", "Makeup", "Fragrance", "Bottle or drinkware", "Something else"].map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </label>
