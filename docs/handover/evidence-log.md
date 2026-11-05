@@ -34,3 +34,10 @@ A checkbox in `01-TASK-CHECKLIST.md` changes only when a row here records the ev
 | A09 | Claude | Done | `fixtures.ts` | BONKERS, FEEO, pens, caps, beverage, unstitched, SUV, long name | Evidence only, no output images | n/a |
 | C05 | Claude | In progress | `evidenceIsCurrent`, `sourceFingerprint` | Replaced/relabelled photo invalidates cache (test) | Live cache in `prep.ts` unchanged (I12) | Phase 3 |
 | A11 | Claude | Blocked (approval) | `phase-1-contracts.md` staging section | Options A/B/C costed | Needs founder approval to create staging project | Gate 2 |
+| G01 | Claude | Done (awaiting your pick) | `styles/prototype.css` `data-direction` | Studio and Editorial screenshots in `phase-2-screens/` | Studio recommended | Founder review |
+| G02 | Claude | Done (mock) | `app/prototype/**`, `lib/prototype/demo.ts` | `phase-2-checks/e2e.js`: 33 of 33 pass | Fixtures only | Phases 3–5 wire real data |
+| G03–G11, G13–G17, G20–G21, G23 | Claude | Done (mock) | `app/prototype/**`, `components/prototype/**` | e2e, 5-width screenshots, timing.js (tap 17–45 ms, tab nav 48–200 ms at 4× CPU, CLS 0.006) | Example images reuse one product | Phase 3 |
+| G12 | Claude | Partly | Example labels on every stand-in image | Visual check | Rights of `/public/showcase` images undocumented | Founder confirms provenance |
+| G18–G19 | Claude | Done (mock) | `create-flow.tsx`, `/prototype/states` | Reload keeps draft; all states listed and reachable | Session storage only | Phase 5 persistence |
+| G22 | Claude | Partly | `components/prototype/ui.tsx` | Focus trap and return, named Tab stops, 320 px and 640 px no scroll | No real screen reader or device yet | Device review |
+| Gate | Claude | Verified | `app/prototype/layout.tsx` | Normal build: all `/prototype` routes 404; `/app` first-load JS unchanged (112/153/151 kB) | n/a | n/a |
