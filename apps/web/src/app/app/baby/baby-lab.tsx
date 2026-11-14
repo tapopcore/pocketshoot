@@ -5,13 +5,14 @@ import { Check, Download, ImagePlus, Moon, RefreshCw, Share2, Shuffle, Sun, X } 
 import { BABY_FAMILIES, BABY_THEMES, mixThemes, type BabyShape, type BabyState, type BabyTheme } from "@/lib/baby/themes";
 
 type Photo = { blob: Blob; url: string };
-type Result = { id: string; theme: BabyTheme; state: BabyState; status: "queued" | "making" | "ready" | "failed"; url?: string; width?: number; height?: number; message?: string; detail?: string; code?: string; retryable?: boolean; ms?: number; sandbox?: boolean; thumb?: string };
+type Result = { id: string; theme: BabyTheme; state: BabyState; status: "queued" | "making" | "ready" | "failed"; url?: string; width?: number; height?: number; message?: string; detail?: string; code?: string; retryable?: boolean; ms?: number; sandbox?: boolean; thumb?: string; moment?: number };
 const COUNTS = [6, 10, 15] as const;
 const SHAPES: { id: BabyShape; label: string; hint: string }[] = [{ id: "4:5", label: "Portrait", hint: "Instagram post" }, { id: "1:1", label: "Square", hint: "Grid" }, { id: "9:16", label: "Tall", hint: "Story or Reel" }];
 
 /** Shrink on the phone first so uploads stay small and fast. */
 async function shrink(file: File): Promise<Photo> {
   const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  if (Math.max(bmp.width, bmp.height) < 1000) throw new Error("too_small");
   const k = Math.min(1, 1536 / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas");
   c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
@@ -67,7 +68,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
       const fd = new FormData();
       const order = job.state === "awake" ? [photos.awake, photos.asleep] : [photos.asleep, photos.awake];
       order.filter(Boolean).forEach((p, i) => fd.append("photo", p!.blob, `baby-${i}.jpg`));
-      fd.set("theme", job.theme.id); fd.set("state", job.state); fd.set("shape", shape); fd.set("quality", "standard");
+      fd.set("theme", job.theme.id); fd.set("state", job.state); fd.set("shape", shape); fd.set("quality", "standard"); fd.set("moment", String(job.moment ?? 0));
       fetch("/api/baby/generate", { method: "POST", body: fd })
         .then(async (r) => ({ r, j: await r.json().catch(() => ({})) }))
         .then(({ r, j }) => {
@@ -80,7 +81,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
   }, [photos, shape]);
 
   const create = () => {
-    const jobs: Result[] = plan.map((theme, i) => ({ id: `${Date.now()}-${i}`, theme, state, status: "queued" }));
+    const jobs: Result[] = plan.map((theme, i) => ({ id: `${Date.now()}-${i}`, theme, state, status: "queued", moment: (results.length + i) % 4 }));
     setResults((rs) => [...jobs, ...rs]); queue.current.push(...jobs); pump();
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
@@ -106,7 +107,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
     if (!file) return;
     setUploadError("");
     try { const p = await shrink(file); setPhotos((ps) => ({ ...ps, [which]: p })); if (!photos.asleep && !photos.awake) setState(which); }
-    catch { setUploadError("That file could not be opened as a photo. Please try another one."); }
+    catch (e) { setUploadError((e as Error).message === "too_small" ? "That photo is too small to keep your baby's face accurate. Please use the original photo from your phone, not a screenshot or a downloaded copy." : "That file could not be opened as a photo. Please try another one."); }
   };
 
   const current = results.find((r) => r.id === open);
@@ -129,7 +130,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
             </label>
           ))}
         </div>
-        <p className="bb-small bb-muted">One photo is enough to start. Clear face, soft daylight, no filters. Your uploaded photos are only used to make the result and are not kept. The photos we make for you are saved to your account.</p>
+        <p className="bb-small bb-muted">Use the original photos from your phone, with a clear face in soft daylight and no filters. Two photos, one asleep and one awake, give the closest likeness. Your uploaded photos are only used to make the result and are not kept. The photos we make for you are saved to your account.</p>
         {uploadError && <p className="bb-error" role="alert">{uploadError}</p>}
       </section>
 

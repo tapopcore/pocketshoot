@@ -14,6 +14,7 @@ export const maxDuration = 300;
 
 const MODEL = "gpt-image-2.5-sunburst";
 const MAX_UPLOAD = 4 * 1024 * 1024;
+const MIN_LONG_EDGE = 1000;
 
 const fail = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) => NextResponse.json({ ok: false, code, message, ...extra }, { status });
 
@@ -44,10 +45,19 @@ export async function POST(req: Request) {
 
   let images: Buffer[];
   try {
-    images = await Promise.all(files.map(async (f) => sharp(Buffer.from(await f.arrayBuffer())).rotate().resize(1536, 1536, { fit: "inside", withoutEnlargement: true }).png().toBuffer()));
-  } catch { return fail(400, "bad_image", "That file does not look like a photo we can read."); }
+    images = await Promise.all(files.map(async (f) => {
+      const src = sharp(Buffer.from(await f.arrayBuffer())).rotate();
+      const m = await src.metadata();
+      if (Math.max(m.width ?? 0, m.height ?? 0) < MIN_LONG_EDGE) throw new Error("too_small");
+      return src.resize(1536, 1536, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
+    }));
+  } catch (e) {
+    if ((e as Error).message === "too_small") return fail(422, "too_small", "That photo is too small to keep your baby's face accurate. Please use the original photo from your phone, not a screenshot or a downloaded copy.");
+    return fail(400, "bad_image", "That file does not look like a photo we can read.");
+  }
 
-  const prompt = babyPrompt(theme, state, images.length);
+  const moment = Math.max(0, Math.min(3, Number(form.get("moment")) || 0));
+  const prompt = babyPrompt(theme, state, images.length, moment, form.get("keep") === "1");
   const started = Date.now();
   try {
     let png: Buffer, model = MODEL, usage: unknown = null, requestId: string | null = null, sandbox = false;

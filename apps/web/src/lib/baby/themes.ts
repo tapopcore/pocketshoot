@@ -43,7 +43,7 @@ export const BABY_THEMES: BabyTheme[] = [
   T("dark-crate", "Autumn crate", "Fine art", "Moody browns, tweed knit", ["#7a5a3e", "#2f2118"], "a small dark wooden crate on worn dark floorboards with a brown wool layer, deep brown shadows all around", "a multi-tone brown and teal tweed-knit wrap around the whole body with a matching knit bonnet tied under the chin", "wrapped upright in the crate with the head tilted on the hands", "close", "lowkey"),
   T("gold-palm", "Gold palm", "Fine art", "Maroon and gold on black", ["#7d1f33", "#c9a24a"], "a low basket filled with ochre and charcoal curly wool, surrounded by a radiating burst of gold-painted dried palm fans, on a near-black backdrop", "a deep maroon wrap around the body and hips with one foot and the hands free, a maroon knit sleepy hat with a pom", "swaddled on the back at the centre of the burst", "overhead", "lowkey"),
   T("stump", "Woodland", "Fine art", "Tree stump, wild flowers", ["#5b4a3a", "#8fa07a"], "a short tree stump topped with a cream wool layer, wrapped at its base with trailing greenery and small lilac, blue and white wild flowers, on dark wooden floorboards fading to black", "an ivory wrap over the back and hips, arms bare, a slim headband with a small flower", "lying on the tummy on top of the stump with the cheek resting on folded arms", "eye", "lowkey"),
-  T("noir", "Noir", "Fine art", "Black on black", ["#3a3a40", "#0f0f12"], "a matte black backdrop with nothing else in frame", "a black cheesecloth wrap around the whole body, gathered above the head like a tied bundle, a tiny muted floral headband", "swaddled on the back, only the face catching the light", "overhead", "lowkey"),
+  T("noir", "Noir", "Fine art", "Black on black", ["#3a3a40", "#0f0f12"], "a matte black backdrop with nothing else in frame, the face and the top of the wrap softly lit so the weave of the black fabric is clearly visible", "a black cheesecloth wrap around the whole body, gathered above the head like a tied bundle, a tiny muted floral headband", "swaddled on the back, only the face catching the light", "overhead", "lowkey"),
   T("moon", "Crescent moon", "Night sky", "Moon bed, stars", ["#27304f", "#e8e2d0"], "a crescent-moon shaped bed in brushed antique gold, padded with soft white wool like a cloud, small gold stars and soft out-of-focus sparkles around it, on a pale silver-grey backdrop", "an ivory wrap around the whole body", "swaddled and sleeping in the curve of the moon", "eye"),
   T("stars", "Starry night", "Night sky", "Navy sky, silver stars", ["#1c2440", "#8fa3c7"], "a deep navy fabric backdrop scattered with small white stars and a few larger silver felt stars", "a denim-blue jersey wrap around the whole body, a matching soft beanie with a small fur pom", "swaddled on the back in the middle of the sky", "overhead"),
   T("baker", "Little baker", "Playful", "Bread, tiny glasses, warm brown", ["#b06a3b", "#e6c38c"], "a warm brown textured backdrop with a long baguette on one side and two round bread rolls and a small pastry on the other, a little lace-edged pillow", "a natural burlap-coloured cheesecloth wrap around the whole body, tiny round prop glasses resting on the nose", "swaddled on the back, head on the pillow", "overhead"),
@@ -73,24 +73,43 @@ const LIGHT = {
 
 const LOOK = "Look: a real photograph from a high-end newborn studio. Natural skin with fine texture, tiny creases, soft peach fuzz and slight natural redness; real fabric weave and wool fibres; believable contact shadows. Not airbrushed, not waxy, not a 3D render, not an illustration. One colour family across wrap, props and backdrop, with at most one accent.";
 const ALWAYS = "Always: the hips and nappy area are fully covered by the wrap or outfit. One baby only, no adults or hands in frame. No text, letters, numbers, logos, brand names, watermarks or borders anywhere.";
-const eyesLine = (state: BabyState) => state === "awake"
-  ? "The baby is awake and calm with eyes open, looking toward the camera, in a relaxed natural expression."
-  : "The baby is peacefully asleep with eyes closed and a relaxed face.";
-const scene = (theme: BabyTheme, state: BabyState) => [
+/** Different moments, so a shoot is the same baby at different times and not one face repeated. */
+const MOMENTS: Record<BabyState, string[]> = {
+  asleep: [
+    "The baby is peacefully asleep: eyes closed, lips together, face fully relaxed, head straight.",
+    "The baby is asleep with eyes closed and the faintest sleepy smile, head turned slightly to one side.",
+    "The baby is deeply asleep: eyes closed, lips slightly parted, head turned slightly to the other side.",
+    "The baby is asleep with eyes closed, chin tucked a little and one cheek resting into the fabric.",
+  ],
+  awake: [
+    "The baby is awake and calm: eyes open and looking straight into the camera, lips together.",
+    "The baby is awake with eyes open, looking softly off to one side, mouth relaxed.",
+    "The baby is awake with a small, natural hint of a smile, looking at the camera.",
+    "The baby is caught in a small yawn, eyes squeezed nearly shut.",
+  ],
+};
+export const BABY_MOMENTS = 4;
+const KEEP_MOMENT = "Keep the baby's expression, gaze and eye state as they are in the reference photo.";
+const scene = (theme: BabyTheme, momentLine: string) => [
   `Set: ${theme.set}.`,
   `Styling: ${theme.wear}.`,
-  `Pose: ${theme.pose}. ${eyesLine(state)} The pose must be one a real sleeping newborn can safely hold, with the head and neck supported.`,
+  `Pose: ${theme.pose}. ${momentLine} The pose must be one a real newborn can safely hold, with the head and neck supported.`,
   CAMERA[theme.camera],
   LIGHT[theme.light],
   LOOK,
 ];
 
-/** One prompt per photo. The same safety and realism rules are appended to every theme. */
-export function babyPrompt(theme: BabyTheme, state: BabyState, references: number): string {
+/**
+ * One prompt per photo.
+ * Identity (who the baby is) is kept. Capture conditions (light, lens, expression, marks on the upload) are re-made for the scene,
+ * because copying them makes the face look pasted onto the set.
+ */
+export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false): string {
   return [
-    `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? "s" : ""}.`,
-    "Identity: this must be recognisably the same child. Keep the exact face shape, eyes, eyebrows, nose, lips, cheeks, ears, skin tone, birthmarks, hair colour, hairline and amount of hair. Do not beautify, slim, lighten or age the face. Keep true newborn proportions.",
-    ...scene(theme, state),
+    `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? "s" : ""}. This is a new photograph taken in a studio, not a cut-out of the reference placed into a scene.`,
+    "Identity, keep exactly: who the baby is. Face shape, the shape and spacing of the eyes, eyebrows, nose, lips, cheeks and ears, true skin tone, birthmarks, hair colour, hairline and amount of hair. Do not beautify, slim, lighten or age the face.",
+    "Re-capture, do not copy: the reference is a casual phone snapshot. Do not carry over its lighting, its close-up wide-angle distortion, its head angle, its clothing or accessories, its background, or any watermark, logo, text or mark printed over it. Light the face with the same light as the set, with matching shadow direction and softness, so face and scene belong together. Render the head as an 85mm portrait lens would, in true newborn proportion to the body. Skin is matte and natural: no gloss or shine on the eyelids or lips, nothing that reads as make-up.",
+    ...scene(theme, keepExpression ? KEEP_MOMENT : MOMENTS[state][Math.abs(moment) % BABY_MOMENTS]),
     `${ALWAYS} Replace everything from the original background and clothing.`,
   ].join("\n");
 }
@@ -99,10 +118,13 @@ export function babyPrompt(theme: BabyTheme, state: BabyState, references: numbe
 export function babyExamplePrompt(theme: BabyTheme): string {
   return [
     "Create a professional newborn studio photograph of an invented baby who is not a real person: a healthy two-week-old Indian newborn with soft dark hair and true newborn proportions.",
-    ...scene(theme, "asleep"),
+    ...scene(theme, MOMENTS.asleep[0]),
     ALWAYS,
   ].join("\n");
 }
+
+/** Team testing only: an invented baby as an ordinary phone snapshot, to test with instead of a real child's photo. */
+export const BABY_PHONE_TEST_PROMPT = "A casual, unposed phone snapshot, not a studio photo, of an invented baby who is not a real person: a healthy three-week-old Indian newborn with soft dark hair, awake with mouth slightly open, lying on a printed cotton bedsheet at home in a simple white cotton vest. Photographed from close above with a phone: flat indoor daylight, a little soft, slightly wide-angle. No text, no watermark.";
 
 /** Spread a shoot across families so a batch feels like several setups, not one repeated. */
 export function mixThemes(count: number, seed = Date.now()): BabyTheme[] {
