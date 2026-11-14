@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { toFile } from "openai";
-import { labCodeOk, labEnabled } from "@/lib/baby/gate";
+import { getApiContext } from "@/lib/auth";
 import { BABY_SIZES, babyPrompt, babyTheme, type BabyShape, type BabyState } from "@/lib/baby/themes";
 import { env } from "@/lib/env";
 import { openai } from "@/lib/llm";
@@ -17,12 +17,18 @@ const MAX_UPLOAD = 4 * 1024 * 1024;
 const fail = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) => NextResponse.json({ ok: false, code, message, ...extra }, { status });
 
 /**
- * One photo per request. Nothing is written to the database or storage:
+ * One photo per request, made with PocketShoot's own OpenAI key. Nothing is written to the database or storage yet:
  * the reference photos are held in memory for this request and the result goes straight back to the browser.
  */
 export async function POST(req: Request) {
-  if (!labEnabled()) return new NextResponse(null, { status: 404 });
-  if (!labCodeOk(req.headers.get("x-baby-code"))) return fail(401, "code", "Access code is missing or wrong.");
+  // Design preview only: with PREVIEW_UI=1 and no OpenAI key the route can only return labelled sandbox images, so it needs no sign-in.
+  const previewSandbox = process.env.PREVIEW_UI === "1" && !env.openaiKey;
+  if (!previewSandbox) {
+    let ctx;
+    try { ctx = await getApiContext(req); } catch { return fail(401, "auth", "Sign in to continue."); }
+    // Platform accounts only until Baby Shoot charges credits.
+    if (!ctx.platformRole) return new NextResponse(null, { status: 404 });
+  }
   let form: FormData;
   try { form = await req.formData(); } catch { return fail(400, "bad_request", "The upload could not be read."); }
   const theme = babyTheme(String(form.get("theme") ?? ""));

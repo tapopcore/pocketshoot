@@ -1,7 +1,7 @@
 "use client";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { Loader2, type LucideIcon, Box, Coins, Folder, Grid2x2, House, Layers, LifeBuoy, Palette, Plus, Settings, Shield, UserRound, Users } from "lucide-react";
+import { Loader2, type LucideIcon, Baby, Box, Coins, Folder, Grid2x2, House, Layers, LifeBuoy, Palette, Plus, Settings, Shield, UserRound, Users } from "lucide-react";
 
 function NavMark({ Icon }: { Icon: LucideIcon }) {
   const { pending } = useLinkStatus();
@@ -13,7 +13,7 @@ const GROUPS: [string, [string, typeof House, string][]][] = [
   ["Workspace", [["/app/brand", Palette, "Brand kit"], ["/app/batch", Layers, "Bulk shoots"], ["/app/projects", Folder, "Projects"], ["/app/team", Users, "Team"]]],
   ["Account", [["/app/wallet", Coins, "Credits"], ["/app/settings", Settings, "Settings"], ["/app/support", LifeBuoy, "Help"]]],
 ];
-const LABELS: Record<string, string> = { "": "Home", new: "New shoot", shoots: "My shoots", jobs: "My shoots", library: "All photos", products: "Products", brand: "Brand kit", batch: "Bulk shoots", projects: "Projects", team: "Team", wallet: "Credits", invoices: "Credits", settings: "Settings", support: "Help", account: "Account" };
+const LABELS: Record<string, string> = { "": "Home", baby: "Baby Shoot", new: "New shoot", shoots: "My shoots", jobs: "My shoots", library: "All photos", products: "Products", brand: "Brand kit", batch: "Bulk shoots", projects: "Projects", team: "Team", wallet: "Credits", invoices: "Credits", settings: "Settings", support: "Help", account: "Account" };
 const GROUP_OF: Record<string, string> = { brand: "Workspace", batch: "Workspace", projects: "Workspace", team: "Workspace", wallet: "Account", invoices: "Account", settings: "Account", support: "Account", account: "Account" };
 
 function isActive(path: string, href: string) {
@@ -32,7 +32,7 @@ export function SideNav({ isPlatform }: { isPlatform: boolean }) {
           <Link key={href} href={href} className={`nv${isActive(path, href) ? " on" : ""}`} aria-current={isActive(path, href) ? "page" : undefined}><NavMark Icon={Icon} />{label}</Link>
         ))}</div>
       ))}
-      {isPlatform && <div className="grp"><h6>Platform</h6><Link href="/admin" className="nv"><Shield />Admin</Link></div>}
+      {isPlatform && <div className="grp"><h6>Platform</h6><Link href="/app/baby" className={`nv${path.startsWith("/app/baby") ? " on" : ""}`} aria-current={path.startsWith("/app/baby") ? "page" : undefined}><Baby />Baby Shoot</Link><Link href="/admin" className="nv"><Shield />Admin</Link></div>}
     </nav>
   );
 }

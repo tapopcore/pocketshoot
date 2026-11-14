@@ -35,10 +35,7 @@ function save(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-export function BabyLab() {
-  const [code, setCode] = useState<string | null>(null);
-  const [live, setLive] = useState(false);
-  const [entry, setEntry] = useState(""); const [entryError, setEntryError] = useState(""); const [checking, setChecking] = useState(true);
+export function BabyLab({ live }: { live: boolean }) {
   const [photos, setPhotos] = useState<Partial<Record<BabyState, Photo>>>({});
   const [uploadError, setUploadError] = useState("");
   const [mode, setMode] = useState<"one" | "shoot">("one");
@@ -52,20 +49,6 @@ export function BabyLab() {
   const [open, setOpen] = useState<string | null>(null);
   const resultsRef = useRef<HTMLElement>(null);
   const running = useRef(0); const queue = useRef<Result[]>([]);
-
-  const verify = useCallback(async (c: string) => {
-    const r = await fetch("/api/baby/check", { method: "POST", headers: { "x-baby-code": c } }).catch(() => null);
-    if (!r?.ok) return false;
-    const j = await r.json(); setLive(!!j.live); setCode(c);
-    try { sessionStorage.setItem("bb-code", c); } catch { /* storage unavailable */ }
-    return true;
-  }, []);
-  useEffect(() => {
-    let saved: string | null = null;
-    try { saved = sessionStorage.getItem("bb-code"); } catch { /* storage unavailable */ }
-    if (!saved) { setChecking(false); return; }
-    verify(saved).finally(() => setChecking(false));
-  }, [verify]);
 
   const mix = useMemo(() => mixThemes(count, seed * 7919 + count), [count, seed]);
   const plan = mode === "one" ? [BABY_THEMES.find((t) => t.id === themeId)!] : mix;
@@ -81,7 +64,7 @@ export function BabyLab() {
       const order = job.state === "awake" ? [photos.awake, photos.asleep] : [photos.asleep, photos.awake];
       order.filter(Boolean).forEach((p, i) => fd.append("photo", p!.blob, `baby-${i}.jpg`));
       fd.set("theme", job.theme.id); fd.set("state", job.state); fd.set("shape", shape); fd.set("quality", best ? "best" : "standard");
-      fetch("/api/baby/generate", { method: "POST", headers: { "x-baby-code": code ?? "" }, body: fd })
+      fetch("/api/baby/generate", { method: "POST", body: fd })
         .then(async (r) => ({ r, j: await r.json().catch(() => ({})) }))
         .then(({ r, j }) => {
           if (r.ok && j.ok) patch(job.id, { status: "ready", url: j.image, width: j.width, height: j.height, ms: j.ms, sandbox: j.sandbox });
@@ -90,7 +73,7 @@ export function BabyLab() {
         .catch(() => patch(job.id, { status: "failed", message: "The connection dropped. Please try again.", retryable: true }))
         .finally(() => { running.current--; pump(); });
     }
-  }, [photos, shape, best, code]);
+  }, [photos, shape, best]);
 
   const create = () => {
     const jobs: Result[] = plan.map((theme, i) => ({ id: `${Date.now()}-${i}`, theme, state, status: "queued" }));
@@ -106,25 +89,12 @@ export function BabyLab() {
     catch { setUploadError("That file could not be opened as a photo. Please try another one."); }
   };
 
-  if (checking) return <main className="bb-gate" aria-busy="true" />;
-  if (!code) return (
-    <main className="bb-gate">
-      <form className="bb-card bb-stack" onSubmit={async (e) => { e.preventDefault(); setEntryError(""); if (!(await verify(entry))) setEntryError("That code did not work. Check it and try again."); }}>
-        <h1 className="bb-logo">Baby <i>Shoot</i></h1>
-        <p className="bb-muted">Private test lab. Enter the access code to continue.</p>
-        <label className="bb-field"><span>Access code</span><input type="password" autoComplete="off" value={entry} onChange={(e) => setEntry(e.target.value)} aria-invalid={!!entryError} aria-describedby={entryError ? "bb-code-err" : undefined} /></label>
-        {entryError && <p id="bb-code-err" className="bb-error" role="alert">{entryError}</p>}
-        <button className="bb-btn primary" type="submit" disabled={!entry.trim()}>Continue</button>
-      </form>
-    </main>
-  );
-
   const current = results.find((r) => r.id === open);
   return (
-    <main className="bb-page">
+    <div className="bb bb-page">
       <header className="bb-head">
         <h1 className="bb-logo">Baby <i>Shoot</i></h1>
-        <span className="bb-tag">{live ? "Test lab" : "Sandbox, no real photos"}</span>
+        <span className="bb-tag">{live ? "Team preview" : "Sandbox, no real photos"}</span>
       </header>
       <p className="bb-lede">A studio newborn shoot from two phone photos. For babies up to about 10 weeks.</p>
 
@@ -139,7 +109,7 @@ export function BabyLab() {
             </label>
           ))}
         </div>
-        <p className="bb-small bb-muted">One photo is enough to start. Clear face, soft daylight, no filters. The photos are sent to the image model to make the result and are not stored by this test page.</p>
+        <p className="bb-small bb-muted">One photo is enough to start. Clear face, soft daylight, no filters. The photos are sent to the image model to make the result and are not saved in PocketShoot yet.</p>
         {uploadError && <p className="bb-error" role="alert">{uploadError}</p>}
       </section>
 
@@ -211,7 +181,7 @@ export function BabyLab() {
       </div>
 
       {current?.url && <Viewer r={current} original={(photos[current.state] ?? photos.asleep ?? photos.awake)?.url} onClose={() => setOpen(null)} />}
-    </main>
+    </div>
   );
 }
 
