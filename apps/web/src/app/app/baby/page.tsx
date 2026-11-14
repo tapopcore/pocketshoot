@@ -20,6 +20,14 @@ async function loadExamples(): Promise<Record<string, string>> {
   } catch { return {}; }
 }
 
+/** Photos this workspace has already made, newest first. */
+async function loadSaved(orgId: string): Promise<{ key: string; themeId: string }[]> {
+  try {
+    const { data } = await admin().storage.from("outputs").list(`baby/${orgId}`, { limit: 60, sortBy: { column: "name", order: "desc" } });
+    return (data ?? []).filter((f) => /^\d+-[a-z-]+\.jpg$/.test(f.name)).map((f) => ({ key: `baby/${orgId}/${f.name}`, themeId: f.name.replace(/^\d+-/, "").slice(0, -4) }));
+  } catch { return []; }
+}
+
 /**
  * Baby Shoot inside the signed-in app. Platform accounts only for now:
  * it does not charge credits yet, so it must not be open to customers.
@@ -27,5 +35,6 @@ async function loadExamples(): Promise<Record<string, string>> {
 export default async function BabyPage() {
   const ctx = await requireWeb();
   if (!ctx.platformRole) notFound();
-  return <BabyLab live={integrations.openai} examples={await loadExamples()} canManage />;
+  const [examples, saved] = await Promise.all([loadExamples(), loadSaved(ctx.orgId)]);
+  return <BabyLab live={integrations.openai} examples={examples} saved={saved} canManage />;
 }

@@ -10,6 +10,8 @@ import { StartBox, FirstActions } from "@/components/home-start";
 import { BeforeAfter } from "@/components/site/before-after";
 import { BulkCta } from "@/components/bulk-cta";
 import { getFlag } from "@/lib/settings";
+import { BabyEntry } from "@/components/baby-entry";
+import { publicUrl } from "@/lib/storage";
 
 export const metadata = { title: "Home" };
 
@@ -32,6 +34,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const busy = jobs.filter((j) => ["queued", "preparing", "generating", "checking"].includes(j.status)).length;
   const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" }).format(new Date());
   const notices = <>
+    {ctx.platformRole && <BabyEntry image={publicUrl("baby/themes/moon.webp")} />}
     {sp.denied && <div role="alert" className="note">Your role cannot open that page. Ask a workspace admin for access.</div>}
     {granted > 0 && <div role="status" className="note good"><Check size={16} />{granted} free photos added to your account.</div>}
   </>;

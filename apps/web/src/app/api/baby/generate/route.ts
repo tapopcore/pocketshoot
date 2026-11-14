@@ -6,6 +6,7 @@ import { BABY_SIZES, babyPrompt, babyTheme, type BabyShape, type BabyState } fro
 import { env } from "@/lib/env";
 import { openai } from "@/lib/llm";
 import { classifyHttpError, mock } from "@/lib/providers";
+import { putObject } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,14 +18,14 @@ const MAX_UPLOAD = 4 * 1024 * 1024;
 const fail = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) => NextResponse.json({ ok: false, code, message, ...extra }, { status });
 
 /**
- * One photo per request, made with PocketShoot's own OpenAI key. Nothing is written to the database or storage yet:
+ * One photo per request, made with PocketShoot's own OpenAI key. The finished photo is saved to storage for the workspace;
  * the reference photos are held in memory for this request and the result goes straight back to the browser.
  */
 export async function POST(req: Request) {
   // Design preview only: with PREVIEW_UI=1 and no OpenAI key the route can only return labelled sandbox images, so it needs no sign-in.
   const previewSandbox = process.env.PREVIEW_UI === "1" && !env.openaiKey;
+  let ctx: Awaited<ReturnType<typeof getApiContext>> | null = null;
   if (!previewSandbox) {
-    let ctx;
     try { ctx = await getApiContext(req); } catch { return fail(401, "auth", "Sign in to continue."); }
     // Platform accounts only until Baby Shoot charges credits.
     if (!ctx.platformRole) return new NextResponse(null, { status: 404 });
@@ -64,7 +65,13 @@ export async function POST(req: Request) {
     }
     const jpeg = await sharp(png).jpeg({ quality: 93, chromaSubsampling: "4:4:4" }).toBuffer();
     const meta = await sharp(jpeg).metadata();
-    return NextResponse.json({ ok: true, image: `data:image/jpeg;base64,${jpeg.toString("base64")}`, width: meta.width, height: meta.height, model, quality, sandbox, usage, requestId, ms: Date.now() - started, theme: theme.id });
+    // Keep the finished photo for this workspace so it is there when they come back. The uploaded photos are never stored.
+    let key: string | null = null;
+    if (ctx && !sandbox) {
+      key = `baby/${ctx.orgId}/${Date.now()}-${theme.id}.jpg`;
+      try { await putObject("outputs", key, jpeg, "image/jpeg"); } catch { key = null; }
+    }
+    return NextResponse.json({ ok: true, image: `data:image/jpeg;base64,${jpeg.toString("base64")}`, width: meta.width, height: meta.height, key, model, quality, sandbox, usage, requestId, ms: Date.now() - started, theme: theme.id });
   } catch (e) {
     const err = e as { status?: number; message?: string; request_id?: string };
     const c = classifyHttpError(err.status, err.message ?? String(e));

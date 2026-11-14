@@ -20,15 +20,19 @@ Each theme card shows an example photo once one exists. Examples are made from t
 
 Platform accounts only for now. Everyone else gets 404 on the page and on `/api/baby/generate`, and does not see the menu link. The reason: it does not charge credits yet, so it must not be open to customers.
 
+## Saved photos
+
+Every finished photo is stored in the `outputs` bucket under `baby/<workspace id>/<time>-<theme id>.jpg` and listed under "Your photos" when the page is opened again. `GET /api/baby/photo` serves a photo only to the workspace that made it. Uploaded reference photos are never stored.
+
 ## What it does not do yet
 
-- It does not charge credits.
-- It does not save result photos. Reference photos are held in memory for one request and the result goes straight back to the browser.
+- It does not charge credits, which is why it is still limited to platform accounts.
 - It does not write to PocketShoot's cost ledger, because that ledger is tied to products and jobs. Until that is wired, the OpenAI dashboard is the spend record.
+- Saved photos cannot be deleted from the page yet.
 
 ## Changes to existing files
 
-One: `components/nav-links.tsx` gains a "Baby Shoot" link in the Platform group and a breadcrumb label. Everything else is new files.
+Two: `components/nav-links.tsx` gains a "Baby Shoot" link in the Platform group and a breadcrumb label, and `app/app/page.tsx` shows a Baby Shoot entry card on the app home for platform accounts. Everything else is new files.
 
 ## Checks run
 

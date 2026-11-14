@@ -13,7 +13,7 @@ export default async function DevBaby({ searchParams }: { searchParams: Promise<
   const examples = (await searchParams).ex === "1" ? Object.fromEntries(BABY_THEMES.slice(0, 26).map((t) => [t.id, "/directions/hero.webp"])) : {};
   return (
     <AppShell locale="en" orgName="Demo workspace" orgs={[]} orgId="x" credits={12} email="demo@example.com" isPlatform>
-      <BabyLab live={false} examples={examples} canManage />
+      <BabyLab live={false} examples={examples} saved={[]} canManage />
     </AppShell>
   );
 }

@@ -2,10 +2,10 @@
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Download, ImagePlus, Moon, RefreshCw, Share2, Shuffle, Sun, X } from "lucide-react";
-import { BABY_EST_INR, BABY_FAMILIES, BABY_THEMES, mixThemes, type BabyShape, type BabyState, type BabyTheme } from "@/lib/baby/themes";
+import { BABY_FAMILIES, BABY_THEMES, mixThemes, type BabyShape, type BabyState, type BabyTheme } from "@/lib/baby/themes";
 
 type Photo = { blob: Blob; url: string };
-type Result = { id: string; theme: BabyTheme; state: BabyState; status: "queued" | "making" | "ready" | "failed"; url?: string; width?: number; height?: number; message?: string; detail?: string; code?: string; retryable?: boolean; ms?: number; sandbox?: boolean };
+type Result = { id: string; theme: BabyTheme; state: BabyState; status: "queued" | "making" | "ready" | "failed"; url?: string; width?: number; height?: number; message?: string; detail?: string; code?: string; retryable?: boolean; ms?: number; sandbox?: boolean; thumb?: string };
 const COUNTS = [6, 10, 15] as const;
 const SHAPES: { id: BabyShape; label: string; hint: string }[] = [{ id: "4:5", label: "Portrait", hint: "Instagram post" }, { id: "1:1", label: "Square", hint: "Grid" }, { id: "9:16", label: "Tall", hint: "Story or Reel" }];
 
@@ -35,7 +35,7 @@ function save(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-export function BabyLab({ live, examples, canManage }: { live: boolean; examples: Record<string, string>; canManage: boolean }) {
+export function BabyLab({ live, examples, saved, canManage }: { live: boolean; examples: Record<string, string>; saved: { key: string; themeId: string }[]; canManage: boolean }) {
   const [ex, setEx] = useState(examples);
   const [seeding, setSeeding] = useState<{ done: number; total: number; failed: number } | null>(null);
   const [photos, setPhotos] = useState<Partial<Record<BabyState, Photo>>>({});
@@ -46,8 +46,10 @@ export function BabyLab({ live, examples, canManage }: { live: boolean; examples
   const [seed, setSeed] = useState(1);
   const [state, setState] = useState<BabyState>("asleep");
   const [shape, setShape] = useState<BabyShape>("4:5");
-  const [best, setBest] = useState(false);
-  const [results, setResults] = useState<Result[]>([]);
+  const [results, setResults] = useState<Result[]>(() => saved.map((p) => {
+    const q = `/api/baby/photo?key=${encodeURIComponent(p.key)}`;
+    return { id: p.key, theme: BABY_THEMES.find((t) => t.id === p.themeId) ?? BABY_THEMES[0], state: "asleep" as BabyState, status: "ready" as const, url: q, thumb: `${q}&w=600` };
+  }));
   const [open, setOpen] = useState<string | null>(null);
   const resultsRef = useRef<HTMLElement>(null);
   const running = useRef(0); const queue = useRef<Result[]>([]);
@@ -65,7 +67,7 @@ export function BabyLab({ live, examples, canManage }: { live: boolean; examples
       const fd = new FormData();
       const order = job.state === "awake" ? [photos.awake, photos.asleep] : [photos.asleep, photos.awake];
       order.filter(Boolean).forEach((p, i) => fd.append("photo", p!.blob, `baby-${i}.jpg`));
-      fd.set("theme", job.theme.id); fd.set("state", job.state); fd.set("shape", shape); fd.set("quality", best ? "best" : "standard");
+      fd.set("theme", job.theme.id); fd.set("state", job.state); fd.set("shape", shape); fd.set("quality", "standard");
       fetch("/api/baby/generate", { method: "POST", body: fd })
         .then(async (r) => ({ r, j: await r.json().catch(() => ({})) }))
         .then(({ r, j }) => {
@@ -75,7 +77,7 @@ export function BabyLab({ live, examples, canManage }: { live: boolean; examples
         .catch(() => patch(job.id, { status: "failed", message: "The connection dropped. Please try again.", retryable: true }))
         .finally(() => { running.current--; pump(); });
     }
-  }, [photos, shape, best]);
+  }, [photos, shape]);
 
   const create = () => {
     const jobs: Result[] = plan.map((theme, i) => ({ id: `${Date.now()}-${i}`, theme, state, status: "queued" }));
@@ -127,7 +129,7 @@ export function BabyLab({ live, examples, canManage }: { live: boolean; examples
             </label>
           ))}
         </div>
-        <p className="bb-small bb-muted">One photo is enough to start. Clear face, soft daylight, no filters. The photos are sent to the image model to make the result and are not saved in PocketShoot yet.</p>
+        <p className="bb-small bb-muted">One photo is enough to start. Clear face, soft daylight, no filters. Your uploaded photos are only used to make the result and are not kept. The photos we make for you are saved to your account.</p>
         {uploadError && <p className="bb-error" role="alert">{uploadError}</p>}
       </section>
 
@@ -174,17 +176,16 @@ export function BabyLab({ live, examples, canManage }: { live: boolean; examples
         <div className="bb-chips" role="group" aria-label="Photo shape">
           {SHAPES.map((s) => <button key={s.id} type="button" aria-pressed={shape === s.id} onClick={() => setShape(s.id)}>{s.label}<small>{s.hint}</small></button>)}
         </div>
-        <label className="bb-check"><input type="checkbox" checked={best} onChange={(e) => setBest(e.target.checked)} /><span>Best quality<small>Slower and costs several times more per photo.</small></span></label>
       </section>
 
       {results.length > 0 && (
         <section className="bb-stack" aria-labelledby="bb-s4" ref={resultsRef}>
           <h2 id="bb-s4">Your photos</h2>
-          <p className="bb-small bb-muted" role="status">{busy ? `Making ${results.filter((r) => r.status !== "ready" && r.status !== "failed").length} of ${results.length}. Each photo takes about a minute.` : "Tap a photo to compare it with yours, save it or share it. Photos are kept only while this page is open."}</p>
+          <p className="bb-small bb-muted" role="status">{busy ? `Making ${results.filter((r) => r.status !== "ready" && r.status !== "failed").length} of ${results.length}. Each photo takes about 20 seconds.` : "Tap a photo to save it or share it. Your photos are kept here for when you come back."}</p>
           <div className="bb-grid" data-shape={shape}>
             {results.map((r) => (
               <article key={r.id} className="bb-tile" data-status={r.status}>
-                {r.status === "ready" ? <button type="button" className="bb-tile-img" onClick={() => setOpen(r.id)} aria-label={`Open ${r.theme.name}`}><img src={r.url} alt={`${r.theme.name} photo`} /></button>
+                {r.status === "ready" ? <button type="button" className="bb-tile-img" onClick={() => setOpen(r.id)} aria-label={`Open ${r.theme.name}`}><img src={r.thumb ?? r.url} alt={`${r.theme.name} photo`} loading="lazy" decoding="async" /></button>
                   : r.status === "failed" ? <div className="bb-tile-fail"><p><b>Not made</b>{r.message}</p>{r.detail && <details><summary>What the model said</summary><p>{r.detail}</p></details>}{r.retryable && <button type="button" className="bb-btn small" onClick={() => retry(r)}><RefreshCw size={14} aria-hidden />Try again</button>}</div>
                   : <div className="bb-tile-wait" aria-label={`${r.theme.name}, ${r.status === "queued" ? "waiting" : "being made"}`} />}
                 <p className="bb-tile-cap">{r.theme.name}{r.sandbox && <small> · sandbox</small>}{r.ms && r.status === "ready" ? <small> · {Math.round(r.ms / 1000)}s</small> : null}</p>
@@ -197,17 +198,17 @@ export function BabyLab({ live, examples, canManage }: { live: boolean; examples
       {canManage && live && (missing.length > 0 || seeding) && (
         <section className="bb-admin bb-stack-s" aria-labelledby="bb-adm">
           <h3 id="bb-adm">Team only: theme example photos</h3>
-          <p className="bb-small" role="status">{seeding ? (seeding.done < seeding.total ? `Making example ${Math.min(seeding.done + 1, seeding.total)} of ${seeding.total}. Keep this page open.` : `Finished. ${seeding.total - seeding.failed} made${seeding.failed ? `, ${seeding.failed} not made. You can run it again for those.` : "."}`) : `${BABY_THEMES.length - missing.length} of ${BABY_THEMES.length} theme cards have an example photo. Making the other ${missing.length} takes about ${Math.ceil(missing.length / 2)} minutes and costs roughly ₹${missing.length * BABY_EST_INR}.`}</p>
+          <p className="bb-small" role="status">{seeding ? (seeding.done < seeding.total ? `Making example ${Math.min(seeding.done + 1, seeding.total)} of ${seeding.total}. Keep this page open.` : `Finished. ${seeding.total - seeding.failed} made${seeding.failed ? `, ${seeding.failed} not made. You can run it again for those.` : "."}`) : `${BABY_THEMES.length - missing.length} of ${BABY_THEMES.length} theme cards have an example photo. Making the other ${missing.length} takes about ${Math.ceil(missing.length / 2)} minutes.`}</p>
           {(!seeding || seeding.done >= seeding.total) && missing.length > 0 && <button type="button" className="bb-btn small" onClick={makeExamples}>Make {missing.length} example photo{missing.length === 1 ? "" : "s"}</button>}
         </section>
       )}
 
       <div className="bb-bar">
-        <p>{plan.length === 1 ? plan[0].name : `${plan.length} photos, mixed themes`}<small>{best ? "Best quality" : `About ₹${BABY_EST_INR * plan.length} at standard quality`}</small></p>
+        <p>{plan.length === 1 ? plan[0].name : `${plan.length} photos, mixed themes`}<small>{plan.length === 1 ? plan[0].blurb : "A mix of styles"}</small></p>
         <button type="button" className="bb-btn primary" disabled={!hasPhoto || busy} onClick={create}>{busy ? "Making…" : !hasPhoto ? "Add a photo first" : plan.length === 1 ? "Create photo" : `Create ${plan.length} photos`}</button>
       </div>
 
-      {current?.url && <Viewer r={current} original={(photos[current.state] ?? photos.asleep ?? photos.awake)?.url} onClose={() => setOpen(null)} />}
+      {current?.url && <Viewer r={current} original={saved.some((p) => p.key === current.id) ? undefined : (photos[current.state] ?? photos.asleep ?? photos.awake)?.url} onClose={() => setOpen(null)} />}
     </div>
   );
 }
@@ -215,6 +216,7 @@ export function BabyLab({ live, examples, canManage }: { live: boolean; examples
 function Viewer({ r, original, onClose }: { r: Result; original?: string; onClose: () => void }) {
   const [compare, setCompare] = useState(false);
   const [working, setWorking] = useState("");
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(r.width && r.height ? { w: r.width, h: r.height } : null);
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -224,7 +226,6 @@ function Viewer({ r, original, onClose }: { r: Result; original?: string; onClos
     return () => { document.removeEventListener("keydown", key); document.body.style.overflow = ""; prev?.focus(); };
   }, [onClose]);
   const name = `baby-shoot-${r.theme.id}`;
-  const long = Math.max(r.width ?? 0, r.height ?? 0);
   const blobOf = async (k: "hd" | "4k") => (k === "hd" ? await (await fetch(r.url!)).blob() : await enlarge(r.url!, 3840));
   const act = async (k: "hd" | "4k" | "share") => {
     setWorking(k);
@@ -240,15 +241,15 @@ function Viewer({ r, original, onClose }: { r: Result; original?: string; onClos
   return (
     <div className="bb-viewer" role="dialog" aria-modal="true" aria-label={r.theme.name}>
       <div className="bb-viewer-top"><p>{r.theme.name}</p><button ref={closeRef} type="button" className="bb-icon" onClick={onClose} aria-label="Close"><X /></button></div>
-      <div className="bb-viewer-img"><img src={compare && original ? original : r.url} alt={compare ? "Your original photo" : `${r.theme.name} photo`} /></div>
+      <div className="bb-viewer-img"><img src={compare && original ? original : r.url} alt={compare ? "Your original photo" : `${r.theme.name} photo`} onLoad={(e) => { if (!compare) setDims({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }); }} /></div>
       <div className="bb-viewer-actions">
         {original && <button type="button" className="bb-btn" aria-pressed={compare} onClick={() => setCompare((c) => !c)}>{compare ? "Show result" : "Compare with your photo"}</button>}
         <div className="bb-row">
-          <button type="button" className="bb-btn" disabled={!!working} onClick={() => act("hd")}><Download size={16} aria-hidden />HD<small>{long} px</small></button>
+          <button type="button" className="bb-btn" disabled={!!working} onClick={() => act("hd")}><Download size={16} aria-hidden />HD<small>as made</small></button>
           <button type="button" className="bb-btn" disabled={!!working} onClick={() => act("4k")}><Download size={16} aria-hidden />4K<small>enlarged</small></button>
           <button type="button" className="bb-btn primary" disabled={!!working} onClick={() => act("share")}><Share2 size={16} aria-hidden />Share</button>
         </div>
-        <p className="bb-small">Made at {r.width} × {r.height} px. The 4K file is this photo enlarged to 3840 px. Share opens your phone&apos;s share menu, where you can pick Instagram.</p>
+        <p className="bb-small">{dims ? `Made at ${dims.w} × ${dims.h} px. ` : ""}The 4K file is this photo enlarged to 3840 px. Share opens your phone&apos;s share menu, where you can pick Instagram.</p>
       </div>
     </div>
   );

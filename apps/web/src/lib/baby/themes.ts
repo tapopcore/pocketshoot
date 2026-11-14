@@ -114,7 +114,4 @@ export function mixThemes(count: number, seed = Date.now()): BabyTheme[] {
   return out;
 }
 
-/** Planning figure only, from PocketShoot's observed usage at standard quality. Not a quote. */
-export const BABY_EST_INR = 3;
-
 export const BABY_EXAMPLE_FOLDER = "baby/themes";
