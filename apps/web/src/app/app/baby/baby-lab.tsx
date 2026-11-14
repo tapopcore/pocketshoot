@@ -35,7 +35,9 @@ function save(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-export function BabyLab({ live }: { live: boolean }) {
+export function BabyLab({ live, examples, canManage }: { live: boolean; examples: Record<string, string>; canManage: boolean }) {
+  const [ex, setEx] = useState(examples);
+  const [seeding, setSeeding] = useState<{ done: number; total: number; failed: number } | null>(null);
   const [photos, setPhotos] = useState<Partial<Record<BabyState, Photo>>>({});
   const [uploadError, setUploadError] = useState("");
   const [mode, setMode] = useState<"one" | "shoot">("one");
@@ -82,6 +84,22 @@ export function BabyLab({ live }: { live: boolean }) {
   };
   const retry = (r: Result) => { const job: Result = { ...r, status: "queued", message: undefined, detail: undefined }; patch(r.id, job); queue.current.push(job); pump(); };
 
+  const missing = BABY_THEMES.filter((t) => !ex[t.id]);
+  const makeExamples = async () => {
+    const todo = [...missing]; let done = 0, failed = 0;
+    setSeeding({ done, total: todo.length, failed });
+    const worker = async () => {
+      for (let t = todo.shift(); t; t = todo.shift()) {
+        const id = t.id;
+        const j = await fetch("/api/baby/example", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ theme: id }) }).then((r) => r.json()).catch(() => ({}));
+        if (j.ok) setEx((m) => ({ ...m, [id]: j.url })); else failed++;
+        done++; setSeeding({ done, total: done + todo.length, failed });
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    setSeeding((s) => (s ? { ...s, total: s.done } : s));
+  };
+
   const pick = async (which: BabyState, file?: File) => {
     if (!file) return;
     setUploadError("");
@@ -119,13 +137,14 @@ export function BabyLab({ live }: { live: boolean }) {
           <button type="button" aria-pressed={mode === "one"} onClick={() => setMode("one")}>One photo</button>
           <button type="button" aria-pressed={mode === "shoot"} onClick={() => setMode("shoot")}>Full shoot</button>
         </div>
+        {Object.keys(ex).length > 0 && <p className="bb-small bb-muted">Example photos show an invented baby, to give you the look of each theme.</p>}
         {mode === "one" ? BABY_FAMILIES.map((f) => (
           <div key={f} className="bb-stack-s">
             <h3>{f}</h3>
             <div className="bb-themes">
               {BABY_THEMES.filter((t) => t.family === f).map((t) => (
                 <button key={t.id} type="button" className="bb-theme" aria-pressed={themeId === t.id} onClick={() => setThemeId(t.id)}>
-                  <span className="bb-swatch" style={{ background: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} aria-hidden>{themeId === t.id && <Check size={18} />}</span>
+                  <span className="bb-swatch" data-photo={!!ex[t.id]} style={{ background: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} aria-hidden>{ex[t.id] && <img src={ex[t.id]} alt="" loading="lazy" decoding="async" />}{ex[t.id] && <em>Example</em>}{themeId === t.id && <i><Check size={16} /></i>}</span>
                   <span className="bb-theme-name">{t.name}</span><span className="bb-theme-blurb">{t.blurb}</span>
                 </button>
               ))}
@@ -138,7 +157,7 @@ export function BabyLab({ live }: { live: boolean }) {
             </div>
             <div className="bb-mixhead"><h3>Your mix of themes</h3><button type="button" className="bb-link" onClick={() => setSeed((s) => s + 1)}><Shuffle size={16} aria-hidden />Shuffle</button></div>
             <ol className="bb-mix">
-              {mix.map((t) => <li key={t.id}><span className="bb-dot" style={{ background: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} aria-hidden /><span><b>{t.name}</b><small>{t.family} · {t.blurb}</small></span></li>)}
+              {mix.map((t) => <li key={t.id}><span className="bb-dot" style={{ background: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} aria-hidden>{ex[t.id] && <img src={ex[t.id]} alt="" loading="lazy" decoding="async" />}</span><span><b>{t.name}</b><small>{t.family} · {t.blurb}</small></span></li>)}
             </ol>
           </div>
         )}
@@ -172,6 +191,14 @@ export function BabyLab({ live }: { live: boolean }) {
               </article>
             ))}
           </div>
+        </section>
+      )}
+
+      {canManage && live && (missing.length > 0 || seeding) && (
+        <section className="bb-admin bb-stack-s" aria-labelledby="bb-adm">
+          <h3 id="bb-adm">Team only: theme example photos</h3>
+          <p className="bb-small" role="status">{seeding ? (seeding.done < seeding.total ? `Making example ${Math.min(seeding.done + 1, seeding.total)} of ${seeding.total}. Keep this page open.` : `Finished. ${seeding.total - seeding.failed} made${seeding.failed ? `, ${seeding.failed} not made. You can run it again for those.` : "."}`) : `${BABY_THEMES.length - missing.length} of ${BABY_THEMES.length} theme cards have an example photo. Making the other ${missing.length} takes about ${Math.ceil(missing.length / 2)} minutes and costs roughly ₹${missing.length * BABY_EST_INR}.`}</p>
+          {(!seeding || seeding.done >= seeding.total) && missing.length > 0 && <button type="button" className="bb-btn small" onClick={makeExamples}>Make {missing.length} example photo{missing.length === 1 ? "" : "s"}</button>}
         </section>
       )}
 

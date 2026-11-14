@@ -12,6 +12,10 @@ A section of the signed-in app at `/app/baby` for newborn photo shoots (birth to
 
 29 newborn themes in 7 families live in `apps/web/src/lib/baby/themes.ts`. Each is a written description of a studio set. None copies a specific photograph, and none uses characters, brands or lettering. Every prompt keeps the hips covered.
 
+## Theme example photos
+
+Each theme card shows an example photo once one exists. Examples are made from text only (an invented baby, no customer photo), by `POST /api/baby/example`, and stored in the public bucket under `baby/themes/<theme id>.webp`. A team-only panel on the page makes the missing ones in one tap. Cards without an example show a colour swatch.
+
 ## Who can use it
 
 Platform accounts only for now. Everyone else gets 404 on the page and on `/api/baby/generate`, and does not see the menu link. The reason: it does not charge credits yet, so it must not be open to customers.
@@ -19,7 +23,7 @@ Platform accounts only for now. Everyone else gets 404 on the page and on `/api/
 ## What it does not do yet
 
 - It does not charge credits.
-- It does not save photos. Reference photos are held in memory for one request and the result goes straight back to the browser.
+- It does not save result photos. Reference photos are held in memory for one request and the result goes straight back to the browser.
 - It does not write to PocketShoot's cost ledger, because that ledger is tied to products and jobs. Until that is wired, the OpenAI dashboard is the spend record.
 
 ## Changes to existing files

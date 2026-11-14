@@ -71,21 +71,36 @@ const LIGHT = {
   lowkey: "Low-key lighting: one soft light from the upper left pooling on the baby, the surroundings falling away into deep shadow.",
 };
 
+const LOOK = "Look: a real photograph from a high-end newborn studio. Natural skin with fine texture, tiny creases, soft peach fuzz and slight natural redness; real fabric weave and wool fibres; believable contact shadows. Not airbrushed, not waxy, not a 3D render, not an illustration. One colour family across wrap, props and backdrop, with at most one accent.";
+const ALWAYS = "Always: the hips and nappy area are fully covered by the wrap or outfit. One baby only, no adults or hands in frame. No text, letters, numbers, logos, brand names, watermarks or borders anywhere.";
+const eyesLine = (state: BabyState) => state === "awake"
+  ? "The baby is awake and calm with eyes open, looking toward the camera, in a relaxed natural expression."
+  : "The baby is peacefully asleep with eyes closed and a relaxed face.";
+const scene = (theme: BabyTheme, state: BabyState) => [
+  `Set: ${theme.set}.`,
+  `Styling: ${theme.wear}.`,
+  `Pose: ${theme.pose}. ${eyesLine(state)} The pose must be one a real sleeping newborn can safely hold, with the head and neck supported.`,
+  CAMERA[theme.camera],
+  LIGHT[theme.light],
+  LOOK,
+];
+
 /** One prompt per photo. The same safety and realism rules are appended to every theme. */
 export function babyPrompt(theme: BabyTheme, state: BabyState, references: number): string {
-  const eyes = state === "awake"
-    ? "The baby is awake and calm with eyes open, looking toward the camera, in a relaxed natural expression."
-    : "The baby is peacefully asleep with eyes closed and a relaxed face.";
   return [
     `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? "s" : ""}.`,
     "Identity: this must be recognisably the same child. Keep the exact face shape, eyes, eyebrows, nose, lips, cheeks, ears, skin tone, birthmarks, hair colour, hairline and amount of hair. Do not beautify, slim, lighten or age the face. Keep true newborn proportions.",
-    `Set: ${theme.set}.`,
-    `Styling: ${theme.wear}.`,
-    `Pose: ${theme.pose}. ${eyes} The pose must be one a real sleeping newborn can safely hold, with the head and neck supported.`,
-    CAMERA[theme.camera],
-    LIGHT[theme.light],
-    "Look: a real photograph from a high-end newborn studio. Natural skin with fine texture, tiny creases, soft peach fuzz and slight natural redness; real fabric weave and wool fibres; believable contact shadows. Not airbrushed, not waxy, not a 3D render, not an illustration. One colour family across wrap, props and backdrop, with at most one accent.",
-    "Always: the hips and nappy area are fully covered by the wrap or outfit. One baby only, no adults or hands in frame. No text, letters, numbers, logos, brand names, watermarks or borders anywhere. Replace everything from the original background and clothing.",
+    ...scene(theme, state),
+    `${ALWAYS} Replace everything from the original background and clothing.`,
+  ].join("\n");
+}
+
+/** The picture on a theme card: an invented baby, never a customer's child. */
+export function babyExamplePrompt(theme: BabyTheme): string {
+  return [
+    "Create a professional newborn studio photograph of an invented baby who is not a real person: a healthy two-week-old Indian newborn with soft dark hair and true newborn proportions.",
+    ...scene(theme, "asleep"),
+    ALWAYS,
   ].join("\n");
 }
 
@@ -101,3 +116,5 @@ export function mixThemes(count: number, seed = Date.now()): BabyTheme[] {
 
 /** Planning figure only, from PocketShoot's observed usage at standard quality. Not a quote. */
 export const BABY_EST_INR = 3;
+
+export const BABY_EXAMPLE_FOLDER = "baby/themes";
