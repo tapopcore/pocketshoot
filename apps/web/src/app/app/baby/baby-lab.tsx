@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Download, ImagePlus, Moon, RefreshCw, Share2, Shuffle, Sun, X } from "lucide-react";
-import { BABY_FAMILIES, BABY_THEMES, mixThemes, type BabyShape, type BabyState, type BabyTheme } from "@/lib/baby/themes";
+import { BABY_FAMILIES, BABY_LEGACY_NAMES, BABY_THEMES, mixThemes, type BabyShape, type BabyState, type BabyTheme } from "@/lib/baby/themes";
 
 type Photo = { blob: Blob; url: string };
 type Result = { id: string; theme: BabyTheme; state: BabyState; status: "queued" | "making" | "ready" | "failed"; url?: string; width?: number; height?: number; message?: string; detail?: string; code?: string; retryable?: boolean; ms?: number; sandbox?: boolean; thumb?: string; moment?: number };
@@ -49,7 +49,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
   const [shape, setShape] = useState<BabyShape>("4:5");
   const [results, setResults] = useState<Result[]>(() => saved.map((p) => {
     const q = `/api/baby/photo?key=${encodeURIComponent(p.key)}`;
-    return { id: p.key, theme: BABY_THEMES.find((t) => t.id === p.themeId) ?? BABY_THEMES[0], state: "asleep" as BabyState, status: "ready" as const, url: q, thumb: `${q}&w=600` };
+    return { id: p.key, theme: BABY_THEMES.find((t) => t.id === p.themeId) ?? { ...BABY_THEMES[0], id: p.themeId, name: BABY_LEGACY_NAMES[p.themeId] ?? "Saved photo" }, state: "asleep" as BabyState, status: "ready" as const, url: q, thumb: `${q}&w=600` };
   }));
   const [open, setOpen] = useState<string | null>(null);
   const resultsRef = useRef<HTMLElement>(null);

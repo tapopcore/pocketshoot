@@ -10,7 +10,7 @@ A section of the signed-in app at `/app/baby` for newborn photo shoots (birth to
 - Make one photo in a chosen theme, or a shoot of 6, 10 or 15 with themes mixed across styles.
 - Open a result, compare it with the original, save it in HD (as made) or 4K (enlarged to 3840 px), or share it through the phone's share menu.
 
-29 newborn themes in 7 families live in `apps/web/src/lib/baby/themes.ts`. Each is a written description of a studio set. None copies a specific photograph, and none uses characters, brands or lettering. Every prompt keeps the hips covered.
+57 newborn themes in 7 families live in `apps/web/src/lib/baby/themes.ts`. Each is a written description of a studio set. None copies a specific photograph, and none uses characters, brands or lettering. Every prompt keeps the hips covered.
 
 ## Theme example photos
 
