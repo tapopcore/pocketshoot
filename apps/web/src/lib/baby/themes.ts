@@ -132,12 +132,22 @@ const scene = (theme: BabyTheme, momentLine: string) => [
  * Identity (who the baby is) is kept. Capture conditions (light, lens, expression, marks on the upload) are re-made for the scene,
  * because copying them makes the face look pasted onto the set.
  */
-export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false): string {
+/**
+ * The frame shape has to be stated, or the model composes for a standard portrait and the tall or square frame simply crops into it.
+ */
+const FRAME: Record<BabyShape, string> = {
+  "4:5": "Frame: vertical 4:5. Compose for this frame: the whole set and the whole baby sit fully inside it with a little calm space on every side.",
+  "1:1": "Frame: square 1:1. Compose for a square: the whole set and the whole baby sit fully inside the frame with calm space around them, and nothing important is cut off at any edge.",
+  "9:16": "Frame: tall vertical 9:16. Compose for this tall frame by pulling the camera back, never by zooming in: the whole set and the whole baby stay fully inside the frame at their natural size, filling roughly the middle half of the height, with plain backdrop or floor continuing above and below. Do not crop the set, the props or the baby to fill the height.",
+};
+
+export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false, shape: BabyShape = "4:5"): string {
   return [
     `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? "s" : ""}. This is a new photograph taken in a studio, not a cut-out of the reference placed into a scene.`,
     "Identity, keep exactly: who the baby is. Face shape, the shape and spacing of the eyes, eyebrows, nose, lips, cheeks and ears, true skin tone, birthmarks, hair colour, hairline and amount of hair. Do not beautify, slim, lighten or age the face.",
     "Re-capture, do not copy: the reference is a casual phone snapshot. Do not carry over its lighting, its close-up wide-angle distortion, its head angle, its clothing or accessories, its background, or any watermark, logo, text or mark printed over it. Light the face with the same light as the set, with matching shadow direction and softness, so face and scene belong together. Render the head as an 85mm portrait lens would, in true newborn proportion to the body. Skin is matte and natural: no gloss or shine on the eyelids or lips, nothing that reads as make-up.",
     ...scene(theme, keepExpression ? KEEP_MOMENT : MOMENTS[state][Math.abs(moment) % BABY_MOMENTS]),
+    FRAME[shape],
     `${ALWAYS} Replace everything from the original background and clothing.`,
   ].join("\n");
 }
@@ -147,6 +157,7 @@ export function babyExamplePrompt(theme: BabyTheme): string {
   return [
     "Create a professional newborn studio photograph of an invented baby who is not a real person: a healthy two-week-old Indian newborn with soft dark hair and true newborn proportions.",
     ...scene(theme, MOMENTS.asleep[0]),
+    FRAME["4:5"],
     ALWAYS,
   ].join("\n");
 }

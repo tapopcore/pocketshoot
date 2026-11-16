@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   }
 
   const moment = Math.max(0, Math.min(3, Number(form.get("moment")) || 0));
-  const prompt = babyPrompt(theme, state, images.length, moment, form.get("keep") === "1");
+  const prompt = babyPrompt(theme, state, images.length, moment, form.get("keep") === "1", shape);
   const started = Date.now();
   try {
     let png: Buffer, model = MODEL, usage: unknown = null, requestId: string | null = null, sandbox = false;
