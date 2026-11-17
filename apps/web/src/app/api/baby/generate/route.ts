@@ -35,11 +35,13 @@ export async function POST(req: Request) {
   try { form = await req.formData(); } catch { return fail(400, "bad_request", "The upload could not be read."); }
   const theme = babyTheme(String(form.get("theme") ?? ""));
   const shape = String(form.get("shape") ?? "4:5") as BabyShape;
-  const state: BabyState = form.get("state") === "awake" ? "awake" : "asleep";
+  // No asleep or awake choice for parents: each photo's moment decides. Every third photo in a shoot is an awake moment.
+  const moment0 = Math.max(0, Math.min(11, Number(form.get("moment")) || 0));
+  const state: BabyState = moment0 % 3 === 2 ? "awake" : "asleep";
   const quality = form.get("quality") === "best" ? "high" : "medium";
   const size = BABY_SIZES[shape];
   if (!theme || !size) return fail(400, "bad_request", "Unknown theme or photo shape.");
-  const files = form.getAll("photo").filter((f): f is File => f instanceof File && f.size > 0).slice(0, 2);
+  const files = form.getAll("photo").filter((f): f is File => f instanceof File && f.size > 0).slice(0, 5);
   if (!files.length) return fail(400, "bad_request", "Add at least one photo of the baby.");
   if (files.some((f) => f.size > MAX_UPLOAD)) return fail(413, "too_large", "That photo is too large. Please try a smaller one.");
 
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
     return fail(400, "bad_image", "That file does not look like a photo we can read.");
   }
 
-  const moment = Math.max(0, Math.min(3, Number(form.get("moment")) || 0));
+  const moment = Math.floor(moment0 / 3) + (moment0 % 3);
   const prompt = babyPrompt(theme, state, images.length, moment, form.get("keep") === "1", shape);
   const started = Date.now();
   try {

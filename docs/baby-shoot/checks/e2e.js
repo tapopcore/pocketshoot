@@ -10,7 +10,7 @@ const sharp = require('/home/claude/ps-work/node_modules/sharp');
     await p.goto('http://localhost:3125/dev/baby'); await p.waitForSelector('.bb-page');
     ok(label + ' sandbox tag', (await p.textContent('.bb-tag')).includes('Sandbox'));
     ok(label + ' create disabled without photo', await p.isDisabled('.bb-bar .bb-btn'));
-    await p.setInputFiles('.bb-upload input >> nth=0', S + '/standin.jpg'); await p.waitForSelector('.bb-upload img');
+    await p.setInputFiles('.bb-photo.add input', S + '/standin.jpg'); await p.waitForSelector('.bb-photo img');
     const over = () => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     ok(label + ' no sideways scroll (setup)', (await over()) <= 0);
     if (label === '390') await p.screenshot({ path: S + '/setup-390.jpg', type: 'jpeg', quality: 70 });

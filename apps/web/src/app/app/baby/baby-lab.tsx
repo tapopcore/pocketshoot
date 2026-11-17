@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Download, ImagePlus, Moon, RefreshCw, Share2, Shuffle, Sun, X } from "lucide-react";
+import { Check, Download, ImagePlus, RefreshCw, Share2, Shuffle, X } from "lucide-react";
 import { BABY_FAMILIES, BABY_LEGACY_NAMES, BABY_THEMES, mixThemes, type BabyShape, type BabyState, type BabyTheme } from "@/lib/baby/themes";
 
 type Photo = { blob: Blob; url: string };
@@ -39,13 +39,13 @@ function save(blob: Blob, name: string) {
 export function BabyLab({ live, examples, saved, canManage }: { live: boolean; examples: Record<string, string>; saved: { key: string; themeId: string }[]; canManage: boolean }) {
   const [ex, setEx] = useState(examples);
   const [seeding, setSeeding] = useState<{ done: number; total: number; failed: number } | null>(null);
-  const [photos, setPhotos] = useState<Partial<Record<BabyState, Photo>>>({});
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploadError, setUploadError] = useState("");
   const [mode, setMode] = useState<"one" | "shoot">("one");
   const [themeId, setThemeId] = useState(BABY_THEMES[0].id);
   const [count, setCount] = useState<(typeof COUNTS)[number]>(6);
   const [seed, setSeed] = useState(1);
-  const [state, setState] = useState<BabyState>("asleep");
+  const state: BabyState = "asleep";
   const [shape, setShape] = useState<BabyShape>("4:5");
   const [results, setResults] = useState<Result[]>(() => saved.map((p) => {
     const q = `/api/baby/photo?key=${encodeURIComponent(p.key)}`;
@@ -57,7 +57,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
 
   const mix = useMemo(() => mixThemes(count, seed * 7919 + count), [count, seed]);
   const plan = mode === "one" ? [BABY_THEMES.find((t) => t.id === themeId)!] : mix;
-  const hasPhoto = !!(photos.asleep || photos.awake);
+  const hasPhoto = photos.length > 0;
   const busy = results.some((r) => r.status === "queued" || r.status === "making");
   const patch = (id: string, p: Partial<Result>) => setResults((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
 
@@ -66,9 +66,8 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
       const job = queue.current.shift()!; running.current++;
       patch(job.id, { status: "making" });
       const fd = new FormData();
-      const order = job.state === "awake" ? [photos.awake, photos.asleep] : [photos.asleep, photos.awake];
-      order.filter(Boolean).forEach((p, i) => fd.append("photo", p!.blob, `baby-${i}.jpg`));
-      fd.set("theme", job.theme.id); fd.set("state", job.state); fd.set("shape", shape); fd.set("quality", "standard"); fd.set("moment", String(job.moment ?? 0));
+      photos.forEach((p, i) => fd.append("photo", p.blob, `baby-${i}.jpg`));
+      fd.set("theme", job.theme.id); fd.set("shape", shape); fd.set("quality", "standard"); fd.set("moment", String(job.moment ?? 0));
       fetch("/api/baby/generate", { method: "POST", body: fd })
         .then(async (r) => ({ r, j: await r.json().catch(() => ({})) }))
         .then(({ r, j }) => {
@@ -81,7 +80,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
   }, [photos, shape]);
 
   const create = () => {
-    const jobs: Result[] = plan.map((theme, i) => ({ id: `${Date.now()}-${i}`, theme, state, status: "queued", moment: (results.length + i) % 4 }));
+    const jobs: Result[] = plan.map((theme, i) => ({ id: `${Date.now()}-${i}`, theme, state, status: "queued", moment: plan.length === 1 ? 0 : (results.length + i) % 12 }));
     setResults((rs) => [...jobs, ...rs]); queue.current.push(...jobs); pump();
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
@@ -103,12 +102,21 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
     setSeeding((s) => (s ? { ...s, total: s.done } : s));
   };
 
-  const pick = async (which: BabyState, file?: File) => {
-    if (!file) return;
+  const pick = async (files: FileList | null) => {
+    if (!files?.length) return;
     setUploadError("");
-    try { const p = await shrink(file); setPhotos((ps) => ({ ...ps, [which]: p })); if (!photos.asleep && !photos.awake) setState(which); }
-    catch (e) { setUploadError((e as Error).message === "too_small" ? "That photo is too small to keep your baby's face accurate. Please use the original photo from your phone, not a screenshot or a downloaded copy." : "That file could not be opened as a photo. Please try another one."); }
+    const room = 5 - photos.length;
+    const added: Photo[] = [];
+    let small = false, bad = false;
+    for (const f of Array.from(files).slice(0, room)) {
+      try { added.push(await shrink(f)); } catch (e) { if ((e as Error).message === "too_small") small = true; else bad = true; }
+    }
+    if (added.length) setPhotos((ps) => [...ps, ...added].slice(0, 5));
+    if (small) setUploadError("One photo was too small to keep your baby's face accurate. Please use the original photos from your phone, not screenshots or downloaded copies.");
+    else if (bad) setUploadError("One file could not be opened as a photo. Please try another one.");
+    else if (files.length > room) setUploadError("You can add up to 5 photos.");
   };
+
 
   const current = results.find((r) => r.id === open);
   return (
@@ -117,20 +125,26 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
         <h1 className="bb-logo">Baby <i>Shoot</i></h1>
         <span className="bb-tag">{live ? "Team preview" : "Sandbox, no real photos"}</span>
       </header>
-      <p className="bb-lede">A studio newborn shoot from two phone photos. For babies up to about 10 weeks.</p>
+      <p className="bb-lede">A studio newborn shoot from your phone photos. For babies up to about 10 weeks.</p>
 
       <section className="bb-stack" aria-labelledby="bb-s1">
         <h2 id="bb-s1"><b>1</b> Your baby</h2>
-        <div className="bb-uploads">
-          {(["asleep", "awake"] as BabyState[]).map((w) => (
-            <label key={w} className="bb-upload" data-filled={!!photos[w]}>
-              <input type="file" accept="image/*" onChange={(e) => { pick(w, e.target.files?.[0]); e.target.value = ""; }} />
-              {photos[w] ? <img src={photos[w]!.url} alt={`Your ${w} photo`} /> : <span className="bb-upload-empty">{w === "asleep" ? <Moon aria-hidden /> : <Sun aria-hidden />}<ImagePlus aria-hidden size={18} /></span>}
-              <span className="bb-upload-label">{photos[w] ? `Change ${w} photo` : `Add ${w === "asleep" ? "a sleeping" : "an awake"} photo`}</span>
-            </label>
+        <div className="bb-photos">
+          {photos.map((p, i) => (
+            <div key={p.url} className="bb-photo">
+              <img src={p.url} alt={`Photo ${i + 1} of your baby`} />
+              <button type="button" className="bb-photo-x" aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos((ps) => ps.filter((_, k) => k !== i))}><X size={14} /></button>
+            </div>
           ))}
+          {photos.length < 5 && (
+            <label className="bb-photo add">
+              <input type="file" accept="image/*" multiple onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
+              <ImagePlus aria-hidden size={22} />
+              <span>{photos.length ? "Add more" : "Add photos"}</span>
+            </label>
+          )}
         </div>
-        <p className="bb-small bb-muted">Use the original photos from your phone, with a clear face in soft daylight and no filters. Two photos, one asleep and one awake, give the closest likeness. Your uploaded photos are only used to make the result and are not kept. The photos we make for you are saved to your account.</p>
+        <p className="bb-small bb-muted">Add 1 to 5 clear photos of your baby, straight from your phone. More photos give a closer likeness. Your uploaded photos are only used to make the result and are not kept.</p>
         {uploadError && <p className="bb-error" role="alert">{uploadError}</p>}
       </section>
 
@@ -169,10 +183,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
       <section className="bb-stack" aria-labelledby="bb-s3">
         <h2 id="bb-s3"><b>3</b> Finish</h2>
         <div className="bb-row">
-          <div className="bb-seg small" role="group" aria-label="Baby in the photo">
-            <button type="button" aria-pressed={state === "asleep"} onClick={() => setState("asleep")}><Moon size={16} aria-hidden />Asleep</button>
-            <button type="button" aria-pressed={state === "awake"} onClick={() => setState("awake")}><Sun size={16} aria-hidden />Awake</button>
-          </div>
+
         </div>
         <div className="bb-chips" role="group" aria-label="Photo shape">
           {SHAPES.map((s) => <button key={s.id} type="button" aria-pressed={shape === s.id} onClick={() => setShape(s.id)}>{s.label}<small>{s.hint}</small></button>)}
@@ -209,7 +220,7 @@ export function BabyLab({ live, examples, saved, canManage }: { live: boolean; e
         <button type="button" className="bb-btn primary" disabled={!hasPhoto || busy} onClick={create}>{busy ? "Making…" : !hasPhoto ? "Add a photo first" : plan.length === 1 ? "Create photo" : `Create ${plan.length} photos`}</button>
       </div>
 
-      {current?.url && <Viewer r={current} original={saved.some((p) => p.key === current.id) ? undefined : (photos[current.state] ?? photos.asleep ?? photos.awake)?.url} onClose={() => setOpen(null)} />}
+      {current?.url && <Viewer r={current} original={saved.some((p) => p.key === current.id) ? undefined : photos[0]?.url} onClose={() => setOpen(null)} />}
     </div>
   );
 }

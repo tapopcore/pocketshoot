@@ -143,7 +143,7 @@ const FRAME: Record<BabyShape, string> = {
 
 export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false, shape: BabyShape = "4:5"): string {
   return [
-    `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? "s" : ""}. This is a new photograph taken in a studio, not a cut-out of the reference placed into a scene.`,
+    `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? `s. There are ${references} photos of this one baby from different moments and angles: study all of them together to understand the true face, and do not copy any single photo` : ""}. This is a new photograph taken in a studio, not a cut-out of the reference placed into a scene.`,
     "Identity, keep exactly: who the baby is. Face shape, the shape and spacing of the eyes, eyebrows, nose, lips, cheeks and ears, true skin tone, birthmarks, hair colour, hairline and amount of hair. Do not beautify, slim, lighten or age the face.",
     "Re-capture, do not copy: the reference is a casual phone snapshot. Do not carry over its lighting, its close-up wide-angle distortion, its head angle, its clothing or accessories, its background, or any watermark, logo, text or mark printed over it. Light the face with the same light as the set, with matching shadow direction and softness, so face and scene belong together. Render the head as an 85mm portrait lens would, in true newborn proportion to the body. Skin is matte and natural: no gloss or shine on the eyelids or lips, nothing that reads as make-up.",
     ...scene(theme, keepExpression ? KEEP_MOMENT : MOMENTS[state][Math.abs(moment) % BABY_MOMENTS]),
