@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { getApiContext } from "@/lib/auth";
-import { BABY_EXAMPLE_FOLDER, BABY_PHONE_TEST_PROMPT, BABY_SIZES, babyExamplePrompt, babyTheme } from "@/lib/baby/themes";
+import { BABY_EXAMPLE_FOLDER, BABY_EXAMPLE_OUT, BABY_PHONE_TEST_PROMPT, BABY_SIZES, babyExamplePrompt, babyTheme, type BabyShape } from "@/lib/baby/themes";
 import { env } from "@/lib/env";
 import { openai } from "@/lib/llm";
 import { classifyHttpError } from "@/lib/providers";
@@ -34,16 +34,18 @@ export async function POST(req: Request) {
   const theme = babyTheme(String(body.theme ?? ""));
   if (!theme) return NextResponse.json({ ok: false, message: "Unknown theme." }, { status: 400 });
   if (!env.openaiKey) return NextResponse.json({ ok: false, message: "No image model is connected here." }, { status: 503 });
-  const size = BABY_SIZES["4:5"];
+  const shape: BabyShape = body.shape === "1:1" || body.shape === "9:16" ? body.shape : "4:5";
+  const size = BABY_SIZES[shape];
+  const out = BABY_EXAMPLE_OUT[shape];
   try {
-    const params = { model: "gpt-image-2.5-sunburst", prompt: babyExamplePrompt(theme), size: `${size.width}x${size.height}`, quality: "medium", output_format: "png", n: 1 };
+    const params = { model: "gpt-image-2.5-sunburst", prompt: babyExamplePrompt(theme, shape), size: `${size.width}x${size.height}`, quality: "medium", output_format: "png", n: 1 };
     const res = (await openai().images.generate(params as never, { timeout: 240_000, maxRetries: 0 })) as unknown as { data?: { b64_json?: string }[] };
     const b64 = res.data?.[0]?.b64_json;
     if (!b64) return NextResponse.json({ ok: false, message: "The image model returned no photo.", retryable: true }, { status: 502 });
-    const webp = await sharp(Buffer.from(b64, "base64")).resize(800, 1000, { fit: "cover" }).webp({ quality: 82 }).toBuffer();
-    const key = `${BABY_EXAMPLE_FOLDER}/${theme.id}.webp`;
+    const webp = await sharp(Buffer.from(b64, "base64")).resize(out.width, out.height, { fit: "cover" }).webp({ quality: 82 }).toBuffer();
+    const key = `${BABY_EXAMPLE_FOLDER}/${out.sub}${theme.id}.webp`;
     await putObject("public", key, webp, "image/webp");
-    return NextResponse.json({ ok: true, theme: theme.id, url: `${publicUrl(key)}?v=${Date.now()}` });
+    return NextResponse.json({ ok: true, theme: theme.id, shape, url: `${publicUrl(key)}?v=${Date.now()}` });
   } catch (e) {
     const err = e as { status?: number; message?: string };
     const c = classifyHttpError(err.status, err.message ?? String(e));

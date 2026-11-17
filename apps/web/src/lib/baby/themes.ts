@@ -138,7 +138,7 @@ const scene = (theme: BabyTheme, momentLine: string) => [
 const FRAME: Record<BabyShape, string> = {
   "4:5": "Frame: vertical 4:5. Compose for this frame: the whole set and the whole baby sit fully inside it with a little calm space on every side.",
   "1:1": "Frame: square 1:1. Compose for a square: the whole set and the whole baby sit fully inside the frame with calm space around them, and nothing important is cut off at any edge.",
-  "9:16": "Frame: tall vertical 9:16. Compose for this tall frame by pulling the camera back, never by zooming in: the whole set and the whole baby stay fully inside the frame at their natural size, filling roughly the middle half of the height, with plain backdrop or floor continuing above and below. Do not crop the set, the props or the baby to fill the height.",
+  "9:16": "Frame: tall vertical 9:16. Design the set for this tall frame, as a photographer would for a phone-screen portrait: the whole baby and the whole set sit fully inside the frame at their natural size, never zoomed in or cropped. Use the extra height on purpose: arrange the set's own props, flowers, fabric drape, petals or backdrop details naturally above and below the baby so the frame feels full and intentional, not empty bands of plain background. Nothing important touches the top or bottom edge.",
 };
 
 export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false, shape: BabyShape = "4:5"): string {
@@ -153,11 +153,11 @@ export function babyPrompt(theme: BabyTheme, state: BabyState, references: numbe
 }
 
 /** The picture on a theme card: an invented baby, never a customer's child. */
-export function babyExamplePrompt(theme: BabyTheme): string {
+export function babyExamplePrompt(theme: BabyTheme, shape: BabyShape = "4:5"): string {
   return [
     "Create a professional newborn studio photograph of an invented baby who is not a real person: a healthy two-week-old Indian newborn with soft dark hair and true newborn proportions.",
     ...scene(theme, MOMENTS.asleep[0]),
-    FRAME["4:5"],
+    FRAME[shape],
     ALWAYS,
   ].join("\n");
 }
@@ -175,6 +175,8 @@ export function mixThemes(count: number, seed = Date.now()): BabyTheme[] {
   return out;
 }
 
+/** Example photo sizes and folders per shape. 4:5 keeps its original location. */
+export const BABY_EXAMPLE_OUT: Record<BabyShape, { width: number; height: number; sub: string }> = { "4:5": { width: 800, height: 1000, sub: "" }, "1:1": { width: 900, height: 900, sub: "square/" }, "9:16": { width: 720, height: 1280, sub: "story/" } };
 export const BABY_EXAMPLE_FOLDER = "baby/themes";
 
 /** Names of earlier themes, so photos saved under them still show the right label. */
