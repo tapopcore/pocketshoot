@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   // Saved and shared photos go out at twice the size (about 2048 x 2560), so WhatsApp and printing treat them as HD.
   const out = small ? await sharp(data).resize({ width: w, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer()
     : dl ? await hd(data) : data;
-  const headers: Record<string, string> = { "content-type": small ? "image/webp" : "image/jpeg", "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff" };
+  const headers: Record<string, string> = { "content-type": small ? "image/webp" : "image/jpeg", "cache-control": dl || !u.searchParams.get("take") ? "private, no-store" : "private, max-age=86400", "x-content-type-options": "nosniff" };
   if (dl) headers["content-disposition"] = `attachment; filename="baby-shoot-${p!.theme_id}-${p!.idx + 1}.jpg"`;
   return new Response(new Uint8Array(out), { headers });
 }

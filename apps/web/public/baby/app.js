@@ -40,7 +40,9 @@ async function api(path,o={}){
 }
 const blobCache=new Map();
 async function blobUrl(path){if(blobCache.has(path))return blobCache.get(path);const p=(async()=>{const t=await token();const r=await fetch(path,{headers:{'Authorization':'Bearer '+t}});if(!r.ok)throw new Error('img '+r.status);return URL.createObjectURL(await r.blob())})();blobCache.set(path,p);p.catch(()=>blobCache.delete(path));return p}
+/* the take is always named in the link, so a remade photo never comes back from an old cached copy */
 const photoPath=(id,w,take)=>`/api/b/photo?id=${id}${w?'&w='+w:''}${take?'&take='+take:''}`;
+const takeOf=p=>p.remade?(p.kept||'new'):'new';
 function setImg(img,path){img.dataset.src=path;blobUrl(path).then(u=>{if(img.dataset.src===path)img.src=u}).catch(()=>{})}
 
 /* ---------- boot and sign-in ---------- */
@@ -435,7 +437,7 @@ $('#r-cmp').onclick=async e=>{e.stopPropagation();if(cmpOn){closeCompare();retur
   let k=0;const demo=setInterval(()=>{if(drag||!cmpOn){clearInterval(demo);return}k++;c.style.setProperty('--p',(50+Math.sin(k/6)*22)+'%');if(k>38){clearInterval(demo);c.style.setProperty('--p','50%')}},30)};
 
 /* save and share: full-quality JPEG straight from the server */
-async function fileFor(p){const t=await token();const r=await fetch(photoPath(p.id,null,null)+'&dl=1',{headers:{'Authorization':'Bearer '+t}});if(!r.ok)throw new Error('dl');const b=await r.blob();return new File([b],`baby-shoot-${p.theme_id}-${(p.idx|0)+1}.jpg`,{type:'image/jpeg'})}
+async function fileFor(p){const t=await token();const r=await fetch(photoPath(p.id,null,takeOf(p))+'&dl=1&r='+(p.remade?1:0),{headers:{'Authorization':'Bearer '+t},cache:'no-store'});if(!r.ok)throw new Error('dl');const b=await r.blob();return new File([b],`baby-shoot-${p.theme_id}-${(p.idx|0)+1}.jpg`,{type:'image/jpeg'})}
 function download(file){const u=URL.createObjectURL(file);const a=document.createElement('a');a.href=u;a.download=file.name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000)}
 async function savePhotos(list){if(!list.length){toast('No photos yet');return}
   toast(list.length>1?`Getting ${list.length} photos ready`:'Getting your photo ready');
