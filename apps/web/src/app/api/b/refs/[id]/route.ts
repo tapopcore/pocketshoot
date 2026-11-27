@@ -13,7 +13,11 @@ export async function GET(req: Request, route: { params: Promise<{ id: string }>
   const { id } = await route.params;
   const { data } = await admin().from("baby_refs").select("storage_key").eq("id", id).eq("organization_id", ctx.orgId).maybeSingle();
   if (!data) return new Response("Not found", { status: 404 });
-  const img = await sharp(await getObject("uploads", data.storage_key)).resize(360, 450, { fit: "cover" }).webp({ quality: 78 }).toBuffer();
+  const w = Number(new URL(req.url).searchParams.get("w"));
+  const big = w >= 600 && w <= 1400;
+  // Small square-ish thumbnail for the picker, or a larger uncropped copy for the before/after view.
+  const img = await (big ? sharp(await getObject("uploads", data.storage_key)).resize(w, w, { fit: "inside" })
+    : sharp(await getObject("uploads", data.storage_key)).resize(360, 450, { fit: "cover" })).webp({ quality: 82 }).toBuffer();
   return new Response(new Uint8Array(img), { headers: { "content-type": "image/webp", "cache-control": "private, max-age=3600" } });
 }
 

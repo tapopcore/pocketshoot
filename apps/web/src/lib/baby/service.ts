@@ -11,6 +11,9 @@ import type { AuthContext } from "@/lib/auth";
 import { BABY_SIZES, babyPrompt, babyTheme, type BabySex, type BabyShape, type BabyState } from "./themes";
 
 const MODEL = "gpt-image-2.5-sunburst";
+/** "high" costs more per photo but keeps faces and fine detail noticeably better. */
+const QUALITY = "high";
+let fidelityOk = true; // turned off for this server instance if the model rejects input_fidelity
 export const BABY_PACKS = [1, 6, 10, 15] as const;
 
 export interface BabyProfile { baby_name: string | null; age_band: string | null; sex?: "boy" | "girl" | null; prefs: Record<string, unknown>; consent_at: string | null; free_photo_granted: boolean }
@@ -96,7 +99,7 @@ export async function runShoot(shootId: string) {
   const { data: photos } = await db.from("baby_photos").select("id").eq("shoot_id", shootId).eq("status", "queued").order("idx");
   const queue = [...(photos ?? [])];
   const worker = async () => { for (let p = queue.shift(); p; p = queue.shift()) await makePhoto(p.id, refs, shoot.shape as BabyShape, { sex }); };
-  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(6, queue.length) }, worker));
   await finishIfDone(shootId);
 }
 
@@ -123,14 +126,25 @@ export async function makePhoto(photoId: string, refs: Buffer[], shape: BabyShap
   const m0 = claimed.moment as number;
   const state: BabyState = m0 % 3 === 2 ? "awake" : "asleep";
   const moment = Math.floor(m0 / 3) + (m0 % 3) + (opts.remake ? 5 : 0);
-  const prompt = babyPrompt(theme, state, refs.length, moment, false, shape, opts.sex ?? null);
+  const prompt = babyPrompt(theme, state, refs.length, moment, false, shape, opts.sex ?? null, !!(opts.remake && claimed.storage_key));
+  // A remake also sends the first take, so the set and framing stay the same and only the baby is re-taken.
+  let anchor: Buffer | null = null;
+  if (opts.remake && claimed.storage_key) { try { anchor = await sharp(await getObject("outputs", claimed.storage_key)).resize(1024, 1024, { fit: "inside" }).png().toBuffer(); } catch { anchor = null; } }
   const size = BABY_SIZES[shape];
   let lastCode = "failed";
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       if (!env.openaiKey || !refs.length) throw Object.assign(new Error("not ready"), { status: 503 });
-      const input = await Promise.all(refs.map((b, i) => toFile(b, `baby-${i}.png`, { type: "image/png" })));
-      const res = (await openai().images.edit({ model: MODEL, prompt, image: input, size: `${size.width}x${size.height}`, quality: "medium", output_format: "png", n: 1 } as never, { timeout: 240_000, maxRetries: 0 })) as unknown as { data?: { b64_json?: string }[] };
+      const input = await Promise.all([...refs, ...(anchor ? [anchor] : [])].map((b, i) => toFile(b, `baby-${i}.png`, { type: "image/png" })));
+      const params: Record<string, unknown> = { model: MODEL, prompt: anchor ? prompt : prompt.replace(/\nThe last image is the earlier take[^\n]*/, ""), image: input, size: `${size.width}x${size.height}`, quality: QUALITY, output_format: "png", n: 1 };
+      if (fidelityOk) params.input_fidelity = "high";
+      let res: { data?: { b64_json?: string }[] };
+      try { res = (await openai().images.edit(params as never, { timeout: 280_000, maxRetries: 0 })) as unknown as typeof res; }
+      catch (e) {
+        const msg = String((e as Error).message ?? e);
+        if (fidelityOk && /input_fidelity/i.test(msg)) { fidelityOk = false; delete params.input_fidelity; res = (await openai().images.edit(params as never, { timeout: 280_000, maxRetries: 0 })) as unknown as typeof res; }
+        else throw e;
+      }
       const b64 = res.data?.[0]?.b64_json;
       if (!b64) throw Object.assign(new Error("empty"), { status: 502 });
       const jpeg = await sharp(Buffer.from(b64, "base64")).jpeg({ quality: 93, chromaSubsampling: "4:4:4" }).toBuffer();
@@ -168,7 +182,7 @@ export async function refundPhoto(orgId: string, photoId: string) {
 
 export async function shootView(orgId: string, shootId?: string) {
   const db = admin();
-  let q = db.from("baby_shoots").select("id,shape,status,created_at,baby_photos(id,idx,theme_id,status,storage_key,first_key,kept,remade,refunded,feedback)").eq("organization_id", orgId).order("created_at", { ascending: false });
+  let q = db.from("baby_shoots").select("id,shape,status,created_at,ref_ids,baby_photos(id,idx,theme_id,status,storage_key,first_key,kept,remade,refunded,feedback)").eq("organization_id", orgId).order("created_at", { ascending: false });
   if (shootId) q = q.eq("id", shootId);
   const { data } = await q.limit(shootId ? 1 : 100);
   return (data ?? []).map((s) => ({ ...s, baby_photos: ((s as unknown as { baby_photos: { idx: number; status: string }[] }).baby_photos ?? []).filter((p) => p.status !== "deleted").sort((a, b) => a.idx - b.idx) }));

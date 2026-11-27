@@ -296,16 +296,17 @@ const LINES=[
   ()=>`One day ${he()}'ll look at these and ask, "Was I really that tiny?"`,
   ()=>`${S.baby.name?S.baby.name+"'s":'Your baby\'s'} first studio shoot, no car ride or crying in a strange room.`,
 ];
-let factT=null,factI=0;
-function startFacts(){
-  const order=[];const f=[...FACTS].sort(()=>Math.random()-.5);const l=[...LINES].sort(()=>Math.random()-.5);
-  for(let i=0;order.length<8;i++){order.push(['Did you know?',f[i%f.length]]);if(i%2===1&&l.length)order.push([S.baby.name?'For '+S.baby.name:'Meanwhile',l.shift()()])}
-  const box=$('#d-fact'),dots=$('#fact-dots');dots.innerHTML=order.slice(0,6).map(()=>'<i></i>').join('');factI=0;
-  const showF=()=>{const [k,t]=order[factI%order.length];box.classList.add('out');setTimeout(()=>{$('#fact-k').textContent=k;$('#fact-t').textContent=t;box.classList.remove('out');
-      const ds=[...dots.children];ds.forEach((d,j)=>{d.classList.remove('on','done');const pos=factI%ds.length;if(j<pos)d.classList.add('done');if(j===pos){void d.offsetWidth;d.classList.add('on')}})},factI?420:0);factI++};
-  clearInterval(factT);box.hidden=false;showF();factT=setInterval(showF,5500);
-}
-function stopFacts(){clearInterval(factT);$('#d-fact').hidden=true}
+/* a rotating card of facts and warm lines, placed on top of a photo that is still being made */
+function factDeck(){const order=[];const f=[...FACTS].sort(()=>Math.random()-.5);const l=[...LINES].sort(()=>Math.random()-.5);
+  for(let i=0;order.length<10;i++){order.push(['Did you know?',f[i%f.length]]);if(i%2===1&&l.length)order.push([S.baby.name?'For '+S.baby.name:'Meanwhile',l.shift()()])}return order}
+function mountFacts(host,first){
+  const card=document.createElement('div');card.className='fact';card.setAttribute('aria-live','polite');card.innerHTML='<span class="fact-k"></span><p></p><div class="fact-dots"></div>';host.append(card);
+  const order=factDeck();if(first)order.unshift(first);const dots=card.querySelector('.fact-dots');dots.innerHTML=order.slice(0,6).map(()=>'<i></i>').join('');let i=0;
+  const show=()=>{const [k,t]=order[i%order.length];card.classList.add('out');setTimeout(()=>{card.querySelector('.fact-k').textContent=k;card.querySelector('p').textContent=t;card.classList.remove('out');
+      const ds=[...dots.children];const pos=i%ds.length;ds.forEach((d,j)=>{d.classList.remove('on','done');if(j<pos)d.classList.add('done');if(j===pos){void d.offsetWidth;d.classList.add('on')}});i++},i?420:0)};
+  show();const t=setInterval(show,5500);return{stop(){clearInterval(t);card.remove()}}}
+let devFacts=null;
+function stopFacts(){devFacts&&devFacts.stop();devFacts=null}
 const STEPS=['Laying out the set','Lighting from the side','Wrapping and styling','Keeping the face true','Developing'];
 let devId=null,devT0=0,stepT=null;
 function develop(shoot){
@@ -319,9 +320,9 @@ function develop(shoot){
   show('develop');$('#bar').style.width='4%';$('#d-note').hidden=false;const db=$('#d-btn');db.className='btn soft';db.textContent='Keep browsing sets';db.dataset.go='studio';
   clearInterval(stepT);let k=0;const est=estimate(n);
   const tick=()=>{const el=(Date.now()-devT0);const p=Math.min(.92,el/est);$('#step-text').textContent=STEPS[Math.min(STEPS.length-1,Math.floor(p*STEPS.length))];$('#bar').style.width=Math.max(4,p*100)+'%';const left=Math.max(0,Math.round((est-el)/1000));$('#step-time').textContent=left>90?`about ${Math.ceil(left/60)} min`:left>5?`about ${left} s`:'almost there'};
-  tick();stepT=setInterval(tick,1000);startFacts();
+  tick();stepT=setInterval(tick,1000);stopFacts();devFacts=mountFacts(one?$('#t0'):st);
 }
-const estimate=n=>(Math.ceil(n/4)*30+8)*1000;
+const estimate=n=>(Math.ceil(n/6)*45+10)*1000;
 function updateDevelop(shoot){
   if(devId!==shoot.id||$('#develop').hidden)return;
   const ph=shoot.baby_photos,n=ph.length;
@@ -372,7 +373,7 @@ function renderView(){zoomSet(1);const {shoot}=S.view;const list=doneOf(shoot);c
   const im=$('#r-img');im.removeAttribute('src');im.alt=`${t.name}, ${POS()} photo`;setImg(im,photoPath(p.id,1400,p.remade?(p.kept||'new'):null));
   $('#r-fill').removeAttribute('src');$('#r-name').textContent=t.name;
   $('#r-shape').textContent=SHAPE_NAME[shoot.shape]+(n>1?` · ${S.view.i+1} of ${n}`:'');$('#r-prev').hidden=S.view.i===0;$('#r-next').hidden=S.view.i===n-1;syncRedo();
-  $('#r-main').textContent=S.view.from==='shoots'?'Back to shoots':(n>1?'Back to the shoot':'Shoot another set');fitFrame()}
+  $('#r-main').textContent=S.view.from==='shoots'?'Back to shoots':(n>1?'Back to the shoot':'Shoot another set');fitFrame();showRemaking();closeCompare();$('#r-cmp').hidden=!(shoot.ref_ids&&shoot.ref_ids.length)}
 function stepView(d){const v=S.view;if(!v)return;const j=v.i+d;if(j<0||j>=doneOf(v.shoot).length)return;v.i=j;renderView()}
 $('#r-prev').onclick=()=>stepView(-1);$('#r-next').onclick=()=>stepView(1);
 $('#r-close').onclick=()=>backTo(S.view?.from==='develop'?'develop':(S.view?.from||'studio'));
@@ -401,18 +402,37 @@ $('#r-redo').onclick=()=>{const p=curPhoto();if(!p)return;if(remaking.has(p.id))
   ask({title:'Remake this photo?',body:'Same set, same baby, a fresh take. Every photo gets one free remake. You can keep whichever take you like.',yes:'Remake',no:'Keep this one',onYes:()=>remake(p)})};
 async function remake(p){const shoot=S.view.shoot;
   try{await api(`/api/b/photos/${p.id}`,{body:{action:'remake'}})}catch(e){toast(e.message);return}
-  remaking.add(p.id);syncRedo();const f=$('#r-frame');f.classList.remove('redo');void f.offsetWidth;f.classList.add('redo');toast('Making a new take. About a minute');
+  remaking.add(p.id);syncRedo();showRemaking();
   for(let i=0;i<60;i++){await sleep(4000);let r;try{r=await api(`/api/b/shoots/${shoot.id}`)}catch(e){continue}
     const q=r.shoot.baby_photos.find(x=>x.id===p.id);if(!q)break;
     if(q.status==='done'&&q.remade){Object.assign(p,q);const k=S.shoots.findIndex(s=>s.id===shoot.id);if(k>=0)S.shoots[k]=r.shoot;if(S.view?.shoot.id===shoot.id)S.view.shoot=r.shoot;remaking.delete(p.id);
-      if(!$('#result').hidden&&curPhoto()?.id===p.id){renderView();toast('New take ready. Keep whichever you like')}else toast('Your new take is ready in Shoots');renderShoots();return}
-    if(q.status==='done'&&!q.remade&&i>2){remaking.delete(p.id);syncRedo();toast("The remake didn't work this time. Try again in a moment.");return}}
-  remaking.delete(p.id);syncRedo()}
+      if(!$('#result').hidden&&curPhoto()?.id===p.id){renderView();landed();toast('New take ready. Keep whichever you like')}else toast('Your new take is ready in Shoots');renderShoots();return}
+    if(q.status==='done'&&!q.remade&&i>2){remaking.delete(p.id);showRemaking();syncRedo();toast("The remake didn't work this time. Your photo is unchanged, and you can try again.");return}}
+  remaking.delete(p.id);showRemaking();syncRedo()}
+let remakeFacts=null;
+function showRemaking(){const p=curPhoto(),f=$('#r-frame'),on=!!(p&&remaking.has(p.id)&&!$('#result').hidden);f.classList.toggle('remaking',on);
+  if(on&&!remakeFacts){remakeFacts=mountFacts(f,['Remaking','Same set, a fresh take of '+(S.baby.name||'your baby')+'. Usually under a minute.'])}
+  if(!on&&remakeFacts){remakeFacts.stop();remakeFacts=null}}
+function landed(){const f=$('#r-frame');f.classList.remove('landed');void f.offsetWidth;f.classList.add('landed');setTimeout(()=>f.classList.remove('landed'),1300)}
 $('#r-del').onclick=()=>ask({title:'Delete this photo?',body:"It will be removed from your shoots. This can't be undone.",yes:'Delete',no:'Keep it',danger:true,onYes:delPhoto});
 async function delPhoto(){const p=curPhoto();if(!p)return;try{await api(`/api/b/photos/${p.id}`,{method:'DELETE'})}catch(e){toast(e.message);return}
   p.status='deleted';const shoot=S.view.shoot;toast('Photo deleted');
   if(!doneOf(shoot).length){S.shoots=S.shoots.filter(s=>s.baby_photos.some(x=>x.status==='done'||x.status==='queued'||x.status==='running'));renderShoots();backTo(S.view.from==='develop'?'studio':S.view.from);return}
   renderShoots();renderView()}
+
+/* before / after: drag across the photo to compare with the photo the parent added */
+let cmpOn=false;
+function closeCompare(){cmpOn=false;$('#r-cmp').setAttribute('aria-pressed','false');$('#r-frame .cmp')?.remove()}
+$('#r-cmp').onclick=async e=>{e.stopPropagation();if(cmpOn){closeCompare();return}const v=S.view;const ref=v?.shoot.ref_ids?.[0];if(!ref)return;
+  zoomSet(1);cmpOn=true;$('#r-cmp').setAttribute('aria-pressed','true');
+  const c=document.createElement('div');c.className='cmp';c.style.setProperty('--p','50%');
+  c.innerHTML='<img class="before" alt="The photo you added"><span class="line"></span><span class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></span><span class="tag b">Your photo</span><span class="tag a">Baby Shoot</span>';
+  $('#r-frame').append(c);
+  try{c.querySelector('img').src=await blobUrl(`/api/b/refs/${ref}?w=1200`)}catch(err){closeCompare();$('#r-cmp').hidden=true;toast('The photo you added has been deleted, so there is nothing to compare with.');return}
+  const move=x=>{const r=c.getBoundingClientRect();c.style.setProperty('--p',Math.max(0,Math.min(100,(x-r.left)/r.width*100))+'%')};
+  let drag=false;c.addEventListener('pointerdown',ev=>{drag=true;c.setPointerCapture(ev.pointerId);move(ev.clientX)});c.addEventListener('pointermove',ev=>{if(drag)move(ev.clientX)});c.addEventListener('pointerup',()=>drag=false);
+  ['touchstart','touchmove','touchend'].forEach(t=>c.addEventListener(t,ev=>ev.stopPropagation(),{passive:true}));
+  let k=0;const demo=setInterval(()=>{if(drag||!cmpOn){clearInterval(demo);return}k++;c.style.setProperty('--p',(50+Math.sin(k/6)*22)+'%');if(k>38){clearInterval(demo);c.style.setProperty('--p','50%')}},30)};
 
 /* save and share: full-quality JPEG straight from the server */
 async function fileFor(p){const t=await token();const r=await fetch(photoPath(p.id,null,null)+'&dl=1',{headers:{'Authorization':'Bearer '+t}});if(!r.ok)throw new Error('dl');const b=await r.blob();return new File([b],`baby-shoot-${p.theme_id}-${(p.idx|0)+1}.jpg`,{type:'image/jpeg'})}
@@ -515,7 +535,7 @@ function hpush(e){H.push(e);try{history.pushState({d:H.length-1},'',e.t==='scree
 function show(id,o={}){$('#toast').classList.remove('on');$$('.screen').forEach(s=>s.hidden=s.id!==id);
   if(o.replace&&H.length){H[H.length-1]={t:'screen',id};try{history.replaceState({d:H.length-1},'','#'+id)}catch(x){}}
   else if(!o.back&&id!==cur){if(!H.length){H.push({t:'screen',id});try{history.replaceState({d:0},'','#'+id)}catch(x){}}else{if(o.root)H.forEach(e=>e.dead=true);hpush({t:'screen',id})}}
-  cur=id;if(id==='studio'){sync();syncDock()}if(id==='shoots')renderShoots();if(id==='you')sync();if(id==='result')requestAnimationFrame(fitFrame)}
+  cur=id;if(id==='studio'){sync();syncDock()}if(id==='shoots')renderShoots();if(id==='you')sync();if(id==='result')requestAnimationFrame(fitFrame);else{showRemaking();closeCompare()}}
 addEventListener('popstate',e=>{const d=e.state&&e.state.d;if(d==null)return;
   while(H.length-1>d){const x=H.pop();if(x.t==='sheet'&&!x.dead)closeSheets('pop')}
   const top=H[H.length-1];if(top&&top.dead&&H.length>1){history.back();return}
@@ -524,6 +544,8 @@ addEventListener('popstate',e=>{const d=e.state&&e.state.d;if(d==null)return;
   if(!H.some(x=>x.t==='screen'&&!x.dead)){H[H.length-1]={t:'screen',id:cur};try{history.replaceState({d:H.length-1},'','#'+cur)}catch(x){}return}
   for(let i=H.length-1;i>=0;i--){if(H[i].t==='screen'&&!H[i].dead){if(H[i].id!==cur)show(H[i].id,{back:true});break}}});
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){closeSheets();show(g.dataset.go)}const t=e.target.closest('[data-toast]');if(t)toast(t.dataset.toast)});
+document.addEventListener('contextmenu',e=>{if(e.target.closest('#app img, #app .tray, #app .r-frame, #app .ph-btn'))e.preventDefault()});
+document.addEventListener('dragstart',e=>{if(e.target.tagName==='IMG')e.preventDefault()});
 const net=()=>{$('#offline').hidden=navigator.onLine!==false};addEventListener('online',net);addEventListener('offline',net);net();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.me)refreshMe()});
 $('#offline').textContent="You're offline. Your shoot keeps going and will be here when you're back.";

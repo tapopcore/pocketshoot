@@ -149,7 +149,13 @@ const FRAME: Record<BabyShape, string> = {
   "9:16": "Frame: tall vertical 9:16. Design the set for this tall frame, as a photographer would for a phone-screen portrait: the whole baby and the whole set sit fully inside the frame at their natural size, never zoomed in or cropped. Use the extra height on purpose: arrange the set's own props, flowers, fabric drape, petals or backdrop details naturally above and below the baby so the frame feels full and intentional, not empty bands of plain background. Nothing important touches the top or bottom edge.",
 };
 
-export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false, shape: BabyShape = "4:5", sex: BabySex = null): string {
+/** The model tends to zoom in and crop tall props (a balloon, a moon, a crate). Said plainly, every time. */
+const FIT = "Framing check before you finish: the camera is pulled back far enough that every prop in the set, including the very top of anything tall such as a balloon, moon, arch, canopy, crate or lantern, sits completely inside the frame with clear backdrop visible above its highest point and below its lowest point. Nothing touches or is cut by any edge of the frame. The set fills roughly 75 to 85 percent of the frame height, not more.";
+
+/** A remake keeps the same photo and only re-takes the baby, so the two takes can be compared fairly. */
+export const REMAKE_LINE = "The last image is the earlier take from this same shoot. Keep its set, props, colours, lighting, camera angle, camera distance and framing the same. Make a fresh take of the baby only. Take the baby's face only from the baby photos, never from the earlier take, and make the likeness closer to the baby photos than the earlier take was.";
+
+export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false, shape: BabyShape = "4:5", sex: BabySex = null, remake = false): string {
   return [
     `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? `s. There are ${references} photos of this one baby from different moments and angles: study all of them together to understand the true face, and do not copy any single photo` : ""}. This is a new photograph taken in a studio, not a cut-out of the reference placed into a scene.`,
     "Identity, keep exactly: who the baby is. Face shape, the shape and spacing of the eyes, eyebrows, nose, lips, cheeks and ears, true skin tone, birthmarks, hair colour, hairline and amount of hair. Do not beautify, slim, lighten or age the face.",
@@ -157,6 +163,8 @@ export function babyPrompt(theme: BabyTheme, state: BabyState, references: numbe
     ...scene(theme, keepExpression ? KEEP_MOMENT : MOMENTS[state][Math.abs(moment) % BABY_MOMENTS]),
     SEX_STYLE[sex ?? "none"],
     FRAME[shape],
+    FIT,
+    ...(remake ? [REMAKE_LINE] : []),
     `${ALWAYS} Replace everything from the original background and clothing.`,
   ].join("\n");
 }
