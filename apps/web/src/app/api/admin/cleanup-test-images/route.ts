@@ -40,16 +40,34 @@ async function targets() {
 
 const page = (body: string) => new Response(`<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><title>Clean up test images</title><body style="font:16px/1.5 system-ui;max-width:560px;margin:40px auto;padding:0 16px">${body}</body>`, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 
-export async function GET() {
+export async function GET(req: Request) {
   try { await requirePlatform("platform_admin"); } catch { return page("<p>Sign in to PocketShoot as a platform admin first, then open this page again.</p>"); }
   let list; try { list = await targets(); } catch (e) { return page(`<p>Couldn't list files: ${String((e as Error).message)}</p>`); }
+  const q = new URL(req.url).searchParams;
+  if (q.get("list") === "1") {
+    // Download links for the backup, valid for 3 hours. Admin only.
+    const storage = admin().storage.from("outputs");
+    const files: { name: string; size: number; url: string }[] = [];
+    for (let i = 0; i < list.length; i += 100) {
+      const chunk = list.slice(i, i + 100);
+      const { data } = await storage.createSignedUrls(chunk.map((f) => f.name), 3 * 3600);
+      (data ?? []).forEach((d, k) => { if (d.signedUrl) files.push({ name: chunk[k].name, size: chunk[k].size, url: d.signedUrl }); });
+    }
+    return new Response(JSON.stringify({ files }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  }
+  if (q.get("backedup") !== "1") {
+    const mb0 = Math.round(list.reduce((a, f) => a + f.size, 0) / 1048576);
+    return page(`<h1>Clean up test images</h1><p>${list.length} PNG test images (${mb0} MB) are waiting to be backed up to your computer. The delete button appears here once the backup is done.</p>`);
+  }
   const mb = Math.round(list.reduce((a, f) => a + f.size, 0) / 1048576);
   return page(`<h1>Clean up test images</h1><p>This permanently deletes <b>${list.length} PNG test images (${mb} MB)</b> made by the team's own accounts before 13 Nov 2026. Nothing from customers and nothing from Baby Shoot is touched.</p>
-<form method="post"><button style="font:inherit;padding:12px 20px;border-radius:999px;border:0;background:#cf3a3a;color:#fff">Delete ${list.length} images</button></form>`);
+<form method="post"><input type="hidden" name="backedup" value="1"><button style="font:inherit;padding:12px 20px;border-radius:999px;border:0;background:#cf3a3a;color:#fff">Delete ${list.length} images</button></form>`);
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try { await requirePlatform("platform_admin"); } catch { return page("<p>Sign in as a platform admin first.</p>"); }
+  const form = await req.formData().catch(() => null);
+  if (form?.get("backedup") !== "1") return page("<p>Back up the images first.</p>");
   const list = await targets();
   const storage = admin().storage.from("outputs");
   let removed = 0;
