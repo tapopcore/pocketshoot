@@ -1,8 +1,30 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+/** baby-shoot.com serves the Baby Shoot app from this same project. Everything else stays PocketShoot. */
+const BABY_HOSTS = new Set(["baby-shoot.com", "www.baby-shoot.com"]);
+const BABY_ROUTES: Record<string, string> = {
+  "/": "/baby/index.html",
+  "/terms": "/b/terms", "/privacy": "/b/privacy", "/refunds": "/b/refunds", "/delivery": "/b/delivery", "/contact": "/b/contact", "/pricing": "/b/pricing",
+  "/manifest.webmanifest": "/baby/manifest.webmanifest", "/sw.js": "/baby/sw.js", "/.well-known/assetlinks.json": "/baby/assetlinks.json",
+};
+const BABY_ONLY = new Set(["/terms", "/privacy", "/refunds", "/delivery", "/manifest.webmanifest", "/sw.js", "/.well-known/assetlinks.json"]);
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "").split(":")[0].toLowerCase();
+  if (BABY_HOSTS.has(host)) {
+    const to = BABY_ROUTES[pathname];
+    if (to) {
+      const res = NextResponse.rewrite(new URL(to + req.nextUrl.search, req.url));
+      if (pathname === "/sw.js") res.headers.set("Cache-Control", "no-cache");
+      return res;
+    }
+    // PocketShoot's own pages don't belong on baby-shoot.com.
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+  if (BABY_ONLY.has(pathname) || pathname === "/pricing" || pathname === "/contact") return NextResponse.next();
 
   // If Supabase falls back to the Site URL, the sign-in link lands on "/?code=...". Finish sign-in properly.
   if (pathname === "/" && req.nextUrl.searchParams.has("code")) {
@@ -46,5 +68,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/app/:path*", "/admin/:path*", "/shopify/:path*", "/sign-in"],
+  matcher: [
+    "/", "/app/:path*", "/admin/:path*", "/shopify/:path*", "/sign-in",
+    "/terms", "/privacy", "/refunds", "/delivery", "/contact", "/pricing", "/manifest.webmanifest", "/sw.js", "/.well-known/assetlinks.json",
+  ],
 };

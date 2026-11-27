@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
       { source: "/style-atlas/:path*", headers: media },
       { source: "/catalog/:path*", headers: media },
       { source: "/directions/:path*", headers: media },
+      { source: "/baby/sets/:path*", headers: media },
+      { source: "/baby/brand/:path*", headers: media },
+      { source: "/baby/icons/:path*", headers: media },
       { source: "/((?!shopify).*)", headers: [...security, { key: "X-Frame-Options", value: "DENY" }] },
       // The Shopify admin embeds these pages; frame-ancestors is set per shop in middleware.
       { source: "/shopify/:path*", headers: security },

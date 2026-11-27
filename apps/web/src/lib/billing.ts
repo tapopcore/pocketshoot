@@ -166,7 +166,7 @@ export async function createInvoice(orderId: string) {
     organization_id: order.organization_id, order_id: orderId, number, fy, seq,
     seller: { legalName: seller.legalName, tradeName: seller.tradeName, gstin: seller.gstin, address: seller.address, stateCode: seller.stateCode, email: seller.email, phone: seller.phone },
     buyer: { name: order.buyer_name || org.billing_name || org.name, gstin: order.buyer_gstin, address: org.billing_address, stateCode: order.buyer_state_code, placeOfSupply: order.place_of_supply },
-    lines: [{ description: `${pack.name} credit pack: ${order.credits} AI product image credits${order.bonus_credits ? ` (+${order.bonus_credits} bonus)` : ""}`, sac: order.sac_code, quantity: 1, rateMinor: order.list_minor, discountMinor: order.discount_minor, taxableMinor: order.taxable_minor }],
+    lines: [{ description: order.channel === "baby" ? `Baby Shoot: ${order.credits} AI portrait photo${order.credits > 1 ? "s" : ""} (digital, delivered in the app)` : `${pack.name} credit pack: ${order.credits} AI product image credits${order.bonus_credits ? ` (+${order.bonus_credits} bonus)` : ""}`, sac: order.sac_code, quantity: 1, rateMinor: order.list_minor, discountMinor: order.discount_minor, taxableMinor: order.taxable_minor }],
     tax: { ...order.tax, ratePercent: seller.gstRatePercent, inWords: rupeesInWords(order.total_minor) },
     total_minor: order.total_minor, currency: order.currency, issued_at: issued.toISOString(),
   }).select("id").single();

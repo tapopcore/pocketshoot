@@ -1,0 +1,19 @@
+{
+  "name": "Baby Shoot",
+  "short_name": "Baby Shoot",
+  "description": "Newborn studio portraits from your phone photos.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f4ef",
+  "theme_color": "#ffffff",
+  "categories": ["photo", "lifestyle"],
+  "lang": "en-IN",
+  "icons": [
+    { "src": "/baby/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/baby/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/baby/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -33,6 +33,7 @@ export async function runDailyChecks() {
   const settings = await getSettings(true);
   const retention = await applyRetention(settings.retention.failedDays);
   const fx = await updateFx();
+  const babyRefsDeleted = await expireBabyRefs();
 
   // Provider spend spike
   const { data: spend } = await db.from("generation_attempts").select("cost_inr, created_at").gte("created_at", week);
@@ -85,7 +86,18 @@ export async function runDailyChecks() {
       await sendEmail(env.alertEmail, `${env.appName}: ${alerts.length} alert(s)`, alerts.map((a) => `<p><b>${a.severity.toUpperCase()}</b> ${a.message}</p>`).join(""));
     }
   }
-  const summary = { expiredLots: expired, retention, fx, alerts: alerts.length };
+  const summary = { expiredLots: expired, retention, fx, babyRefsDeleted, alerts: alerts.length };
   await logInfo("cron.daily", "Daily checks finished", summary);
   return summary;
+}
+
+/** Baby Shoot: photos of the baby that parents added are deleted after 90 days, as the privacy policy says. */
+async function expireBabyRefs() {
+  const db = admin();
+  const { data } = await db.from("baby_refs").select("id, storage_key").lt("delete_after", new Date().toISOString()).limit(500);
+  if (!data?.length) return 0;
+  const { removeObjects } = await import("./storage");
+  await removeObjects("uploads", data.map((r) => r.storage_key)).catch(() => {});
+  await db.from("baby_refs").delete().in("id", data.map((r) => r.id));
+  return data.length;
 }
