@@ -7,6 +7,14 @@ export type BabyFamily = "Classic" | "Minimal" | "Floral" | "Fine art" | "Sky" |
 export type BabyCamera = "overhead" | "eye" | "close";
 export type BabyState = "asleep" | "awake";
 export type BabyShape = "4:5" | "1:1" | "9:16";
+export type BabySex = "boy" | "girl" | null;
+
+/** Styling by what the parent told us. Only accessories change; the set and the baby stay the same. */
+const SEX_STYLE: Record<"boy" | "girl" | "none", string> = {
+  boy: "This baby is a boy. Leave out any flower crown, floral headband, bow, hair clip or lace trim, even if the styling above mentions one; use a plain matching wrap, a simple knit bonnet or nothing on the head instead.",
+  girl: "This baby is a girl. Keep the styling as described.",
+  none: "Keep accessories gentle and neutral: if the styling above mentions a flower crown, bow or headband, keep it small and soft.",
+};
 
 export interface BabyTheme {
   id: string;
@@ -141,12 +149,13 @@ const FRAME: Record<BabyShape, string> = {
   "9:16": "Frame: tall vertical 9:16. Design the set for this tall frame, as a photographer would for a phone-screen portrait: the whole baby and the whole set sit fully inside the frame at their natural size, never zoomed in or cropped. Use the extra height on purpose: arrange the set's own props, flowers, fabric drape, petals or backdrop details naturally above and below the baby so the frame feels full and intentional, not empty bands of plain background. Nothing important touches the top or bottom edge.",
 };
 
-export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false, shape: BabyShape = "4:5"): string {
+export function babyPrompt(theme: BabyTheme, state: BabyState, references: number, moment = 0, keepExpression = false, shape: BabyShape = "4:5", sex: BabySex = null): string {
   return [
     `Create a new professional newborn studio photograph of the same baby shown in the reference photo${references > 1 ? `s. There are ${references} photos of this one baby from different moments and angles: study all of them together to understand the true face, and do not copy any single photo` : ""}. This is a new photograph taken in a studio, not a cut-out of the reference placed into a scene.`,
     "Identity, keep exactly: who the baby is. Face shape, the shape and spacing of the eyes, eyebrows, nose, lips, cheeks and ears, true skin tone, birthmarks, hair colour, hairline and amount of hair. Do not beautify, slim, lighten or age the face.",
     "Re-capture, do not copy: the reference is a casual phone snapshot. Do not carry over its lighting, its close-up wide-angle distortion, its head angle, its clothing or accessories, its background, or any watermark, logo, text or mark printed over it. Light the face with the same light as the set, with matching shadow direction and softness, so face and scene belong together. Render the head as an 85mm portrait lens would, in true newborn proportion to the body. Skin is matte and natural: no gloss or shine on the eyelids or lips, nothing that reads as make-up.",
     ...scene(theme, keepExpression ? KEEP_MOMENT : MOMENTS[state][Math.abs(moment) % BABY_MOMENTS]),
+    SEX_STYLE[sex ?? "none"],
     FRAME[shape],
     `${ALWAYS} Replace everything from the original background and clothing.`,
   ].join("\n");

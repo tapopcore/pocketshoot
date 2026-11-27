@@ -146,3 +146,6 @@ returns int language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.baby_balance(uuid) from public, anon, authenticated;
 grant execute on function public.baby_balance(uuid) to service_role;
+
+-- Optional: boy or girl, used only to pick the styling (no crowns or bows for boys).
+alter table public.baby_profiles add column if not exists sex text check (sex in ('boy','girl'));

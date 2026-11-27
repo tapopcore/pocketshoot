@@ -4,11 +4,12 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const FAMS=['All','Indian','Classic','Floral','Minimal','Playful','Fine art','Sky'];
 const AGES=[['u2','Under 2 weeks'],['2-4','2 to 4 weeks'],['1-2','1 to 2 months'],['2+','Over 2 months']];
+const SEXES=[['boy','Boy'],['girl','Girl'],['','Rather not say']];
 const AGE_TXT={'u2':'under 2 weeks','2-4':'2 to 4 weeks','1-2':'1 to 2 months','2+':'over 2 months'};
 const AR={'4:5':'4/5','1:1':'1/1','9:16':'9/16'}, SHAPE_NAME={'4:5':'Post · 4:5','1:1':'Square · 1:1','9:16':'Story · 9:16'};
 const SHAPES=[['4:5','Post',[18,22]],['1:1','Square',[20,20]],['9:16','Story',[14,25]]];
 const CAM={overhead:'From above',eye:'At eye level',close:'Close-up'};
-const S={cfg:null,sb:null,token:null,email:'',me:null,baby:{name:'',age:''},refs:[],thumbs:{},uploading:0,bad:null,mode:'one',pick:null,count:6,mix:[],fam:'All',shape:'4:5',
+const S={cfg:null,sb:null,token:null,email:'',me:null,baby:{name:'',age:'',sex:''},refs:[],thumbs:{},uploading:0,bad:null,mode:'one',pick:null,count:6,mix:[],fam:'All',shape:'4:5',
   balance:0,freeLeft:false,packs:[],orders:[],shoots:[],after:null,view:null,back:'studio',prefs:{shape:'4:5',theme:'light',notify:true,keep:true},nudged:false,watch:new Set()};
 const PRICE={1:149,6:699,10:1099,15:1499};
 const rupee=n=>'₹'+Number(n).toLocaleString('en-IN');
@@ -61,7 +62,7 @@ async function doLoad(){
   try{
     const me=await api('/api/b/me');S.me=me;S.email=me.email||'';
     if(location.search.includes('code='))history.replaceState(null,'','/'+location.hash);
-    const p=me.profile||{};S.baby={name:p.baby_name||'',age:p.age_band||''};
+    const p=me.profile||{};S.baby={name:p.baby_name||'',age:p.age_band||'',sex:p.sex||''};
     S.prefs={...S.prefs,...(p.prefs||{})};applyTheme();renderPrefs();
     S.refs=me.refs||[];S.packs=me.packs||[];S.orders=me.orders||[];S.shoots=me.shoots||[];
     setBalance(me.balance,p);
@@ -106,7 +107,8 @@ const wallIds=['krishna','pookalam','sage','paper-moon','marigold','teddy','lotu
 $$('.wall .col').forEach((c,ci)=>{const l=wallIds.filter((_,i)=>i%3===ci);for(let k=0;k<4;k++)l.forEach(id=>{const im=new Image();im.src=IMG[id];im.alt='';im.decoding='async';c.append(im)})});
 
 /* ---------- baby details ---------- */
-AGES.forEach(([k,l])=>{const b=document.createElement('button');b.className='opt';b.setAttribute('role','radio');b.setAttribute('aria-checked','false');b.textContent=l;b.onclick=()=>{S.baby.age=k;$$('.opt').forEach(x=>x.setAttribute('aria-checked',String(x===b)));$('#age-note').hidden=k!=='2+';canGo()};$('#ages').append(b)});
+AGES.forEach(([k,l])=>{const b=document.createElement('button');b.className='opt';b.setAttribute('role','radio');b.setAttribute('aria-checked','false');b.textContent=l;b.onclick=()=>{S.baby.age=k;$$('#ages .opt').forEach(x=>x.setAttribute('aria-checked',String(x===b)));$('#age-note').hidden=k!=='2+';canGo()};$('#ages').append(b)});
+SEXES.forEach(([k,l])=>{const b=document.createElement('button');b.className='opt sx';b.setAttribute('role','radio');b.setAttribute('aria-checked','false');b.textContent=l;b.dataset.k=k;b.onclick=()=>{S.baby.sex=k;$$('.opt.sx').forEach(x=>x.setAttribute('aria-checked',String(x===b)))};$('#sexes').append(b)});
 const canGo=()=>{const n=$('#f-name').value.trim(),b=$('#baby-go');b.disabled=!(n&&S.baby.age);b.textContent=b.disabled?(n?'Choose an age':'Add a name and age'):'Continue'};
 const keepInView=()=>{const f=$('#f-name');if(document.activeElement===f)f.closest('.field').scrollIntoView({block:'center',behavior:'smooth'})};
 $('#f-name').addEventListener('focus',()=>{setTimeout(keepInView,320);setTimeout(keepInView,700)});
@@ -114,9 +116,9 @@ window.visualViewport&&visualViewport.addEventListener('resize',keepInView);
 $('#f-name').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.target.blur();$('#ages').closest('.field').scrollIntoView({block:'center',behavior:'smooth'})}});
 $('#f-name').addEventListener('input',canGo);
 const leaveBaby=()=>{sync();if(S.back==='studio')show('studio',{root:true});else history.back()};
-$('#baby-go').onclick=()=>{S.baby.name=$('#f-name').value.trim().replace(/\s+/g,' ');api('/api/b/me',{body:{babyName:S.baby.name,ageBand:S.baby.age||undefined}}).catch(e=>toast(e.message));leaveBaby()};
+$('#baby-go').onclick=()=>{S.baby.name=$('#f-name').value.trim().replace(/\s+/g,' ');api('/api/b/me',{body:{babyName:S.baby.name,ageBand:S.baby.age||undefined,sex:S.baby.sex||'none'}}).catch(e=>toast(e.message));leaveBaby()};
 $('#baby-skip').onclick=leaveBaby;
-function openBaby(back){S.back=back;$('#f-name').value=S.baby.name;$$('.opt').forEach((x,i)=>x.setAttribute('aria-checked',String(AGES[i][0]===S.baby.age)));$('#age-note').hidden=S.baby.age!=='2+';$('#baby-skip').textContent=back!=='studio'?'Cancel':'Skip';canGo();show('baby')}
+function openBaby(back){S.back=back;$('#f-name').value=S.baby.name;$$('#ages .opt').forEach((x,i)=>x.setAttribute('aria-checked',String(AGES[i][0]===S.baby.age)));$$('.opt.sx').forEach(x=>x.setAttribute('aria-checked',String(x.dataset.k===S.baby.sex)));$('#age-note').hidden=S.baby.age!=='2+';$('#baby-skip').textContent=back!=='studio'?'Cancel':'Skip';canGo();show('baby')}
 
 /* ---------- studio ---------- */
 function mixFor(n,seed=0){const pools=FAMS.slice(1).map(f=>THEMES.filter(t=>t.fam===f));pools.forEach((p,i)=>p.length&&p.push(...p.splice(0,(seed+i)%p.length)));const out=[];for(let r=0;out.length<n&&r<60;r++)for(const p of pools)if(p[r]&&out.length<n)out.push(p[r].id);return out}
@@ -273,6 +275,37 @@ function closeSheets(how){if(busy&&how!=='force')return;if(how!=='pop'&&how!=='s
 $('#scrim').onclick=()=>closeSheets();document.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeSheets()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheets()});
 
 /* ---------- making the photos ---------- */
+/* things to read while the photo is made: true newborn facts and a few warm lines with the baby's name */
+const FACTS=[
+  'A newborn sees most clearly at about 20 to 30 cm, roughly the distance to your face while feeding.',
+  'Babies are born with around 300 bones. Many fuse as they grow, which is why adults have 206.',
+  'A newborn already knows their mother\'s voice. They heard it for months before birth.',
+  'On the first day, a baby\'s stomach is about the size of a cherry.',
+  'Newborns sleep 14 to 17 hours a day, in short stretches around the clock.',
+  'Newborns often cry without tears. Tear production picks up over the first few weeks.',
+  'That tight grip around your finger is a reflex babies are born with.',
+  'A newborn can pick out the smell of their own mother within the first days.',
+  'The first real social smile usually arrives at around 6 to 8 weeks.',
+  'Of everything around them, newborns would rather look at a face.',
+  'A newborn\'s heart beats about 120 to 160 times a minute, nearly twice as fast as yours.',
+];
+const he=()=>S.baby.sex==='boy'?'he':S.baby.sex==='girl'?'she':'they';
+const LINES=[
+  ()=>`${S.baby.name||'Your baby'} will only be this small for a few weeks. This is how you keep it.`,
+  ()=>`The light is being set up just for ${S.baby.name||'your baby'}.`,
+  ()=>`One day ${he()}'ll look at these and ask, "Was I really that tiny?"`,
+  ()=>`${S.baby.name?S.baby.name+"'s":'Your baby\'s'} first studio shoot, no car ride or crying in a strange room.`,
+];
+let factT=null,factI=0;
+function startFacts(){
+  const order=[];const f=[...FACTS].sort(()=>Math.random()-.5);const l=[...LINES].sort(()=>Math.random()-.5);
+  for(let i=0;order.length<8;i++){order.push(['Did you know?',f[i%f.length]]);if(i%2===1&&l.length)order.push([S.baby.name?'For '+S.baby.name:'Meanwhile',l.shift()()])}
+  const box=$('#d-fact'),dots=$('#fact-dots');dots.innerHTML=order.slice(0,6).map(()=>'<i></i>').join('');factI=0;
+  const showF=()=>{const [k,t]=order[factI%order.length];box.classList.add('out');setTimeout(()=>{$('#fact-k').textContent=k;$('#fact-t').textContent=t;box.classList.remove('out');
+      const ds=[...dots.children];ds.forEach((d,j)=>{d.classList.remove('on','done');const pos=factI%ds.length;if(j<pos)d.classList.add('done');if(j===pos){void d.offsetWidth;d.classList.add('on')}})},factI?420:0);factI++};
+  clearInterval(factT);box.hidden=false;showF();factT=setInterval(showF,5500);
+}
+function stopFacts(){clearInterval(factT);$('#d-fact').hidden=true}
 const STEPS=['Laying out the set','Lighting from the side','Wrapping and styling','Keeping the face true','Developing'];
 let devId=null,devT0=0,stepT=null;
 function develop(shoot){
@@ -286,9 +319,9 @@ function develop(shoot){
   show('develop');$('#bar').style.width='4%';$('#d-note').hidden=false;const db=$('#d-btn');db.className='btn soft';db.textContent='Keep browsing sets';db.dataset.go='studio';
   clearInterval(stepT);let k=0;const est=estimate(n);
   const tick=()=>{const el=(Date.now()-devT0);const p=Math.min(.92,el/est);$('#step-text').textContent=STEPS[Math.min(STEPS.length-1,Math.floor(p*STEPS.length))];$('#bar').style.width=Math.max(4,p*100)+'%';const left=Math.max(0,Math.round((est-el)/1000));$('#step-time').textContent=left>90?`about ${Math.ceil(left/60)} min`:left>5?`about ${left} s`:'almost there'};
-  tick();stepT=setInterval(tick,1000);
+  tick();stepT=setInterval(tick,1000);startFacts();
 }
-const estimate=n=>(Math.ceil(n/4)*55+10)*1000;
+const estimate=n=>(Math.ceil(n/4)*30+8)*1000;
 function updateDevelop(shoot){
   if(devId!==shoot.id||$('#develop').hidden)return;
   const ph=shoot.baby_photos,n=ph.length;
@@ -297,9 +330,9 @@ function updateDevelop(shoot){
     if(p.status==='failed'&&!t.classList.contains('fail'))t.classList.add('fail');
     if(p.status==='deleted')t.remove()});
   if(shoot.status!=='done'&&ph.some(p=>p.status==='queued'||p.status==='running'))return;
-  clearInterval(stepT);$('#bar').style.width='100%';
+  clearInterval(stepT);stopFacts();$('#bar').style.width='100%';
   const ok=ph.filter(p=>p.status==='done'),failed=ph.filter(p=>p.status==='failed').length;
-  if(n===1){if(ok.length)openPhoto(shoot,0,'studio',{replace:true});else{$('#d-title').textContent="This one didn't work";$('#step-text').textContent="You weren't charged. The photo is back in your account, so you can try again.";$('#step-time').textContent='';$('#d-note').hidden=true;const db=$('#d-btn');db.className='btn main';db.textContent='Try again';db.dataset.go='studio'}return}
+  if(n===1){if(ok.length){$('#step-text').textContent='Ready';$('#step-time').textContent='';setTimeout(()=>{if(!$('#develop').hidden&&devId===shoot.id)openPhoto(shoot,0,'studio',{replace:true})},1600)}else{$('#d-title').textContent="This one didn't work";$('#step-text').textContent="You weren't charged. The photo is back in your account, so you can try again.";$('#step-time').textContent='';$('#d-note').hidden=true;const db=$('#d-btn');db.className='btn main';db.textContent='Try again';db.dataset.go='studio'}return}
   $('#d-tag').textContent=`${ok.length} photos`;
   $('#d-title').textContent=failed?`${ok.length} of ${n} photos are ready`:'Your shoot is ready';
   $('#step-text').textContent=failed?`${failed} didn't work, so you weren't charged for ${failed>1?'them':'it'}. ${failed>1?'They are':'It is'} back in your account to use again.`:'Tap any photo to save or share it';

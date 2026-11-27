@@ -454,6 +454,26 @@ a.row{text-decoration:none;color:inherit}
 .up .spin{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.55);font-size:12px;font-weight:650;color:var(--ink-2)}
 .tray.go:not(.real):not(.fail)>img{animation:wait 2.4s ease-in-out infinite;opacity:.5;filter:blur(22px) saturate(.3) brightness(1.2);transform:scale(1.08)}
 @keyframes wait{50%{opacity:.3}}
+
+/* waiting: a studio light sweeps the tray, a flash when the real photo lands */
+.tray.go:not(.real):not(.fail)::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.55) 48%,rgba(255,255,255,.12) 56%,transparent 70%);background-size:250% 100%;animation:sweep 2.6s cubic-bezier(.45,.05,.35,1) infinite;pointer-events:none;z-index:1}
+@keyframes sweep{0%{background-position:130% 0}100%{background-position:-60% 0}}
+.tray.real::before{content:"";position:absolute;inset:0;background:#fff;z-index:3;pointer-events:none;animation:flash .9s ease-out forwards}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+.tray.real>img{animation:focusin 1.1s cubic-bezier(.2,.8,.2,1) both!important}
+@keyframes focusin{0%{filter:blur(14px) saturate(.6);transform:scale(1.04)}100%{filter:none;transform:none}}
+.fact{position:relative;margin-top:6px;padding:16px 18px 14px;border-radius:20px;background:var(--brand-soft);min-height:118px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.fact-k{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-deep)}
+.fact p{font-size:17px;line-height:1.4;font-weight:550;color:var(--ink);margin:0;transition:opacity .45s ease,transform .45s ease}
+.fact.out p,.fact.out .fact-k{opacity:0;transform:translateY(6px)}
+.fact-k{transition:opacity .45s ease,transform .45s ease}
+.fact-dots{display:flex;gap:5px;margin-top:auto;padding-top:6px}
+.fact-dots i{width:18px;height:3px;border-radius:2px;background:color-mix(in srgb,var(--brand-deep) 22%,transparent);overflow:hidden;position:relative}
+.fact-dots i.on::after{content:"";position:absolute;inset:0;background:var(--brand-deep);transform-origin:left;animation:fill 5.5s linear forwards}
+.fact-dots i.done{background:var(--brand-deep)}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.opts.three{grid-template-columns:repeat(3,1fr)}
+@media (prefers-reduced-motion: reduce){.tray.go::after,.tray.real::before{display:none}}
 .pending-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--brand-deep);margin-right:6px;animation:breathe 1.2s infinite}
 </style>
 </head><body>
@@ -517,6 +537,7 @@ a.row{text-decoration:none;color:inherit}
         <div><h1 class="disp" style="font-size:32px;line-height:1.05">Who are we photographing?</h1><p class="muted" style="margin-top:8px">We use it to name your shoots. It never appears on the photos.</p></div>
         <label class="field"><span>Baby's name</span><input id="f-name" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next" placeholder="For example, Aarav" maxlength="24"></label>
         <div class="field"><span id="age-l">Age</span><div class="opts" role="radiogroup" aria-labelledby="age-l" id="ages"></div><p class="note" id="age-note" hidden>Our sets are made for newborns. Older babies still work, but results are best under 10 weeks.</p></div>
+        <div class="field"><span id="sex-l">Boy or girl <em style="font-style:normal;font-weight:500;color:var(--ink-3)">(optional)</em></span><div class="opts three" role="radiogroup" aria-labelledby="sex-l" id="sexes"></div><p class="note">We use it to pick the styling, like leaving out flower crowns and bows for boys.</p></div>
       </div>
     </div>
     <div class="dock gut flow" style="box-shadow:none"><button class="btn main" id="baby-go" disabled>Continue</button></div>
@@ -572,6 +593,7 @@ a.row{text-decoration:none;color:inherit}
       <div class="gut" style="display:flex;flex-direction:column;gap:12px;padding-top:18px">
         <div class="bar" aria-hidden="true"><i id="bar"></i></div>
         <div class="step"><span id="step-text"></span><span id="step-time"></span></div>
+        <div class="fact" id="d-fact" aria-live="polite"><span class="fact-k" id="fact-k"></span><p id="fact-t"></p><div class="fact-dots" id="fact-dots"></div></div>
         <p class="muted small" id="d-note" style="padding-bottom:150px">You can leave this screen. We'll keep going and tell you when it's ready.</p>
       </div>
     </div>

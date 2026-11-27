@@ -26,6 +26,7 @@ export const GET = handler(async (req, ctx) => {
 const Profile = z.object({
   babyName: z.string().trim().max(40).optional(),
   ageBand: z.enum(["u2", "2-4", "1-2", "2+"]).optional(),
+  sex: z.enum(["boy", "girl", "none"]).optional(),
   prefs: z.object({ shape: z.enum(["4:5", "1:1", "9:16"]).optional(), theme: z.enum(["light", "dark", "auto"]).optional(), notify: z.boolean().optional(), keep: z.boolean().optional() }).optional(),
   consent: z.literal(true).optional(),
 });
@@ -38,6 +39,7 @@ export const POST = handler(async (req, ctx) => {
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (p.babyName !== undefined) patch.baby_name = p.babyName || null;
   if (p.ageBand) patch.age_band = p.ageBand;
+  if (p.sex) patch.sex = p.sex === "none" ? null : p.sex;
   if (p.prefs) patch.prefs = { ...(cur?.prefs as object), ...p.prefs };
   if (p.consent) patch.consent_at = new Date().toISOString();
   await db.from("baby_profiles").update(patch).eq("organization_id", ctx.orgId);

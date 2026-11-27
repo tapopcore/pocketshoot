@@ -30,7 +30,8 @@ export const POST = handler<{ id: string }>(async (req, ctx, { id }) => {
   const { data: refs } = await db.from("baby_refs").select("storage_key").eq("organization_id", ctx.orgId).in("id", shoot.ref_ids);
   if (!refs?.length) throw new ApiError(409, "Add your baby's photos again to remake this one.", "no_photos");
   const bufs = await Promise.all(refs.map(async (r) => sharp(await getObject("uploads", r.storage_key)).resize(1536, 1536, { fit: "inside", withoutEnlargement: true }).png().toBuffer()));
-  after(() => makePhoto(id, bufs, shoot.shape, { remake: true }));
+  const { data: prof } = await db.from("baby_profiles").select("sex").eq("organization_id", ctx.orgId).maybeSingle();
+  after(() => makePhoto(id, bufs, shoot.shape, { remake: true, sex: (prof?.sex ?? null) as "boy" | "girl" | null }));
   return { ok: true };
 });
 

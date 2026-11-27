@@ -8,12 +8,12 @@ import { classifyHttpError } from "@/lib/providers";
 import { getObject, putObject, removeObjects } from "@/lib/storage";
 import { normalizeEmail } from "@/lib/credits";
 import type { AuthContext } from "@/lib/auth";
-import { BABY_SIZES, babyPrompt, babyTheme, type BabyShape, type BabyState } from "./themes";
+import { BABY_SIZES, babyPrompt, babyTheme, type BabySex, type BabyShape, type BabyState } from "./themes";
 
 const MODEL = "gpt-image-2.5-sunburst";
 export const BABY_PACKS = [1, 6, 10, 15] as const;
 
-export interface BabyProfile { baby_name: string | null; age_band: string | null; prefs: Record<string, unknown>; consent_at: string | null; free_photo_granted: boolean }
+export interface BabyProfile { baby_name: string | null; age_band: string | null; sex?: "boy" | "girl" | null; prefs: Record<string, unknown>; consent_at: string | null; free_photo_granted: boolean }
 
 /** First visit on Baby Shoot: make the profile and give one free photo, once per person. */
 export async function ensureBabyAccount(ctx: AuthContext, phone?: string | null): Promise<BabyProfile> {
@@ -91,9 +91,11 @@ export async function runShoot(shootId: string) {
   const { data: shoot } = await db.from("baby_shoots").select("*").eq("id", shootId).single();
   if (!shoot) return;
   const refs = await loadRefs(shoot.organization_id, shoot.ref_ids);
+  const { data: prof } = await db.from("baby_profiles").select("sex").eq("organization_id", shoot.organization_id).maybeSingle();
+  const sex = (prof?.sex ?? null) as BabySex;
   const { data: photos } = await db.from("baby_photos").select("id").eq("shoot_id", shootId).eq("status", "queued").order("idx");
   const queue = [...(photos ?? [])];
-  const worker = async () => { for (let p = queue.shift(); p; p = queue.shift()) await makePhoto(p.id, refs, shoot.shape as BabyShape); };
+  const worker = async () => { for (let p = queue.shift(); p; p = queue.shift()) await makePhoto(p.id, refs, shoot.shape as BabyShape, { sex }); };
   await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
   await finishIfDone(shootId);
 }
@@ -112,7 +114,7 @@ async function finishIfDone(shootId: string) {
 }
 
 /** Make one photo. Two tries; after that the photo is marked failed and its credit returned. */
-export async function makePhoto(photoId: string, refs: Buffer[], shape: BabyShape, opts: { remake?: boolean } = {}) {
+export async function makePhoto(photoId: string, refs: Buffer[], shape: BabyShape, opts: { remake?: boolean; sex?: BabySex } = {}) {
   const db = admin();
   const { data: claimed } = await db.from("baby_photos").update({ status: "running", started_at: new Date().toISOString() })
     .eq("id", photoId).in("status", opts.remake ? ["done"] : ["queued"]).select("*").maybeSingle();
@@ -121,7 +123,7 @@ export async function makePhoto(photoId: string, refs: Buffer[], shape: BabyShap
   const m0 = claimed.moment as number;
   const state: BabyState = m0 % 3 === 2 ? "awake" : "asleep";
   const moment = Math.floor(m0 / 3) + (m0 % 3) + (opts.remake ? 5 : 0);
-  const prompt = babyPrompt(theme, state, refs.length, moment, false, shape);
+  const prompt = babyPrompt(theme, state, refs.length, moment, false, shape, opts.sex ?? null);
   const size = BABY_SIZES[shape];
   let lastCode = "failed";
   for (let attempt = 1; attempt <= 2; attempt++) {
