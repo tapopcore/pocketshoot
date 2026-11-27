@@ -325,7 +325,7 @@ async function finished(shoot){
   if(document.hidden&&S.prefs.notify&&ok&&'Notification' in window&&Notification.permission==='granted'){
     const title=ok>1?`${ok} photos are ready`:'Your photo is ready',body=`${S.baby.name?S.baby.name+"'s":'Your'} shoot is done. Tap to see it.`;
     try{const reg=await navigator.serviceWorker?.getRegistration();if(reg)reg.showNotification(title,{body,icon:'/baby/icons/icon-192.png',badge:'/baby/icons/icon-192.png',tag:shoot.id});else new Notification(title,{body,icon:'/baby/icons/icon-192.png'})}catch(e){}
-  }else if(devId!==shoot.id||$('#develop').hidden){if(ok)toast(ok>1?`${ok} photos are ready in Shoots`:'Your photo is ready in Shoots')}
+  }else if(devId!==shoot.id&&!(S.view&&S.view.shoot.id===shoot.id&&!$('#result').hidden)){if(ok)toast(ok>1?`${ok} photos are ready in Shoots`:'Your photo is ready in Shoots')}
 }
 
 /* ---------- one photo ---------- */
@@ -433,7 +433,7 @@ function sync(){
   $('#you-age').textContent=S.baby.age?AGE_TXT[S.baby.age]:'Age not added';
   $('#you-photos').textContent=S.refs.length?`${S.refs.length} of 5 added`:'None added yet';
   $('#you-login').textContent=S.email?'Signed in as '+S.email:'';
-  $('#you-price').textContent=S.freeLeft?'Your first photo is free':S.balance?`${S.balance} paid photo${S.balance>1?'s':''} left`:'One photo ₹149 · shoots from ₹699';
+  $('#you-price').textContent=S.freeLeft?'Your first photo is free':S.balance?`${S.balance} photo${S.balance>1?'s':''} ready to use`:'One photo ₹149 · shoots from ₹699';
   $('#pr-free').textContent=S.freeLeft?'Your first one is free':'';
   $('#you-pays').textContent=S.orders.length?`${S.orders.length} payment${S.orders.length>1?'s':''}`:'None yet';
   $('#you-dl-sub').textContent=made?`${made} photo${made>1?'s':''} in full quality`:'No photos yet';
