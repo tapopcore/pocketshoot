@@ -81,11 +81,12 @@ $('#w-google').onclick=async()=>{if(!S.sb)return;const b=$('#w-google');b.disabl
 let rsT=null;
 const emailOk=()=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test($('#f-tel').value.trim());
 function pStep(n){$('#p-step1').hidden=n!==1;$('#p-step2').hidden=n!==2;const g=$('#p-go');g.classList.remove('busy');
-  if(n===1){g.textContent=emailOk()?'Send code':'Enter your email';g.disabled=!emailOk()}else{const ok=$('#f-otp').value.replace(/\D/g,'').length===6;g.textContent=ok?'Sign in':'Enter the 6-digit code';g.disabled=!ok}}
+  if(n===1){g.textContent=emailOk()?'Send code':'Enter your email';g.disabled=!emailOk()}else{const ok=$('#f-otp').value.replace(/\D/g,'').length>=6;g.textContent=ok?'Sign in':'Enter the code';g.disabled=!ok}}
 $('#w-phone').onclick=()=>{$('#f-tel').value='';$('#f-otp').value='';$('#p-err').hidden=true;pStep(1);show('phone');setTimeout(()=>$('#f-tel').focus(),350)};
 $('#ph-back').onclick=()=>history.back();
 $('#f-tel').addEventListener('input',()=>pStep(1));
-$('#f-otp').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6);$('#p-err').hidden=true;pStep(2);if(e.target.value.length===6)setTimeout(()=>{if(!$('#p-go').disabled)$('#p-go').click()},250)});
+/* codes are 6 digits; up to 8 is accepted in case the sign-in settings change. Auto-submit at 8, or at 6 after a short pause. */
+let otpT=null;$('#f-otp').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,8);$('#p-err').hidden=true;pStep(2);clearTimeout(otpT);const n=e.target.value.length;if(n===8||n===6)otpT=setTimeout(()=>{if(!$('#p-go').disabled&&$('#f-otp').value.length===n)$('#p-go').click()},n===8?250:1400)});
 function resendTimer(){let t=45;const b=$('#p-resend');b.disabled=true;clearInterval(rsT);const tick=()=>{b.textContent=t>0?`Send a new code in ${t} s`:'Send a new code';b.disabled=t>0;t--;if(t<-1)clearInterval(rsT)};tick();rsT=setInterval(tick,1000)}
 async function sendCode(){const email=$('#f-tel').value.trim().toLowerCase();const {error}=await S.sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:location.origin+'/',data:{source:'baby'}}});if(error)throw error;return email}
 $('#p-resend').onclick=async()=>{try{await sendCode();toast('New code sent');resendTimer()}catch(e){toast(e.message||"Couldn't send. Try again in a minute.")}};

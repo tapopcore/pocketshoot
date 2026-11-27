@@ -495,12 +495,12 @@ a.row{text-decoration:none;color:inherit}
       <div class="gut" style="padding-top:calc(16px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:26px;padding-bottom:28px">
         <button class="ic" style="background:var(--sheet);margin-left:-2px" aria-label="Back" id="ph-back"><svg><use href="#i-back"/></svg></button>
         <div id="p-step1" style="display:flex;flex-direction:column;gap:26px">
-          <div><h1 class="disp" style="font-size:30px;line-height:1.06">Your email</h1><p class="muted" style="margin-top:8px">We'll email you a 6-digit code to sign you in. No password needed.</p></div>
+          <div><h1 class="disp" style="font-size:30px;line-height:1.06">Your email</h1><p class="muted" style="margin-top:8px">We'll email you a code to sign you in. No password needed.</p></div>
           <label class="field"><span>Email</span><input id="f-tel" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="120" placeholder="you@example.com" enterkeyhint="send"></label>
         </div>
         <div id="p-step2" hidden style="display:flex;flex-direction:column;gap:22px">
           <div><h1 class="disp" style="font-size:30px;line-height:1.06">Enter the code</h1><p class="muted" style="margin-top:8px">Sent to <b id="p-num"></b>. <button class="linkbtn" id="p-change" type="button">Change</button></p></div>
-          <label class="field"><span>6-digit code</span><input id="f-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······" class="otp"></label>
+          <label class="field"><span>Code from the email</span><input id="f-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Enter code" class="otp"></label>
           <p class="note" id="p-err" role="alert" hidden></p>
           <button class="linkbtn" id="p-resend" type="button" disabled style="align-self:flex-start"></button>
           <p class="note" style="margin-top:-6px">Can't see it? Check your spam or promotions folder.</p>
