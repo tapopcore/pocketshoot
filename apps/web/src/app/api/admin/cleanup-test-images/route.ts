@@ -57,7 +57,20 @@ export async function GET(req: Request) {
   }
   if (q.get("backedup") !== "1") {
     const mb0 = Math.round(list.reduce((a, f) => a + f.size, 0) / 1048576);
-    return page(`<h1>Clean up test images</h1><p>${list.length} PNG test images (${mb0} MB) are waiting to be backed up to your computer. The delete button appears here once the backup is done.</p>`);
+    return page(`<h1>Back up test images</h1><p>${list.length} PNG test images (${mb0} MB). Press the button and keep this tab open. They download as a few zip files (about 300 MB each) into your Downloads folder.</p>
+<button id="go" style="font:inherit;padding:12px 20px;border-radius:999px;border:0;background:#1c1b18;color:#fff">Download backup</button>
+<p id="st" style="color:#67625a"></p>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+document.getElementById('go').onclick=async()=>{const b=document.getElementById('go'),st=document.getElementById('st');b.disabled=true;
+  st.textContent='Getting the list';const {files}=await (await fetch('?list=1')).json();
+  let zip=new JSZip(),size=0,part=1,done=0,failed=[];
+  const save=async()=>{st.textContent='Saving part '+part;const blob=await zip.generateAsync({type:'blob',compression:'STORE'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pocketshoot-test-images-part-'+String(part).padStart(2,'0')+'.zip';document.body.append(a);a.click();a.remove();await new Promise(r=>setTimeout(r,4000));URL.revokeObjectURL(a.href);zip=new JSZip();size=0;part++};
+  for(const f of files){let ok=false;for(let t=0;t<3&&!ok;t++){try{const r=await fetch(f.url);if(!r.ok)throw 0;const buf=await r.arrayBuffer();zip.file(f.name,buf);size+=buf.byteLength;ok=true}catch(e){}}
+    if(!ok)failed.push(f.name);done++;st.textContent='Downloaded '+done+' of '+files.length;if(size>300*1048576)await save()}
+  if(size)await save();
+  st.innerHTML=(failed.length?'<b>'+failed.length+' files could not be downloaded.</b> Press the button again to retry. ':'<b>All '+files.length+' images saved in '+(part-1)+' zip files.</b> ')+'Tell Claude it is done.';b.disabled=false};
+</script>`);
   }
   const mb = Math.round(list.reduce((a, f) => a + f.size, 0) / 1048576);
   return page(`<h1>Clean up test images</h1><p>This permanently deletes <b>${list.length} PNG test images (${mb} MB)</b> made by the team's own accounts before 13 Nov 2026. Nothing from customers and nothing from Baby Shoot is touched.</p>
