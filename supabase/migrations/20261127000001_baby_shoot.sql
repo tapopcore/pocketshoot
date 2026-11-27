@@ -7,6 +7,10 @@ alter table public.pricing_packs add constraint pricing_packs_channel_check chec
 alter table public.orders drop constraint if exists orders_channel_check;
 alter table public.orders add constraint orders_channel_check check (channel in ('web','shopify','ios','android','baby'));
 
+-- New sign-ups from baby-shoot.com are marked source = 'baby'.
+alter table public.organizations drop constraint if exists organizations_source_check;
+alter table public.organizations add constraint organizations_source_check check (source in ('web','shopify','mobile','baby'));
+
 -- Prices are what the parent pays, GST included. price_minor holds that total for the 'baby' channel.
 insert into public.pricing_packs (code, version, name, credits, price_minor, currency, channel, badge, sort, active) values
   ('baby_1', 1, 'One photo', 1, 14900, 'INR', 'baby', null, 1, true),
